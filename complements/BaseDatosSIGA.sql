@@ -2,6 +2,10 @@
 -- Base de datos: BaseDatosSIGA
 -- ==========================================
 
+CREATE DATABASE siga;
+
+USE siga;
+
 -- 1. Tabla: cliente
 CREATE TABLE cliente (
   numero INT NOT NULL AUTO_INCREMENT,
