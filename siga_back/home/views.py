@@ -1,3 +1,30 @@
-from django.shortcuts import render
+from django.contrib.auth import login as auth_login, logout as auth_logout
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, redirect
+from .forms import LoginForm
 
-# Create your views here.
+
+def login_view(request):
+    if request.user.is_authenticated:
+        return redirect('home:dashboard')
+
+    if request.method == 'POST':
+        form = LoginForm(request, data=request.POST)
+        if form.is_valid():
+            auth_login(request, form.get_user())
+            return redirect('home:dashboard')
+    else:
+        form = LoginForm(request)
+
+    return render(request, 'home/login.html', {'form': form})
+
+
+@login_required
+def logout_view(request):
+    auth_logout(request)
+    return redirect('home:login')
+
+
+@login_required
+def dashboard_view(request):
+    return render(request, 'home/dashboard.html')
