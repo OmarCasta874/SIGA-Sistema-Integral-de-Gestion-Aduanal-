@@ -1,0 +1,135 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de control — SIGA</title>
+    <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
+</head>
+<body>
+
+<!-- ── SIDEBAR ── -->
+<aside class="sidebar">
+    <div class="sidebar-logo">
+        <img src="{% static 'home/img/siga_logo.png' %}" alt="SIGA">
+        <button class="sidebar-toggle">&#9776;</button>
+    </div>
+    <nav>
+        <p class="nav-section-label">Principal</p>
+        <a href="{% url 'home:dashboard' %}" class="nav-item active">
+            <span class="nav-icon">⊞</span> Panel general
+        </a>
+        <a href="#" class="nav-item">
+            <span class="nav-icon">&#9776;</span> Pedimentos
+        </a>
+        <a href="#" class="nav-item">
+            <span class="nav-icon">&#9783;</span> Operaciones
+            <span class="badge">3</span>
+        </a>
+
+        <p class="nav-section-label">Catálogos</p>
+        <a href="#" class="nav-item">
+            <span class="nav-icon">&#128100;</span> Clientes
+        </a>
+        <a href="#" class="nav-item">
+            <span class="nav-icon">&#127968;</span> Aduanas
+        </a>
+        <a href="#" class="nav-item">
+            <span class="nav-icon">&#127991;</span> Categorías
+        </a>
+        <a href="#" class="nav-item">
+            <span class="nav-icon">&#9776;</span> Fracciones TIGIE
+        </a>
+
+        <p class="nav-section-label">Sistema</p>
+        <a href="#" class="nav-item">
+            <span class="nav-icon">&#9685;</span> Bitácora
+        </a>
+        <a href="{% url 'home:logout' %}" class="nav-item">
+            <span class="nav-icon">&#128100;</span> Cerrar sesión
+        </a>
+    </nav>
+</aside>
+
+<!-- ── CONTENIDO PRINCIPAL ── -->
+<main class="main">
+    <h1 class="page-title">Panel de control</h1>
+
+    <!-- Tarjetas de contadores -->
+    <div class="cards-grid">
+        <div class="card">
+            <div class="card-label">&#10003; Pedimentos validados</div>
+            <div class="card-number">47</div>
+            <div class="card-trend">↑ +6 hoy</div>
+        </div>
+        <div class="card">
+            <div class="card-label">&#9711; Pedimentos pagados</div>
+            <div class="card-number">38</div>
+            <div class="card-trend">↑ +4 hoy</div>
+        </div>
+        <div class="card">
+            <div class="card-label">&#128274; Pedimentos liberados</div>
+            <div class="card-number">31</div>
+            <div class="card-trend">↑ +2 hoy</div>
+        </div>
+        <div class="card card-alert">
+            <div class="card-label">&#9200; Pendientes de pago</div>
+            <div class="card-number">9</div>
+            <div class="card-trend-down">↓ 3 con adeudo vencido</div>
+        </div>
+    </div>
+
+    <!-- Widget semáforo fiscal -->
+    <div class="widget-semaforo">
+        <h3>Semáforo fiscal</h3>
+
+        <div style="display:flex; gap:20px; align-items:center;">
+            <div style="flex:1">
+                <div class="semaforo-row">
+                    <span class="semaforo-label">Verde</span>
+                    <div class="semaforo-bar-bg">
+                        <div class="semaforo-bar-fill" style="width:62%; background:#16a34a;"></div>
+                    </div>
+                    <span class="semaforo-pct" style="color:#16a34a;">62%</span>
+                </div>
+                <div class="semaforo-row">
+                    <span class="semaforo-label">Amarillo</span>
+                    <div class="semaforo-bar-bg">
+                        <div class="semaforo-bar-fill" style="width:24%; background:#d97706;"></div>
+                    </div>
+                    <span class="semaforo-pct" style="color:#d97706;">24%</span>
+                </div>
+                <div class="semaforo-row">
+                    <span class="semaforo-label">Rojo</span>
+                    <div class="semaforo-bar-bg">
+                        <div class="semaforo-bar-fill" style="width:14%; background:#dc2626;"></div>
+                    </div>
+                    <span class="semaforo-pct" style="color:#dc2626;">14%</span>
+                </div>
+            </div>
+            <div>
+                <div class="semaforo-total">284</div>
+                <div class="semaforo-total-label">pedimentos<br>este mes</div>
+            </div>
+        </div>
+
+        <div class="semaforo-canales">
+            <div>
+                <div class="canal-num" style="color:#16a34a;">176</div>
+                <div class="canal-label">Canal verde</div>
+            </div>
+            <div>
+                <div class="canal-num" style="color:#d97706;">68</div>
+                <div class="canal-label">Canal amarillo</div>
+            </div>
+            <div>
+                <div class="canal-num" style="color:#dc2626;">40</div>
+                <div class="canal-label">Canal rojo</div>
+            </div>
+        </div>
+    </div>
+</main>
+
+</body>
+</html>

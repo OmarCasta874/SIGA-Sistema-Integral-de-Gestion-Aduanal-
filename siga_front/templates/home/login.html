@@ -1,0 +1,49 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar sesión — SIGA</title>
+    <link rel="stylesheet" href="{% static 'home/css/login.css' %}">
+</head>
+<body>
+<div class="login-page">
+
+    <div class="panel-foto">
+        <img src="{% static 'home/img/warehouse_worker.jpg' %}" alt="Almacén aduanal">
+    </div>
+
+    <div class="panel-form">
+        <div class="panel-form__inner">
+
+            <img src="{% static 'home/img/siga_logo.png' %}" alt="SIGA" class="logo">
+
+            <div class="card">
+                {% if form.non_field_errors %}
+                    <div class="alerta-error">{{ form.non_field_errors.0 }}</div>
+                {% endif %}
+
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="campo">
+                        <label>{{ form.correo.label }}</label>
+                        {{ form.correo }}
+                    </div>
+
+                    <div class="campo">
+                        <label>{{ form.contrasena.label }}</label>
+                        {{ form.contrasena }}
+                    </div>
+
+                    <button type="submit" class="btn-entrar">Iniciar sesión</button>
+                </form>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+</body>
+</html>
