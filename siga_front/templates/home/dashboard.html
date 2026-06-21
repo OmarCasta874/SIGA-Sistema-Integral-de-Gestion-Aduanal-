@@ -7,130 +7,232 @@
     <title>Panel de control — SIGA</title>
     <link rel="icon" type="image/x-icon" href="{% static 'home/img/siga_logo.png' %}">
     <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 <body>
 
-<!-- ── SIDEBAR ── -->
 <aside class="sidebar">
     <div class="sidebar-logo">
         <img src="{% static 'home/img/siga_logo_light.png' %}" alt="SIGA">
-        <button class="sidebar-toggle">&#9776;</button>
+        <button class="sidebar-toggle"><i data-lucide="panel-left"></i></button>
     </div>
     <nav>
         <p class="nav-section-label">Principal</p>
         <a href="{% url 'home:dashboard' %}" class="nav-item active">
-            <span class="nav-icon">⊞</span> Panel general
+            <i data-lucide="layout-grid" class="nav-icon"></i> Panel general
         </a>
         <a href="#" class="nav-item">
-            <span class="nav-icon">&#9776;</span> Pedimentos
+            <i data-lucide="file-text" class="nav-icon"></i> Pedimentos
         </a>
         <a href="{% url 'home:operaciones' %}" class="nav-item">
-            <span class="nav-icon">&#9783;</span> Operaciones
+            <i data-lucide="layout-list" class="nav-icon"></i> Operaciones
             <span class="badge">3</span>
         </a>
 
         <p class="nav-section-label">Catálogos</p>
         <a href="#" class="nav-item">
-            <span class="nav-icon">&#128100;</span> Clientes
+            <i data-lucide="user" class="nav-icon"></i> Clientes
         </a>
         <a href="#" class="nav-item">
-            <span class="nav-icon">&#127968;</span> Aduanas
+            <i data-lucide="home" class="nav-icon"></i> Aduanas
         </a>
         <a href="#" class="nav-item">
-            <span class="nav-icon">&#127991;</span> Categorías
+            <i data-lucide="tag" class="nav-icon"></i> Categorías
         </a>
         <a href="#" class="nav-item">
-            <span class="nav-icon">&#9776;</span> Fracciones TIGIE
+            <i data-lucide="list" class="nav-icon"></i> Fracciones TIGIE
         </a>
 
         <p class="nav-section-label">Sistema</p>
         <a href="#" class="nav-item">
-            <span class="nav-icon">&#9685;</span> Bitácora
+            <i data-lucide="history" class="nav-icon"></i> Bitácora
+        </a>
+        <a href="#" class="nav-item">
+            <i data-lucide="user" class="nav-icon"></i> Usuarios
         </a>
         <a href="{% url 'home:logout' %}" class="nav-item">
-            <span class="nav-icon">&#128100;</span> Cerrar sesión
+            <i data-lucide="log-out" class="nav-icon"></i> Cerrar sesión
         </a>
     </nav>
 </aside>
 
-<!-- ── CONTENIDO PRINCIPAL ── -->
 <main class="main">
     <h1 class="page-title">Panel de control</h1>
-
-    <!-- Tarjetas de contadores -->
     <div class="cards-grid">
         <div class="card">
-            <div class="card-label">&#10003; Pedimentos validados</div>
+            <div class="card-label"><i data-lucide="check-circle-2" class="card-icon"></i> Pedimentos validados</div>
             <div class="card-number">47</div>
             <div class="card-trend">↑ +6 hoy</div>
         </div>
         <div class="card">
-            <div class="card-label">&#9711; Pedimentos pagados</div>
+            <div class="card-label"><i data-lucide="circle" class="card-icon"></i> Pedimentos pagados</div>
             <div class="card-number">38</div>
             <div class="card-trend">↑ +4 hoy</div>
         </div>
         <div class="card">
-            <div class="card-label">&#128274; Pedimentos liberados</div>
+            <div class="card-label"><i data-lucide="lock" class="card-icon"></i> Pedimentos liberados</div>
             <div class="card-number">31</div>
             <div class="card-trend">↑ +2 hoy</div>
         </div>
         <div class="card card-alert">
-            <div class="card-label">&#9200; Pendientes de pago</div>
+            <div class="card-label"><i data-lucide="alarm-clock" class="card-icon"></i> Pendientes de pago</div>
             <div class="card-number">9</div>
             <div class="card-trend-down">↓ 3 con adeudo vencido</div>
         </div>
     </div>
 
-    <!-- Widget semáforo fiscal -->
-    <div class="widget-semaforo">
-        <h3>Semáforo fiscal</h3>
+    <div class="panel-recientes">
+        <div class="panel-header">
+            <h3>Pedimentos recientes</h3>
+            <a href="#" class="ver-todos">Ver todos →</a>
+        </div>
+        <table class="tabla-pedimentos">
+            <thead>
+                <tr>
+                    <th>NÚMERO</th>
+                    <th>CLIENTE</th>
+                    <th>RÉGIMEN</th>
+                    <th>ESTADO</th>
+                    <th>SEMÁFORO</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><a href="#" class="ped-link">PED-2024-0448</a></td>
+                    <td>Grupo Bajío</td>
+                    <td>Imp. definitiva</td>
+                    <td><span class="estado-pill estado-pagado">PAGADO</span></td>
+                    <td><span class="semaforo-pill semaforo-verde">VERDE</span></td>
+                </tr>
+                <tr>
+                    <td><a href="#" class="ped-link ped-link-rojo">PED-2024-0441</a></td>
+                    <td>TJ Industrial</td>
+                    <td>Imp. definitiva</td>
+                    <td><span class="estado-pill estado-transmitido">Transmitido</span></td>
+                    <td><span class="semaforo-pill semaforo-rojo">Rojo</span></td>
+                </tr>
+                <tr>
+                    <td><a href="#" class="ped-link">PED-2024-0439</a></td>
+                    <td>Mex-Import LLC</td>
+                    <td>Exportación</td>
+                    <td><span class="estado-pill estado-validado">Validado</span></td>
+                    <td><span class="semaforo-pill semaforo-amarillo">Amarillo</span></td>
+                </tr>
+                <tr>
+                    <td><a href="#" class="ped-link">PED-2024-0437</a></td>
+                    <td>Electronik MX</td>
+                    <td>Imp. temporal</td>
+                    <td><span class="estado-pill estado-generado">Generado</span></td>
+                    <td><span class="semaforo-pill semaforo-na">—</span></td>
+                </tr>
+                <tr>
+                    <td><a href="#" class="ped-link">PED-2024-0435</a></td>
+                    <td>Baja Pharma SA</td>
+                    <td>Imp. definitiva</td>
+                    <td><span class="estado-pill estado-pendiente">Pendiente</span></td>
+                    <td><span class="semaforo-pill semaforo-amarillo">Amarillo</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 
-        <div style="display:flex; gap:20px; align-items:center;">
-            <div style="flex:1">
-                <div class="semaforo-row">
-                    <span class="semaforo-label">Verde</span>
-                    <div class="semaforo-bar-bg">
-                        <div class="semaforo-bar-fill" style="width:62%; background:#16a34a;"></div>
-                    </div>
-                    <span class="semaforo-pct" style="color:#16a34a;">62%</span>
-                </div>
-                <div class="semaforo-row">
-                    <span class="semaforo-label">Amarillo</span>
-                    <div class="semaforo-bar-bg">
-                        <div class="semaforo-bar-fill" style="width:24%; background:#d97706;"></div>
-                    </div>
-                    <span class="semaforo-pct" style="color:#d97706;">24%</span>
-                </div>
-                <div class="semaforo-row">
-                    <span class="semaforo-label">Rojo</span>
-                    <div class="semaforo-bar-bg">
-                        <div class="semaforo-bar-fill" style="width:14%; background:#dc2626;"></div>
-                    </div>
-                    <span class="semaforo-pct" style="color:#dc2626;">14%</span>
-                </div>
+    <div class="fila-inferior">
+        <div class="panel-historial">
+            <div class="panel-header">
+                <h3>Historial reciente de movimientos</h3>
+                <a href="#" class="ver-todos">Ver bitácora completa →</a>
             </div>
-            <div>
-                <div class="semaforo-total">284</div>
-                <div class="semaforo-total-label">pedimentos<br>este mes</div>
+            <div class="historial-lista">
+                <div class="historial-item">
+                    <div class="historial-icono icono-check"><i data-lucide="check"></i></div>
+                    <div class="historial-texto">
+                        <p class="historial-titulo">PED-2024-0448 — Estado actualizado a Pagado</p>
+                        <p class="historial-detalle">Grupo Bajío Industrial S.A. · Operación OP-2024-0112 · rcm@sigad.mx</p>
+                    </div>
+                    <span class="historial-tiempo">hace 18 min</span>
+                </div>
+                <div class="historial-item">
+                    <div class="historial-icono icono-alerta"><i data-lucide="alert-circle"></i></div>
+                    <div class="historial-texto">
+                        <p class="historial-titulo">PED-2024-0441 — Semáforo rojo asignado por VUCEM</p>
+                        <p class="historial-detalle">TJ Industrial S.C. · Requiere inspección física · sistema</p>
+                    </div>
+                    <span class="historial-tiempo">hace 45 min</span>
+                </div>
+                <div class="historial-item">
+                    <div class="historial-icono icono-doc"><i data-lucide="upload"></i></div>
+                    <div class="historial-texto">
+                        <p class="historial-titulo">OP-2024-0114 — Documento agregado: Bill of Lading</p>
+                        <p class="historial-detalle">Mex-Import LLC · agente.mora@sigad.mx</p>
+                    </div>
+                    <span class="historial-tiempo">hace 1h</span>
+                </div>
+                <div class="historial-item">
+                    <div class="historial-icono icono-edit"><i data-lucide="pencil"></i></div>
+                    <div class="historial-texto">
+                        <p class="historial-titulo">OP-2024-0110 — Estado: En proceso → Pendiente de pago</p>
+                        <p class="historial-detalle">Baja Pharma S.A. · rcm@sigad.mx</p>
+                    </div>
+                    <span class="historial-tiempo">hace 2h</span>
+                </div>
             </div>
         </div>
 
-        <div class="semaforo-canales">
-            <div>
-                <div class="canal-num" style="color:#16a34a;">176</div>
-                <div class="canal-label">Canal verde</div>
+        <div class="widget-semaforo">
+            <h3>Semáforo fiscal</h3>
+
+            <div class="semaforo-cuerpo">
+                <div class="semaforo-grafica">
+                    <div class="semaforo-row">
+                        <span class="semaforo-label">Verde</span>
+                        <div class="semaforo-bar-bg">
+                            <div class="semaforo-bar-fill" style="width:62%; background:#16a34a;"></div>
+                        </div>
+                        <span class="semaforo-pct" style="color:#16a34a;">62%</span>
+                    </div>
+                    <div class="semaforo-row">
+                        <span class="semaforo-label">Amarillo</span>
+                        <div class="semaforo-bar-bg">
+                            <div class="semaforo-bar-fill" style="width:24%; background:#d97706;"></div>
+                        </div>
+                        <span class="semaforo-pct" style="color:#d97706;">24%</span>
+                    </div>
+                    <div class="semaforo-row">
+                        <span class="semaforo-label">Rojo</span>
+                        <div class="semaforo-bar-bg">
+                            <div class="semaforo-bar-fill" style="width:14%; background:#dc2626;"></div>
+                        </div>
+                        <span class="semaforo-pct" style="color:#dc2626;">14%</span>
+                    </div>
+                </div>
+                
+                <div class="semaforo-digito">
+                    <div class="semaforo-total">284</div>
+                    <div class="semaforo-total-label">pedimentos<br>este mes</div>
+                </div>
             </div>
-            <div>
-                <div class="canal-num" style="color:#d97706;">68</div>
-                <div class="canal-label">Canal amarillo</div>
-            </div>
-            <div>
-                <div class="canal-num" style="color:#dc2626;">40</div>
-                <div class="canal-label">Canal rojo</div>
+
+            <div class="semaforo-canales">
+                <div class="canal-item">
+                    <div class="canal-num" style="color:#16a34a;">176</div>
+                    <div class="canal-label">Canal verde</div>
+                </div>
+                <div class="canal-item">
+                    <div class="canal-num" style="color:#d97706;">68</div>
+                    <div class="canal-label">Canal amarillo</div>
+                </div>
+                <div class="canal-item">
+                    <div class="canal-num" style="color:#dc2626;">40</div>
+                    <div class="canal-label">Canal rojo</div>
+                </div>
             </div>
         </div>
     </div>
 </main>
+
+<script>
+    lucide.createIcons();
+</script>
 
 </body>
 </html>
