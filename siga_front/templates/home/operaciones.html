@@ -1,0 +1,163 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operaciones — SIGA</title>
+    <link rel="icon" type="image/x-icon" href="{% static 'home/img/siga_logo.png' %}">
+    <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'home/css/operaciones.css' %}">
+</head>
+<body>
+<!-- ── SIDEBAR ── -->
+<aside class="sidebar">
+    <div class="sidebar-logo">
+        <img src="{% static 'home/img/siga_logo_light.png' %}" alt="SIGA">
+        <button class="sidebar-toggle">&#9776;</button>
+    </div>
+    <nav>
+        <p class="nav-section-label">Principal</p>
+        <a href="{% url 'home:dashboard' %}" class="nav-item">
+            <span class="nav-icon">⊞</span> Panel general
+        </a>
+        <a href="#" class="nav-item">
+            <span class="nav-icon">&#9776;</span> Pedimentos
+        </a>
+        <a href="{% url 'home:operaciones' %}" class="nav-item active">
+            <span class="nav-icon">&#9783;</span> Operaciones
+            <span class="badge">3</span>
+        </a>
+
+        <p class="nav-section-label">Catálogos</p>
+        <a href="#" class="nav-item">
+            <span class="nav-icon">&#128100;</span> Clientes
+        </a>
+        <a href="#" class="nav-item">
+            <span class="nav-icon">&#127968;</span> Aduanas
+        </a>
+        <a href="#" class="nav-item">
+            <span class="nav-icon">&#127991;</span> Categorías
+        </a>
+        <a href="#" class="nav-item">
+            <span class="nav-icon">&#9776;</span> Fracciones TIGIE
+        </a>
+
+        <p class="nav-section-label">Sistema</p>
+        <a href="#" class="nav-item">
+            <span class="nav-icon">&#9685;</span> Bitácora
+        </a>
+        <a href="{% url 'home:logout' %}" class="nav-item">
+            <span class="nav-icon">&#128100;</span> Cerrar sesión
+        </a>
+    </nav>
+</aside>
+<!-- OPERACIONES -->
+<main class="content">
+    <div class="header-operaciones">
+        <h1> Operaciones </h1>
+
+        <button class="btn-nueva">
+            + Nueva Operación
+        </button>
+    </div>
+    <div class="estadisticas">
+        <div class="card card-azul">
+            <p> Operaciones Activas </p>
+            <h2> 42 </h2>
+        </div>
+        <div class="card card-naranja">
+            <p> En Revisión </p>
+            <h2> 11</h2>
+        </div>
+        <div class="card card-rojo">
+            <p> Pendientes de Pago</p>
+            <h2> 7 </h2>
+        </div>
+        <div class="card card-verde">
+            <p> Liberadas Hoy </p>
+            <h2> 18 </h2>
+        </div>
+    </div>
+    <section class="tabla-operaciones">
+        <h3> Operaciones Recientes </h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Operación</th>
+                    <th>Cliente</th>
+                    <th>Tipo</th>
+                    <th>Estado</th>
+                    <th>Aduana</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>OP-2024-0114</td>
+                    <td>MexImport LLC</td>
+                    <td>Importación</td>
+                    <td>Validación</td>
+                    <td>Tijuana</td>
+                </tr>
+                <tr>
+                    <td>OP-2024-0112</td>
+                    <td>Grupo Bajío</td>
+                    <td>Exportación</td>
+                    <td>Liberado</td>
+                    <td>Tijuana</td>
+                </tr>
+                <tr>
+                    <td>OP-2024-0110</td>
+                    <td>Baja Pharma</td>
+                    <td>Importación</td>
+                    <td>Pago Pendiente</td>
+                    <td>Tijuana</td>
+                </tr>
+                <tr>
+                    <td>OP-2024-0108</td>
+                    <td>TJ Industrial</td>
+                    <td>Importación</td>
+                    <td>Reconocimiento</td>
+                    <td>Tijuana</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+    <div class="paneles-inferiores">
+        <section class="flujo-operativo">
+            <h3> Flujo Operativo </h3>
+            <div class="barra">
+                <div class="progreso"></div>
+            </div>
+            <div class="etapas">
+                <span>Captura</span>
+                <span>Validación</span>
+                <span>Pago</span>
+                <span>Liberado</span>
+            </div>
+        </section>
+        <section class="actividad-reciente">
+            <h3> Actividad Reciente </h3>
+            <ul class="lista-actividad">
+                <li>
+                    <strong>Documentos cargados</strong>
+                    <span>OP-2024-0114 - Hace 18 min</span>
+                </li>
+                <li>
+                    <strong>Validación SAT completada</strong>
+                    <span>OP-2024-0112 - Hace 42 min</span>
+                </li>
+                <li>
+                    <strong>Pago pendiente detectado</strong>
+                    <span>OP-2024-0110 - Hace 1 h</span>
+                </li>
+                <li>
+                    <strong>Reconocimiento aduanero</strong>
+                    <span>OP-2024-0108 - Hace 2 h</span>
+                </li>
+            </ul>
+        </section>
+    </div>
+</main>
+</body>
+</html>

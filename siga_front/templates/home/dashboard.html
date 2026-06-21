@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel de control — SIGA</title>
+    <link rel="icon" type="image/x-icon" href="{% static 'home/img/siga_logo.png' %}">
     <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
 </head>
 <body>
@@ -12,7 +13,7 @@
 <!-- ── SIDEBAR ── -->
 <aside class="sidebar">
     <div class="sidebar-logo">
-        <img src="{% static 'home/img/siga_logo.png' %}" alt="SIGA">
+        <img src="{% static 'home/img/siga_logo_light.png' %}" alt="SIGA">
         <button class="sidebar-toggle">&#9776;</button>
     </div>
     <nav>
@@ -23,7 +24,7 @@
         <a href="#" class="nav-item">
             <span class="nav-icon">&#9776;</span> Pedimentos
         </a>
-        <a href="#" class="nav-item">
+        <a href="{% url 'home:operaciones' %}" class="nav-item">
             <span class="nav-icon">&#9783;</span> Operaciones
             <span class="badge">3</span>
         </a>

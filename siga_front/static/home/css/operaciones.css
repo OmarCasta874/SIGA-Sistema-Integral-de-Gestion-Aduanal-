@@ -1,0 +1,180 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background-color: #F5F6F8;
+}
+
+.content {
+    margin-left: 255px;
+    padding: 30px;
+    min-height: 100vh;
+    flex: 1;
+    width: calc(100% - 255px);
+}
+/* ENCABEZADOS */
+.header-operaciones {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.header-operaciones h1 {
+    color: #0A2F78;
+    font-size: 40px;
+}
+
+.btn-nueva {
+    background-color: #2563EB;
+    color: white;
+    border: none;
+    padding: 12px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+/* CARDS */
+.estadisticas {
+    display: flex;
+    gap: 15px;
+    width: 100%;
+    margin-bottom: 25px;
+}
+
+.card {
+    flex: 1;
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    border: 1px solid #E5E7EB;
+}
+
+.card p {
+    color: #777;
+    margin-bottom: 10px;
+}
+
+.card h2 {
+    color: #2563EB;
+}
+
+.card-azul h2 {
+    color: #2563EB;
+}
+
+.card-naranja h2 {
+    color: #D97706;
+}
+
+.card-rojo h2 {
+    color: #DC2626;
+}
+
+.card-verde h2 {
+    color: #16A34A;
+}
+
+/* TABLAS */
+.tabla-operaciones {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 25px;
+    border: 1px solid #E5E7EB;
+}
+
+.tabla-operaciones h3 {
+    margin-bottom: 20px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th {
+    text-align: left;
+    padding: 12px;
+    color: #666;
+}
+
+td {
+    padding: 12px;
+    border-top: 1px solid #EEE;
+}
+
+/* PANELES INFERIORES */
+.paneles-inferiores {
+    display: flex;
+    gap: 20px;
+}
+
+.flujo-operativo, 
+.actividad-reciente {
+    flex: 1;
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid #E5E7EB;
+    margin-bottom: 20px;
+}
+
+.flujo-operativo h3,
+.actividad-reciente h3 {
+    margin-bottom: 20px;
+}
+
+.lista-actividad {
+    list-style: none;
+}
+
+.lista-actividad li {
+    margin-bottom: 16px;
+    padding-left: 16px;
+    border-left: 3px solid #2563EB;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.lista-actividad li:last-child {
+    margin-bottom: 0;
+}
+
+.lista-actividad strong {
+    font-size: 15px;
+    color: #111;
+}
+
+.lista-actividad span {
+    font-size: 13px;
+    color: #999;
+}
+
+.etapas {
+    display: flex;
+    justify-content: space-between;
+    color: #777;
+    font-size: 14px;
+}
+
+/* BARRA DE PROGRESO */
+.barra {
+    width: 100%;
+    height: 10px;
+    background-color: #E5E7EB;
+    border-radius: 20px;
+    margin: 20px 0;
+}
+
+.progreso {
+    width: 65%;
+    height: 100%;
+    background-color: #2563EB;
+    border-radius: 20px;
+}

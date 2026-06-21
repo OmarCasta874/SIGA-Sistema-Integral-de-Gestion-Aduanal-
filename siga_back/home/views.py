@@ -28,3 +28,7 @@ def logout_view(request):
 @login_required
 def dashboard_view(request):
     return render(request, 'home/dashboard.html')
+
+@login_required
+def operaciones_view(request):
+    return render(request, 'home/operaciones.html')
