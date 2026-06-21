@@ -78,7 +78,7 @@ WSGI_APPLICATION = 'siga_back.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'basedatossiga',
+        'NAME': 'BaseDatosSIGA',
         'USER': 'root',
         'PASSWORD': '',   # tu contraseña de MySQL
         'HOST': '127.0.0.1',
