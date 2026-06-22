@@ -1,0 +1,104 @@
+/* ADUANAS */
+
+.header-aduanas {
+    margin-bottom: 24px;
+}
+
+.header-aduanas h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #0A1D4D;
+}
+
+.content {
+    margin-left: 255px;
+    padding: 30px;
+    min-height: 100vh;
+    flex: 1;
+    width: calc(100% - 255px);
+}
+
+/* TARJETAS DE ESTADÍSTICAS */
+.estadisticas-aduanas {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.card-aduana {
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    padding: 20px 24px;
+    min-width: 200px;
+}
+
+.card-aduana p {
+    color: #9AA1B1;
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
+.card-aduana h2 {
+    font-size: 26px;
+    font-weight: 700;
+}
+
+.num-azul {
+    color: #2563EB;
+}
+
+.num-verde {
+    color: #16A34A;
+}
+
+/* TABLA */
+.tabla-aduanas {
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    padding: 24px;
+}
+
+.tabla-aduanas h3 {
+    font-size: 17px;
+    font-weight: 700;
+    color: #111;
+    margin-bottom: 16px;
+}
+
+.tabla-aduanas table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.tabla-aduanas thead th {
+    text-align: left;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #9AA1B1;
+    text-transform: uppercase;
+    padding: 10px 12px;
+}
+
+.tabla-aduanas tbody td {
+    padding: 14px 12px;
+    font-size: 14px;
+    color: #1F2533;
+    border-top: 1px solid #EEE;
+}
+
+/* ESTADO */
+.estado {
+    display: inline-block;
+    padding: 5px 12px;
+    border-radius: 14px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.estado-activa {
+    background: #DCF6E3;
+    color: #1F9D4D;
+}

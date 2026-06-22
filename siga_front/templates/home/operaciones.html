@@ -8,47 +8,51 @@
     <link rel="icon" type="image/x-icon" href="{% static 'home/img/siga_logo.png' %}">
     <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
     <link rel="stylesheet" href="{% static 'home/css/operaciones.css' %}">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 <body>
 <!-- ── SIDEBAR ── -->
 <aside class="sidebar">
     <div class="sidebar-logo">
         <img src="{% static 'home/img/siga_logo_light.png' %}" alt="SIGA">
-        <button class="sidebar-toggle">&#9776;</button>
+        <button class="sidebar-toggle"><i data-lucide="panel-left"></i></button>
     </div>
     <nav>
         <p class="nav-section-label">Principal</p>
         <a href="{% url 'home:dashboard' %}" class="nav-item">
-            <span class="nav-icon">⊞</span> Panel general
+            <i data-lucide="layout-grid" class="nav-icon"></i> Panel general
         </a>
-        <a href="#" class="nav-item">
-            <span class="nav-icon">&#9776;</span> Pedimentos
+        <a href="{% url 'home:pedimentos' %}" class="nav-item">
+            <i data-lucide="file-text" class="nav-icon"></i> Pedimentos
         </a>
         <a href="{% url 'home:operaciones' %}" class="nav-item active">
-            <span class="nav-icon">&#9783;</span> Operaciones
+            <i data-lucide="layout-list" class="nav-icon"></i> Operaciones
             <span class="badge">3</span>
         </a>
 
         <p class="nav-section-label">Catálogos</p>
         <a href="#" class="nav-item">
-            <span class="nav-icon">&#128100;</span> Clientes
+            <i data-lucide="user" class="nav-icon"></i> Clientes
+        </a>
+        <a href="{% url 'home:aduanas' %}" class="nav-item">
+            <i data-lucide="home" class="nav-icon"></i> Aduanas
         </a>
         <a href="#" class="nav-item">
-            <span class="nav-icon">&#127968;</span> Aduanas
+            <i data-lucide="tag" class="nav-icon"></i> Categorías
         </a>
         <a href="#" class="nav-item">
-            <span class="nav-icon">&#127991;</span> Categorías
-        </a>
-        <a href="#" class="nav-item">
-            <span class="nav-icon">&#9776;</span> Fracciones TIGIE
+            <i data-lucide="list" class="nav-icon"></i> Fracciones TIGIE
         </a>
 
         <p class="nav-section-label">Sistema</p>
         <a href="#" class="nav-item">
-            <span class="nav-icon">&#9685;</span> Bitácora
+            <i data-lucide="history" class="nav-icon"></i> Bitácora
+        </a>
+        <a href="#" class="nav-item">
+            <i data-lucide="user" class="nav-icon"></i> Usuarios
         </a>
         <a href="{% url 'home:logout' %}" class="nav-item">
-            <span class="nav-icon">&#128100;</span> Cerrar sesión
+            <i data-lucide="log-out" class="nav-icon"></i> Cerrar sesión
         </a>
     </nav>
 </aside>
@@ -58,7 +62,7 @@
         <h1> Operaciones </h1>
 
         <button class="btn-nueva">
-            + Nueva Operación
+            <i data-lucide="plus"></i>Nueva Operación
         </button>
     </div>
     <div class="estadisticas">
@@ -159,5 +163,8 @@
         </section>
     </div>
 </main>
+<script>
+    lucide.createIcons();
+</script>
 </body>
 </html>

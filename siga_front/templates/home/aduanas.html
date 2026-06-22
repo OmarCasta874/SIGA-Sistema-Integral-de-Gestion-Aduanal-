@@ -1,0 +1,101 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aduanas — SIGA</title>
+    <link rel="icon" type="image/x-icon" href="{% static 'home/img/siga_logo.png' %}">
+    <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'home/css/aduanas.css' %}">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body>
+<!-- SIDEBAR -->
+<aside class="sidebar">
+    <div class="sidebar-logo">
+        <img src="{% static 'home/img/siga_logo_light.png' %}" alt="SIGA">
+        <button class="sidebar-toggle"><i data-lucide="panel-left"></i></button>
+    </div>
+    <nav>
+        <p class="nav-section-label">Principal</p>
+        <a href="{% url 'home:dashboard' %}" class="nav-item">
+            <i data-lucide="layout-grid" class="nav-icon"></i> Panel general
+        </a>
+        <a href="{% url 'home:pedimentos' %}" class="nav-item">
+            <i data-lucide="file-text" class="nav-icon"></i> Pedimentos
+        </a>
+        <a href="{% url 'home:operaciones' %}" class="nav-item">
+            <i data-lucide="layout-list" class="nav-icon"></i> Operaciones
+            <span class="badge">3</span>
+        </a>
+
+        <p class="nav-section-label">Catálogos</p>
+        <a href="#" class="nav-item">
+            <i data-lucide="user" class="nav-icon"></i> Clientes
+        </a>
+        <a href="{% url 'home:aduanas' %}" class="nav-item active">
+            <i data-lucide="home" class="nav-icon"></i> Aduanas
+        </a>
+        <a href="#" class="nav-item">
+            <i data-lucide="tag" class="nav-icon"></i> Categorías
+        </a>
+        <a href="#" class="nav-item">
+            <i data-lucide="list" class="nav-icon"></i> Fracciones TIGIE
+        </a>
+
+        <p class="nav-section-label">Sistema</p>
+        <a href="#" class="nav-item">
+            <i data-lucide="history" class="nav-icon"></i> Bitácora
+        </a>
+        <a href="#" class="nav-item">
+            <i data-lucide="user" class="nav-icon"></i> Usuarios
+        </a>
+        <a href="{% url 'home:logout' %}" class="nav-item">
+            <i data-lucide="log-out" class="nav-icon"></i> Cerrar sesión
+        </a>
+    </nav>
+</aside>
+<!-- ADUANAS -->
+<main class="content">
+    <div class="header-aduanas">
+        <h1> Aduanas </h1>
+    </div>
+
+    <div class="estadisticas-aduanas">
+        <div class="card-aduana">
+            <p>Aduanas activas</p>
+            <h2 class="num-azul">18</h2>
+        </div>
+        <div class="card-aduana">
+            <p>Operaciones hoy</p>
+            <h2 class="num-verde">2,304</h2>
+        </div>
+    </div>
+    <section class="tabla-aduanas">
+        <h3> Lista de Aduanas </h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Aduana</th>
+                    <th>Clave</th>
+                    <th>Tipo</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Tijuana</td>
+                    <td>240</td>
+                    <td>Terrestre</td>
+                    <td><span class="estado estado-activa">Activa</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+</main>
+<script>
+    lucide.createIcons();
+</script>
+</body>
+</html>

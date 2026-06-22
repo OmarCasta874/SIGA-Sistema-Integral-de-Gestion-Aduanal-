@@ -1,0 +1,134 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pedimentos — SIGA</title>
+    <link rel="icon" type="image/x-icon" href="{% static 'home/img/siga_logo.png' %}">
+    <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'home/css/operaciones.css' %}">
+    <link rel="stylesheet" href="{% static 'home/css/pedimentos.css' %}">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body>
+<!-- SIDEBAR -->
+<aside class="sidebar">
+    <div class="sidebar-logo">
+        <img src="{% static 'home/img/siga_logo_light.png' %}" alt="SIGA">
+        <button class="sidebar-toggle"><i data-lucide="panel-left"></i></button>
+    </div>
+    <nav>
+        <p class="nav-section-label">Principal</p>
+        <a href="{% url 'home:dashboard' %}" class="nav-item">
+            <i data-lucide="layout-grid" class="nav-icon"></i> Panel general
+        </a>
+        <a href="{% url 'home:pedimentos' %}" class="nav-item active">
+            <i data-lucide="file-text" class="nav-icon"></i> Pedimentos
+        </a>
+        <a href="{% url 'home:operaciones' %}" class="nav-item">
+            <i data-lucide="layout-list" class="nav-icon"></i> Operaciones
+            <span class="badge">3</span>
+        </a>
+
+        <p class="nav-section-label">Catálogos</p>
+        <a href="#" class="nav-item">
+            <i data-lucide="user" class="nav-icon"></i> Clientes
+        </a>
+        <a href="{% url 'home:aduanas' %}" class="nav-item">
+            <i data-lucide="home" class="nav-icon"></i> Aduanas
+        </a>
+        <a href="#" class="nav-item">
+            <i data-lucide="tag" class="nav-icon"></i> Categorías
+        </a>
+        <a href="#" class="nav-item">
+            <i data-lucide="list" class="nav-icon"></i> Fracciones TIGIE
+        </a>
+
+        <p class="nav-section-label">Sistema</p>
+        <a href="#" class="nav-item">
+            <i data-lucide="history" class="nav-icon"></i> Bitácora
+        </a>
+        <a href="#" class="nav-item">
+            <i data-lucide="user" class="nav-icon"></i> Usuarios
+        </a>
+        <a href="{% url 'home:logout' %}" class="nav-item">
+            <i data-lucide="log-out" class="nav-icon"></i> Cerrar sesión
+        </a>
+    </nav>
+</aside>
+<!-- PEDIMENTOS -->
+<main class="content">
+    <div class="header-pedimentos">
+        <h1> Pedimentos </h1>
+    </div>
+    <div class="buscador-pedimentos">
+        <input type="text" class="input-buscar" placeholder="Buscar pedimento...">
+        <button class="btn-filtrar">
+            <i data-lucide="filter"></i> Filtrar
+        </button>
+    </div>
+    <section class="tabla-pedimentos">
+        <h3> Lista de pedimentos </h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Número</th>
+                    <th>Régimen</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>PED-2024-0448</td>
+                    <td>Importación definitiva</td>
+                    <td><span class="estado estado-pagado">Pagado</span></td>
+                    <td class="acciones">
+                        <button class="btn-ver">Ver</button>
+                        <button class="btn-editar">Editar</button>
+                    </td>
+                </tr>
+                <tr>
+                    <td>PED-2024-0441</td>
+                    <td>Importación temporal</td>
+                    <td><span class="estado estado-pendiente">Pendiente</span></td>
+                    <td class="acciones">
+                        <button class="btn-ver">Ver</button>
+                        <button class="btn-editar">Editar</button>
+                    </td>
+                </tr>
+                <tr>
+                    <td>PED-2024-0439</td>
+                    <td>Exportación</td>
+                    <td><span class="estado estado-validado">Validado</span></td>
+                    <td class="acciones">
+                        <button class="btn-ver">Ver</button>
+                        <button class="btn-editar">Editar</button>
+                    </td>
+                </tr>
+                <tr>
+                    <td>PED-2024-0435</td>
+                    <td>Importación definitiva</td>
+                    <td><span class="estado estado-transmitido">Transmitido</span></td>
+                    <td class="acciones">
+                        <button class="btn-ver">Ver</button>
+                        <button class="btn-editar">Editar</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="paginacion">
+            <button class="pag-btn"><i data-lucide="chevron-left"></i></button>
+            <button class="pag-btn pag-activo">1</button>
+            <button class="pag-btn">2</button>
+            <button class="pag-btn">3</button>
+            <button class="pag-btn"><i data-lucide="chevron-right"></i></button>
+        </div>
+    </section>
+</main>
+<script>
+    lucide.createIcons();
+</script>
+</body>
+</html>

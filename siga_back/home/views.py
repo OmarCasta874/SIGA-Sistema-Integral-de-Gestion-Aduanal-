@@ -32,3 +32,11 @@ def dashboard_view(request):
 @login_required
 def operaciones_view(request):
     return render(request, 'home/operaciones.html')
+
+@login_required
+def pedimentos_view(request):
+    return render(request, 'home/pedimentos.html')
+
+@login_required
+def aduanas_view(request):
+    return render(request, 'home/aduanas.html')
