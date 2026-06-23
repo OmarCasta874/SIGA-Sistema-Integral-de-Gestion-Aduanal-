@@ -40,3 +40,11 @@ def pedimentos_view(request):
 @login_required
 def aduanas_view(request):
     return render(request, 'home/aduanas.html')
+
+@login_required
+def categorias_view(request):
+    return render(request, 'home/categorias.html')
+
+@login_required
+def fracciones_view(request):
+    return render(request, 'home/fracciones.html')

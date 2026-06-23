@@ -1,17 +1,16 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aduanas — SIGA</title>
+    <title>Categorías — SIGA</title>
     <link rel="icon" type="image/x-icon" href="{% static 'home/img/siga_logo.png' %}">
     <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
-    <link rel="stylesheet" href="{% static 'home/css/aduanas.css' %}">
+    <link rel="stylesheet" href="{% static 'home/css/categorias.css' %}">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 <body>
-<!-- SIDEBAR -->
 <aside class="sidebar">
     <div class="sidebar-logo">
         <img src="{% static 'home/img/siga_logo_light.png' %}" alt="SIGA">
@@ -29,21 +28,21 @@
             <i data-lucide="layout-list" class="nav-icon"></i> Operaciones
             <span class="badge">3</span>
         </a>
-
+ 
         <p class="nav-section-label">Catálogos</p>
         <a href="#" class="nav-item">
             <i data-lucide="user" class="nav-icon"></i> Clientes
         </a>
-        <a href="{% url 'home:aduanas' %}" class="nav-item active">
+        <a href="{% url 'home:aduanas' %}" class="nav-item">
             <i data-lucide="home" class="nav-icon"></i> Aduanas
         </a>
-        <a href="{% url 'home:categorias' %}" class="nav-item">
+        <a href="{% url 'home:categorias' %}" class="nav-item active">
             <i data-lucide="tag" class="nav-icon"></i> Categorías
         </a>
         <a href="{% url 'home:fracciones' %}" class="nav-item">
             <i data-lucide="list" class="nav-icon"></i> Fracciones TIGIE
         </a>
-
+ 
         <p class="nav-section-label">Sistema</p>
         <a href="#" class="nav-item">
             <i data-lucide="history" class="nav-icon"></i> Bitácora
@@ -56,44 +55,70 @@
         </a>
     </nav>
 </aside>
-<!-- ADUANAS -->
-<main class="content">
-    <div class="header-aduanas">
-        <h1> Aduanas </h1>
+<main class="main">
+    <h1 class="page-title">Categorías</h1>
+    <div class="cards-grid cards-grid-categorias">
+        <div class="card">
+            <div class="card-label">Total Categorías</div>
+            <div class="card-number">12</div>
+        </div>
+        <div class="card">
+            <div class="card-label">Categorías activas</div>
+            <div class="card-number card-number-verde">10</div>
+        </div>
+        <div class="card">
+            <div class="card-label">Productos registrados</div>
+            <div class="card-number card-number-naranja">2,304</div>
+        </div>
+        <div class="card">
+            <div class="card-label">Categoría más usada</div>
+            <div class="card-number card-number-rojo">Electrónicos</div>
+        </div>
     </div>
 
-    <div class="estadisticas-aduanas">
-        <div class="card-aduana">
-            <p>Aduanas activas</p>
-            <h2 class="num-azul">18</h2>
+    <div class="categorias-toolbar">
+        <div class="categorias-buscador">
+            <input type="text" placeholder="Buscar categoría...">
         </div>
-        <div class="card-aduana">
-            <p>Operaciones hoy</p>
-            <h2 class="num-verde">2,304</h2>
-        </div>
+        <button class="btn-nueva-categoria">
+            <i data-lucide="plus"></i> Nueva categoría
+        </button>
     </div>
-    <section class="tabla-aduanas">
-        <h3> Lista de Aduanas </h3>
-        <table>
+
+    <div class="panel-categorias">
+        <table class="tabla-categorias">
             <thead>
                 <tr>
-                    <th>Aduana</th>
-                    <th>Clave</th>
-                    <th>Tipo</th>
-                    <th>Estado</th>
+                    <th>CATEGORÍA</th>
+                    <th>TIPO</th>
+                    <th>ARANCEL</th>
+                    <th>ESTADO</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <td>Tijuana</td>
-                    <td>240</td>
-                    <td>Terrestre</td>
-                    <td><span class="estado estado-activa">Activa</span></td>
+                    <td>Electrónicos</td>
+                    <td>Tecnología</td>
+                    <td>16%</td>
+                    <td><span class="estado-pill estado-activa">Activa</span></td>
+                </tr>
+                <tr>
+                    <td>Textiles</td>
+                    <td>Ropa</td>
+                    <td>8%</td>
+                    <td><span class="estado-pill estado-restringida">Restringida</span></td>
+                </tr>
+                <tr>
+                    <td>Medicamentos</td>
+                    <td>Salud</td>
+                    <td>0%</td>
+                    <td><span class="estado-pill estado-prohibida">Prohibida</span></td>
                 </tr>
             </tbody>
         </table>
-    </section>
+    </div>
 </main>
+
 <script>
     lucide.createIcons();
 </script>

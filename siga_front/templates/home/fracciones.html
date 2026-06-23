@@ -4,14 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aduanas — SIGA</title>
+    <title>Fracciones TIGIE — SIGA</title>
     <link rel="icon" type="image/x-icon" href="{% static 'home/img/siga_logo.png' %}">
     <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
-    <link rel="stylesheet" href="{% static 'home/css/aduanas.css' %}">
+    <link rel="stylesheet" href="{% static 'home/css/fracciones.css' %}">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 <body>
-<!-- SIDEBAR -->
 <aside class="sidebar">
     <div class="sidebar-logo">
         <img src="{% static 'home/img/siga_logo_light.png' %}" alt="SIGA">
@@ -29,21 +28,21 @@
             <i data-lucide="layout-list" class="nav-icon"></i> Operaciones
             <span class="badge">3</span>
         </a>
-
+ 
         <p class="nav-section-label">Catálogos</p>
         <a href="#" class="nav-item">
             <i data-lucide="user" class="nav-icon"></i> Clientes
         </a>
-        <a href="{% url 'home:aduanas' %}" class="nav-item active">
+        <a href="{% url 'home:aduanas' %}" class="nav-item">
             <i data-lucide="home" class="nav-icon"></i> Aduanas
         </a>
         <a href="{% url 'home:categorias' %}" class="nav-item">
             <i data-lucide="tag" class="nav-icon"></i> Categorías
         </a>
-        <a href="{% url 'home:fracciones' %}" class="nav-item">
+        <a href="{% url 'home:fracciones' %}" class="nav-item active">
             <i data-lucide="list" class="nav-icon"></i> Fracciones TIGIE
         </a>
-
+ 
         <p class="nav-section-label">Sistema</p>
         <a href="#" class="nav-item">
             <i data-lucide="history" class="nav-icon"></i> Bitácora
@@ -56,43 +55,68 @@
         </a>
     </nav>
 </aside>
-<!-- ADUANAS -->
-<main class="content">
-    <div class="header-aduanas">
-        <h1> Aduanas </h1>
+<main class="main">
+    <h1 class="page-title">Fracciones TIGIE</h1>
+    <div class="cards-grid cards-grid-fracciones">
+        <div class="card">
+            <div class="card-label">Total fracciones</div>
+            <div class="card-number">1,284</div>
+        </div>
+        <div class="card">
+            <div class="card-label">Importaciones</div>
+            <div class="card-number card-number-verde">842</div>
+        </div>
+        <div class="card">
+            <div class="card-label">Exportaciones</div>
+            <div class="card-number card-number-naranja">442</div>
+        </div>
+        <div class="card">
+            <div class="card-label">Más utilizada</div>
+            <div class="card-number card-number-rojo">8471.30.01</div>
+        </div>
     </div>
 
-    <div class="estadisticas-aduanas">
-        <div class="card-aduana">
-            <p>Aduanas activas</p>
-            <h2 class="num-azul">18</h2>
+    <div class="fracciones-toolbar">
+        <div class="fracciones-buscador">
+            <input type="text" placeholder="Buscar fracción TIGIE...">
         </div>
-        <div class="card-aduana">
-            <p>Operaciones hoy</p>
-            <h2 class="num-verde">2,304</h2>
-        </div>
+        <button class="btn-nueva-fraccion">
+            <i data-lucide="plus"></i> Nueva fracción
+        </button>
     </div>
-    <section class="tabla-aduanas">
-        <h3> Lista de Aduanas </h3>
-        <table>
+
+    <div class="panel-fracciones">
+        <table class="tabla-fracciones">
             <thead>
                 <tr>
-                    <th>Aduana</th>
-                    <th>Clave</th>
-                    <th>Tipo</th>
-                    <th>Estado</th>
+                    <th>FRACCIÓN</th>
+                    <th>DESCRIPCIÓN</th>
+                    <th>IMPUESTO</th>
+                    <th>ESTADO</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <td>Tijuana</td>
-                    <td>240</td>
-                    <td>Terrestre</td>
-                    <td><span class="estado estado-activa">Activa</span></td>
+                    <td>8471.30.01</td>
+                    <td>Computadoras portátiles</td>
+                    <td>16%</td>
+                    <td><span class="estado-pill estado-activa">Activa</span></td>
+                </tr>
+                <tr>
+                    <td>6203.42.01</td>
+                    <td>Pantalones de algodón</td>
+                    <td>20%</td>
+                    <td><span class="estado-pill estado-revision">Revisión</span></td>
+                </tr>
+                <tr>
+                    <td>3004.90.99</td>
+                    <td>Medicamentos diversos</td>
+                    <td>0%</td>
+                    <td><span class="estado-pill estado-restringida">Restringida</span></td>
                 </tr>
             </tbody>
         </table>
-    </section>
+    </div>
 </main>
 <script>
     lucide.createIcons();
