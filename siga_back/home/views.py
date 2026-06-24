@@ -2,6 +2,8 @@ from django.contrib.auth import login as auth_login, logout as auth_logout
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from .forms import LoginForm
+from .models import Cliente
+from .models import Aduana
 
 
 def login_view(request):
@@ -38,8 +40,32 @@ def pedimentos_view(request):
     return render(request, 'home/pedimentos.html')
 
 @login_required
+def clientes_view(request):
+    clientes = Cliente.objects.all()
+    total_clientes = clientes.count()
+    
+    return render(
+        request, 
+        'home/clientes.html',
+        {
+            'clientes': clientes,
+            'total_clientes': total_clientes
+        }
+    )
+
+@login_required
 def aduanas_view(request):
-    return render(request, 'home/aduanas.html')
+    aduanas = Aduana.objects.all()
+    total_aduanas = aduanas.count()
+    
+    return render(
+        request, 
+        'home/aduanas.html',
+        {
+            'aduanas': aduanas,
+            'total_aduanas': total_aduanas
+        }
+    )
 
 @login_required
 def categorias_view(request):
@@ -48,3 +74,7 @@ def categorias_view(request):
 @login_required
 def fracciones_view(request):
     return render(request, 'home/fracciones.html')
+
+@login_required
+def bitacora_view(request):
+    return render(request, 'home/bitacora.html')

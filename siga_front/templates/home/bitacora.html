@@ -4,14 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aduanas — SIGA</title>
+    <title>Bitácora — SIGA</title>
     <link rel="icon" type="image/x-icon" href="{% static 'home/img/siga_logo.png' %}">
     <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
-    <link rel="stylesheet" href="{% static 'home/css/aduanas.css' %}">
+    <link rel="stylesheet" href="{% static 'home/css/bitacora.css' %}">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 <body>
-<!-- SIDEBAR -->
 <aside class="sidebar">
     <div class="sidebar-logo">
         <img src="{% static 'home/img/siga_logo_light.png' %}" alt="SIGA">
@@ -34,7 +33,7 @@
         <a href="{% url 'home:clientes' %}" class="nav-item">
             <i data-lucide="user" class="nav-icon"></i> Clientes
         </a>
-        <a href="{% url 'home:aduanas' %}" class="nav-item active">
+        <a href="{% url 'home:aduanas' %}" class="nav-item">
             <i data-lucide="home" class="nav-icon"></i> Aduanas
         </a>
         <a href="{% url 'home:categorias' %}" class="nav-item">
@@ -45,7 +44,7 @@
         </a>
 
         <p class="nav-section-label">Sistema</p>
-        <a href="{% url 'home:bitacora' %}" class="nav-item">
+        <a href="{% url 'home:bitacora' %}" class="nav-item active">
             <i data-lucide="history" class="nav-icon"></i> Bitácora
         </a>
         <a href="#" class="nav-item">
@@ -56,52 +55,71 @@
         </a>
     </nav>
 </aside>
-<!-- ADUANAS -->
-<main class="content">
-    <div class="header-aduanas">
-        <h1> Aduanas </h1>
+<main class="main">
+    <h1 class="page-title">Bitácora</h1>
+
+    <div class="bitacora-cards-grid">
+        <div class="bitacora-card">
+            <div class="bitacora-card-label">Registros hoy</div>
+            <div class="bitacora-card-number bitacora-num-azul">248</div>
+        </div>
+        <div class="bitacora-card">
+            <div class="bitacora-card-label">Usuarios activos</div>
+            <div class="bitacora-card-number bitacora-num-verde">18</div>
+        </div>
+        <div class="bitacora-card">
+            <div class="bitacora-card-label">Errores detectados</div>
+            <div class="bitacora-card-number bitacora-num-rojo">3</div>
+        </div>
+        <div class="bitacora-card">
+            <div class="bitacora-card-label">Última actividad</div>
+            <div class="bitacora-card-number bitacora-num-naranja">14:32 PM</div>
+        </div>
     </div>
 
-    <div class="estadisticas-aduanas">
-        <div class="card-aduana">
-            <p>Aduanas activas</p>
-            <h2 class="num-azul">{{ total_aduanas }}</h2>
-        </div>
-        <div class="card-aduana">
-            <p>Operaciones hoy</p>
-            <h2 class="num-verde">2,304</h2>
-        </div>
+    <div class="bitacora-toolbar">
+        <input type="text" class="bitacora-buscar" placeholder="Buscar actividad...">
+        <button class="bitacora-exportar-btn">Exportar bitácora</button>
     </div>
-    <section class="tabla-aduanas">
-        <h3> Lista de Aduanas </h3>
-        <table>
+
+    <div class="bitacora-panel">
+        <table class="tabla-bitacora">
             <thead>
                 <tr>
-                    <th>Aduana</th>
-                    <th>Clave</th>
-                    <th>Ciudad</th>
+                    <th>Usuario</th>
+                    <th>Acción</th>
+                    <th>Módulo</th>
+                    <th>Fecha</th>
                     <th>Estado</th>
                 </tr>
             </thead>
             <tbody>
-                {% for aduana in aduanas %}
                 <tr>
-                    <td>{{ aduana.nombre }}</td>
-                    <td>{{ aduana.codigo }}</td>
-                    <td>{{ aduana.ciudad }}</td>
-                    <td><span class="estado estado-activa">Activa</span></td>
+                    <td>admin01</td>
+                    <td>Registro de operación</td>
+                    <td>Operaciones</td>
+                    <td>26/05/2026 09:14</td>
+                    <td><span class="bitacora-estado-pill estado-exitoso">Exitoso</span></td>
                 </tr>
-                {% empty %}
                 <tr>
-                    <td colspan="4">
-                        No hay aduanas registradas.
-                    </td>
+                    <td>m.lopez</td>
+                    <td>Actualización de cliente</td>
+                    <td>Clientes</td>
+                    <td>26/05/2026 10:02</td>
+                    <td><span class="bitacora-estado-pill estado-pendiente">Pendiente</span></td>
                 </tr>
-                {% endfor %}
+                <tr>
+                    <td>sistema</td>
+                    <td>Error de autenticación</td>
+                    <td>Seguridad</td>
+                    <td>26/05/2026 11:28</td>
+                    <td><span class="bitacora-estado-pill estado-error">Error</span></td>
+                </tr>
             </tbody>
         </table>
-    </section>
+    </div>
 </main>
+
 <script>
     lucide.createIcons();
 </script>
