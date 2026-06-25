@@ -80,19 +80,10 @@ def pedimentos_view(request):
         form = NuevoPedimentoForm(request.POST)
         if form.is_valid():
             pedimento = form.save(commit=False)
-
-            # 1. Tomar datos de la operación seleccionada
             op = pedimento.ope_aduanera
-
-            # 2. Generar semáforo automático
             pedimento.semaforo = generar_semaforo()
-
-            # 3. Generar número de pedimento automático
             pedimento.numero_pedimento = generar_numero_pedimento(op.aduana_id)
-
-            # 4. Fecha de registro automática
             pedimento.fecha_registro = date.today()
-
             pedimento.save()
             messages.success(
                 request,
