@@ -57,6 +57,11 @@
 </aside>
 <main class="main">
     <h1 class="page-title">Clientes</h1>
+    {% if messages %}
+    {% for message in messages %}
+        <div class="alerta alerta-{{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+{% endif %}
     <div class="clientes-cards-grid">
         <div class="clientes-card">
             <div class="clientes-card-label">Clientes activos</div>
@@ -87,7 +92,7 @@
             <option>Todos los tipos</option>
         </select>
         <button class="clientes-filtrar-btn">Filtrar</button>
-        <button class="clientes-nuevo-btn">Nuevo cliente</button>
+        <button class="clientes-nuevo-btn" onclick="abrirModal('modalCliente')">+ Nuevo cliente</button>
     </div>
 
     <div class="clientes-panel">
@@ -132,8 +137,158 @@
         </div>
     </div>
 </main>
+<div class="modal-overlay" id="modalCliente">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3>Nuevo cliente</h3>
+            <button class="modal-cerrar" onclick="cerrarModal('modalCliente')">
+                <i data-lucide="x"></i>
+            </button>
+        </div>
+
+        <form method="post" action="{% url 'home:clientes' %}">
+            {% csrf_token %}
+            <div class="modal-body">
+                <div class="form-group">
+                        <label>{{ form.tipo_persona.label }}</label>
+                        {{ form.tipo_persona }}
+                </div>
+                <div class="form-group">
+                    <label>{{ form.nombre.label }}</label>
+                    {{ form.nombre }}
+                </div>
+                <div class="form-row">
+                    <div class="form-group" id="grupo-primer-apell">
+                        <label>{{ form.primer_apell.label }}</label>
+                        {{ form.primer_apell }}
+                    </div>
+                    <div class="form-group" id="grupo-seg-apell">
+                        <label style="display:flex; align-items:center; gap:8px;">
+                            {{ form.seg_apell.label }}
+                            <span style="font-size:12px; font-weight:400; color:#6b7280; display:flex; align-items:center; gap:4px;">
+                                <input type="checkbox" id="check-sin-segundo"> Sin segundo apellido
+                            </span>
+                        </label>
+                        {{ form.seg_apell }}
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>{{ form.RFC.label }}</label>
+                        {{ form.RFC }}
+                    </div>
+                </div>
+
+                {% if form.errors %}
+                    <div class="form-errores">
+                        {% for field in form %}
+                            {% for error in field.errors %}
+                                <p>{{ field.label }}: {{ error }}</p>
+                            {% endfor %}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancelar" onclick="cerrarModal('modalCliente')">Cancelar</button>
+                <button type="submit" class="btn-guardar">Guardar cliente</button>
+            </div>
+        </form>
+    </div>
+</div>
 <script>
     lucide.createIcons();
+
+    function abrirModal(id) {
+        document.getElementById(id).classList.add('activo');
+    }
+
+    function cerrarModal(id) {
+        document.getElementById(id).classList.remove('activo');
+    }
+
+    // Si el form tuvo errores, reabre el modal automáticamente
+    {% if form.errors %}
+        document.addEventListener('DOMContentLoaded', function() {
+            abrirModal('modalCliente');  // o 'modalPedimento' en pedimentos.html
+        });
+    {% endif %}
+
+    // Cerrar al hacer click fuera del modal
+    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+        overlay.addEventListener('click', function(e) {
+            if (e.target === this) cerrarModal(this.id);
+        });
+    });
+
+// ── Lógica tipo de persona ──────────────────────────────
+const tipoPersona   = document.getElementById('id_tipo_persona');
+const campoNombre   = document.getElementById('id_nombre');
+const campoPrimero  = document.getElementById('id_primer_apell');
+const campoSegundo  = document.getElementById('id_seg_apell');
+const campoRFC      = document.getElementById('id_RFC');
+const filaPrimero   = campoPrimero.closest('.form-group');
+const filaSegundo   = campoSegundo.closest('.form-group');
+const checkSinSeg   = document.getElementById('check-sin-segundo');
+
+function aplicarTipoPersona() {
+    const tipo = tipoPersona.value;
+
+    if (tipo === 'Física') {
+        // Habilitar todos los campos
+        campoPrimero.disabled = false;
+        campoSegundo.disabled = checkSinSeg.checked;
+        campoRFC.disabled     = false;
+        filaPrimero.style.opacity = '1';
+        filaSegundo.style.opacity  = checkSinSeg.checked ? '0.4' : '1';
+
+    } else if (tipo === 'Moral') {
+        // Bloquear apellidos para empresas
+        campoPrimero.disabled = true;
+        campoSegundo.disabled = true;
+        campoPrimero.value    = '';
+        campoSegundo.value    = '';
+        filaPrimero.style.opacity = '0.4';
+        filaSegundo.style.opacity  = '0.4';
+        campoRFC.disabled     = false;
+
+    } else {
+        // Sin selección: bloquear todo menos tipo
+        campoPrimero.disabled = true;
+        campoSegundo.disabled = true;
+        campoRFC.disabled     = true;
+        campoNombre.disabled  = true;
+        filaPrimero.style.opacity = '0.4';
+        filaSegundo.style.opacity  = '0.4';
+    }
+
+    // Si tipo está seleccionado, habilitar nombre
+    if (tipo) campoNombre.disabled = false;
+}
+
+tipoPersona.addEventListener('change', aplicarTipoPersona);
+
+checkSinSeg.addEventListener('change', function() {
+    campoSegundo.disabled = this.checked;
+    campoSegundo.value    = this.checked ? '' : campoSegundo.value;
+    filaSegundo.style.opacity = this.checked ? '0.4' : '1';
+});
+
+// Aplicar al cargar (en caso de error de validación que reabre el modal)
+aplicarTipoPersona();
+
+// ── Filtro de búsqueda de clientes ──────────────────────
+const inputBuscar = document.querySelector('.clientes-buscar');
+const filaTabla   = document.querySelectorAll('.tabla-clientes tbody tr');
+
+inputBuscar.addEventListener('input', function() {
+    const texto = this.value.toLowerCase().trim();
+    filaTabla.forEach(fila => {
+        const contenido = fila.textContent.toLowerCase();
+        fila.style.display = contenido.includes(texto) ? '' : 'none';
+    });
+});
 </script>
 </body>
 </html>

@@ -12,7 +12,6 @@
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 <body>
-<!-- SIDEBAR -->
 <aside class="sidebar">
     <div class="sidebar-logo">
         <img src="{% static 'home/img/siga_logo_light.png' %}" alt="SIGA">
@@ -57,78 +56,226 @@
         </a>
     </nav>
 </aside>
-<!-- PEDIMENTOS -->
 <main class="content">
     <div class="header-pedimentos">
         <h1> Pedimentos </h1>
     </div>
     <div class="buscador-pedimentos">
-        <input type="text" class="input-buscar" placeholder="Buscar pedimento...">
-        <button class="btn-filtrar">
+    <form method="get" action="{% url 'home:pedimentos' %}" style="display:flex; gap:10px; flex:1;">
+        <input type="text" name="q" value="{{ query }}"
+               class="input-buscar" placeholder="Buscar pedimento...">
+        <button type="submit" class="btn-filtrar">
             <i data-lucide="filter"></i> Filtrar
         </button>
-    </div>
+        {% if query %}
+            <a href="{% url 'home:pedimentos' %}" class="btn-limpiar">✕ Limpiar</a>
+        {% endif %}
+    </form>
+    <button class="btn-nuevo" onclick="abrirModal('modalPedimento')">
+        <i data-lucide="plus"></i> Nuevo pedimento
+    </button>
+</div>
     <section class="tabla-pedimentos">
-        <h3> Lista de pedimentos </h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>Número</th>
-                    <th>Régimen</th>
-                    <th>Estado</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>PED-2024-0448</td>
-                    <td>Importación definitiva</td>
-                    <td><span class="estado estado-pagado">Pagado</span></td>
-                    <td class="acciones">
-                        <button class="btn-ver">Ver</button>
-                        <button class="btn-editar">Editar</button>
-                    </td>
-                </tr>
-                <tr>
-                    <td>PED-2024-0441</td>
-                    <td>Importación temporal</td>
-                    <td><span class="estado estado-pendiente">Pendiente</span></td>
-                    <td class="acciones">
-                        <button class="btn-ver">Ver</button>
-                        <button class="btn-editar">Editar</button>
-                    </td>
-                </tr>
-                <tr>
-                    <td>PED-2024-0439</td>
-                    <td>Exportación</td>
-                    <td><span class="estado estado-validado">Validado</span></td>
-                    <td class="acciones">
-                        <button class="btn-ver">Ver</button>
-                        <button class="btn-editar">Editar</button>
-                    </td>
-                </tr>
-                <tr>
-                    <td>PED-2024-0435</td>
-                    <td>Importación definitiva</td>
-                    <td><span class="estado estado-transmitido">Transmitido</span></td>
-                    <td class="acciones">
-                        <button class="btn-ver">Ver</button>
-                        <button class="btn-editar">Editar</button>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-        <div class="paginacion">
-            <button class="pag-btn"><i data-lucide="chevron-left"></i></button>
-            <button class="pag-btn pag-activo">1</button>
-            <button class="pag-btn">2</button>
-            <button class="pag-btn">3</button>
-            <button class="pag-btn"><i data-lucide="chevron-right"></i></button>
-        </div>
-    </section>
+    <h3>Lista de pedimentos</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Número</th>
+                <th>Régimen</th>
+                <th>Clave</th>
+                <th>Valor total</th>
+                <th>Semáforo</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ped in pedimentos %}
+            <tr>
+                <td>{{ ped.numero_pedimento }}</td>
+                <td>{{ ped.regimen_adu.descripcion }}</td>
+                <td>{{ ped.clave_pedimento }}</td>
+                <td>${{ ped.valor_total }}</td>
+                <td>
+                    {% if 'Verde' in ped.semaforo.resultado %}
+                        <span class="estado estado-pagado">Verde</span>
+                    {% elif 'Rojo' in ped.semaforo.resultado %}
+                        <span class="estado estado-transmitido">Rojo</span>
+                    {% else %}
+                        <span class="estado estado-pendiente">—</span>
+                    {% endif %}
+                </td>
+                <td class="acciones">
+                    <button class="btn-ver">Ver</button>
+                    <button class="btn-editar">Editar</button>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align:center; color:#6b7280; padding:24px;">
+                    No hay pedimentos registrados.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Paginación real con Django -->
+    <div class="paginacion">
+        {% if pedimentos.has_previous %}
+            <a href="?pagina={{ pedimentos.previous_page_number }}{% if query %}&q={{ query }}{% endif %}"
+               class="pag-btn">
+                <i data-lucide="chevron-left"></i>
+            </a>
+        {% else %}
+            <button class="pag-btn pag-disabled" disabled>
+                <i data-lucide="chevron-left"></i>
+            </button>
+        {% endif %}
+
+        {% for num in pedimentos.paginator.page_range %}
+            {% if pedimentos.number == num %}
+                <button class="pag-btn pag-activo">{{ num }}</button>
+            {% elif num >= pedimentos.number|add:"-2" and num <= pedimentos.number|add:"2" %}
+                <a href="?pagina={{ num }}{% if query %}&q={{ query }}{% endif %}"
+                   class="pag-btn">{{ num }}</a>
+            {% endif %}
+        {% endfor %}
+
+        {% if pedimentos.has_next %}
+            <a href="?pagina={{ pedimentos.next_page_number }}{% if query %}&q={{ query }}{% endif %}"
+               class="pag-btn">
+                <i data-lucide="chevron-right"></i>
+            </a>
+        {% else %}
+            <button class="pag-btn pag-disabled" disabled>
+                <i data-lucide="chevron-right"></i>
+            </button>
+        {% endif %}
+    </div>
+
+    <!-- Contador de resultados -->
+    <p class="paginacion-info">
+        Mostrando {{ pedimentos.start_index }}–{{ pedimentos.end_index }}
+        de {{ pedimentos.paginator.count }} pedimentos
+    </p>
+</section>
 </main>
+<div class="modal-overlay" id="modalPedimento">
+    <div class="modal-box modal-box-lg">
+        <div class="modal-header">
+            <h3>Nuevo pedimento</h3>
+            <button class="modal-cerrar" onclick="cerrarModal('modalPedimento')">
+                <i data-lucide="x"></i>
+            </button>
+        </div>
+
+        <form method="post" action="{% url 'home:pedimentos' %}">
+            {% csrf_token %}
+            <div class="modal-body">
+
+                <div class="form-row">
+                    <div class="form-info">
+                        <i data-lucide="info" style="width:14px;height:14px;"></i>
+                        El número de pedimento se generará automáticamente al guardar.
+                    </div>
+                    <div class="form-group">
+                        <label>{{ form.clave_pedimento.label }}</label>
+                        {{ form.clave_pedimento }}
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>{{ form.fecha_registro.label }}</label>
+                        {{ form.fecha_registro }}
+                    </div>
+                    <div class="form-group">
+                        <label>{{ form.valor_total.label }}</label>
+                        {{ form.valor_total }}
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>{{ form.regimen_adu.label }}</label>
+                        {{ form.regimen_adu }}
+                    </div>
+                    <div class="form-group">
+                        <label>{{ form.semaforo.label }}</label>
+                        {{ form.semaforo }}
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>{{ form.ope_aduanera.label }}</label>
+                        {{ form.ope_aduanera }}
+                    </div>
+                    <div class="form-group">
+                        <label>{{ form.permiso.label }}</label>
+                        {{ form.permiso }}
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>{{ form.tipo_importacion.label }}</label>
+                        {{ form.tipo_importacion }}
+                    </div>
+                    <div class="form-group">
+                        <label>{{ form.tipo_exportacion.label }}</label>
+                        {{ form.tipo_exportacion }}
+                    </div>
+                </div>
+
+                {% if form.errors %}
+                    <div class="form-errores">
+                        {% for field in form %}
+                            {% for error in field.errors %}
+                                <p>{{ field.label }}: {{ error }}</p>
+                            {% endfor %}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancelar" onclick="cerrarModal('modalPedimento')">Cancelar</button>
+                <button type="submit" class="btn-guardar">Guardar pedimento</button>
+            </div>
+        </form>
+    </div>
+</div>
 <script>
     lucide.createIcons();
+    function abrirModal(id) {
+        document.getElementById(id).classList.add('activo');
+    }
+
+    function cerrarModal(id) {
+        document.getElementById(id).classList.remove('activo');
+    }
+
+    // Si el form tuvo errores, reabre el modal automáticamente
+    {% if form.errors %}
+        document.addEventListener('DOMContentLoaded', function() {
+            abrirModal('modalCliente');  // o 'modalPedimento' en pedimentos.html
+        });
+    {% endif %}
+
+    // Cerrar al hacer click fuera del modal
+    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+        overlay.addEventListener('click', function(e) {
+            if (e.target === this) cerrarModal(this.id);
+        });
+    });
+
+// ── Filtro de búsqueda de pedimentos ──────────────────────
+const inputBuscarPed = document.querySelector('.input-buscar');
+const filasPed       = document.querySelectorAll('table tbody tr');
+
+inputBuscarPed.addEventListener('input', function() {
+    const texto = this.value.toLowerCase().trim();
+    filasPed.forEach(fila => {
+        fila.style.display = fila.textContent.toLowerCase().includes(texto) ? '' : 'none';
+    });
+});
 </script>
 </body>
 </html>
