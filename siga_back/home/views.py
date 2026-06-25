@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.shortcuts import render, redirect
 from django.core.paginator import Paginator
+from django.http import JsonResponse
 
 from .forms import LoginForm
 from .forms import LoginForm, NuevoClienteForm, NuevoPedimentoForm
@@ -10,8 +11,14 @@ from .forms import LoginForm, NuevoClienteForm, NuevoPedimentoForm
 from .models import Cliente
 from .models import Aduana
 from .models import Pedimento
+from .models import SemaforoFiscal
+from .models import OperacionAduanera 
+from .models import Paquete 
+from .models import Producto
 
 from datetime import date
+from datetime import datetime
+import random
 
 def login_view(request):
     if request.user.is_authenticated:
@@ -54,25 +61,55 @@ def generar_numero_pedimento(codigo_aduana):
     numero = f"{anio_2d} {cod_aduana} {patente} {ultimo_digito} {consecutivo}"
     return numero
 
+def generar_semaforo():
+    resultado = random.choices(
+        ['Verde - Desaduanamiento libre', 'Rojo - Reconocimiento aduanero'],
+        weights=[70, 30],
+        k=1
+    )[0]
+
+    semaforo = SemaforoFiscal.objects.create(
+        hora=datetime.now().time(),
+        resultado=resultado
+    )
+    return semaforo
+
 @login_required
 def pedimentos_view(request):
     if request.method == 'POST':
         form = NuevoPedimentoForm(request.POST)
         if form.is_valid():
             pedimento = form.save(commit=False)
-            codigo_aduana = pedimento.ope_aduanera.aduana_id
-            pedimento.numero_pedimento = generar_numero_pedimento(codigo_aduana)
+
+            # 1. Tomar datos de la operación seleccionada
+            op = pedimento.ope_aduanera
+
+            # 2. Generar semáforo automático
+            pedimento.semaforo = generar_semaforo()
+
+            # 3. Generar número de pedimento automático
+            pedimento.numero_pedimento = generar_numero_pedimento(op.aduana_id)
+
+            # 4. Fecha de registro automática
+            pedimento.fecha_registro = date.today()
+
             pedimento.save()
-            messages.success(request, f'Pedimento {pedimento.numero_pedimento} registrado correctamente.')
+            messages.success(
+                request,
+                f'Pedimento {pedimento.numero_pedimento} registrado. '
+                f'Semáforo: {pedimento.semaforo.resultado}'
+            )
             return redirect('home:pedimentos')
         else:
             messages.error(request, 'Revisa los campos del formulario.')
     else:
         form = NuevoPedimentoForm()
+
     query = request.GET.get('q', '')
     pedimentos = Pedimento.objects.select_related(
         'regimen_adu', 'semaforo', 'ope_aduanera'
     ).all()
+
     if query:
         pedimentos = pedimentos.filter(
             numero_pedimento__icontains=query
@@ -81,6 +118,7 @@ def pedimentos_view(request):
         ) | pedimentos.filter(
             clave_pedimento__icontains=query
         )
+
     paginador = Paginator(pedimentos, 5)
     pagina_actual = request.GET.get('pagina', 1)
     pedimentos_paginados = paginador.get_page(pagina_actual)
@@ -138,3 +176,30 @@ def fracciones_view(request):
 @login_required
 def bitacora_view(request):
     return render(request, 'home/bitacora.html')
+
+@login_required
+def api_datos_operacion(request):
+    operacion_id = request.GET.get('id')
+    if not operacion_id:
+        return JsonResponse({'error': 'ID requerido'}, status=400)
+
+    try:
+        op = OperacionAduanera.objects.select_related('aduana').get(
+            ID_operacion=operacion_id
+        )
+    except OperacionAduanera.DoesNotExist:
+        return JsonResponse({'error': 'No encontrada'}, status=404)
+
+    paquetes = Paquete.objects.filter(ope_aduanera=op)
+    valor_total = 0
+    for paquete in paquetes:
+        productos = Producto.objects.filter(paquete=paquete)
+        for producto in productos:
+            valor_total += float(producto.valor_unitario)
+
+    return JsonResponse({
+        'tipo_operacion': op.tipo_operacion,
+        'valor_total':    round(valor_total, 2),
+        'aduana_codigo':  op.aduana_id,
+        'aduana_nombre':  op.aduana.nombre,
+    })

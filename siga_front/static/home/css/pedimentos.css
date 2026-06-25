@@ -265,3 +265,16 @@
 .btn-nuevo:hover {
     background: #0a2354;
 }
+
+.form-hint {
+    font-size: 11.5px;
+    color: #6b7280;
+    margin-top: 4px;
+    display: block;
+}
+
+input[readonly] {
+    background: #f9fafb;
+    color: #6b7280;
+    cursor: not-allowed;
+}
