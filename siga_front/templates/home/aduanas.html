@@ -20,42 +20,72 @@
     <nav>
         <p class="nav-section-label">Principal</p>
         <a href="{% url 'home:dashboard' %}" class="nav-item">
-            <i data-lucide="layout-grid" class="nav-icon"></i> Panel general
+            <i data-lucide="layout-grid" class="nav-icon"></i> Dashboard
+        </a>
+        <a href="#" class="nav-item">
+            <i data-lucide="user" class="nav-icon"></i> Usuarios
+        </a>
+        <a href="#" class="nav-item">
+            <i data-lucide="key-round" class="nav-icon"></i> Permisos
+        </a>
+
+        <p class="nav-section-label">Operaciones</p>
+        <a href="{% url 'home:clientes' %}" class="nav-item">
+            <i data-lucide="users" class="nav-icon"></i> Clientes
+        </a>
+        <a href="{% url 'home:aduanas' %}" class="nav-item active">
+            <i data-lucide="home" class="nav-icon"></i> Aduanas
         </a>
         <a href="{% url 'home:pedimentos' %}" class="nav-item">
             <i data-lucide="file-text" class="nav-icon"></i> Pedimentos
         </a>
         <a href="{% url 'home:operaciones' %}" class="nav-item">
-            <i data-lucide="layout-list" class="nav-icon"></i> Operaciones
-            <span class="badge">3</span>
+            <i data-lucide="clipboard-list" class="nav-icon"></i> Operación Aduanera
         </a>
-
-        <p class="nav-section-label">Catálogos</p>
-        <a href="{% url 'home:clientes' %}" class="nav-item">
-            <i data-lucide="user" class="nav-icon"></i> Clientes
+        <a href="#" class="nav-item">
+            <i data-lucide="circle-dollar-sign" class="nav-icon"></i> Pagos
         </a>
-        <a href="{% url 'home:aduanas' %}" class="nav-item active">
-            <i data-lucide="home" class="nav-icon"></i> Aduanas
+        <a href="#" class="nav-item">
+            <i data-lucide="receipt" class="nav-icon"></i> Facturas
         </a>
         <a href="{% url 'home:categorias' %}" class="nav-item">
             <i data-lucide="tag" class="nav-icon"></i> Categorías
         </a>
-        <a href="{% url 'home:fracciones' %}" class="nav-item">
-            <i data-lucide="list" class="nav-icon"></i> Fracciones TIGIE
-        </a>
 
-        <p class="nav-section-label">Sistema</p>
+        <p class="nav-section-label">Fiscalización</p>
+        <a href="#" class="nav-item">
+            <i data-lucide="radio" class="nav-icon"></i> Semáforo Fiscal
+        </a>
+        <a href="#" class="nav-item">
+            <i data-lucide="search" class="nav-icon"></i> Inspecciones
+        </a>
+        <a href="#" class="nav-item">
+            <i data-lucide="triangle-alert" class="nav-icon"></i> Sanciones
+        </a>
         <a href="{% url 'home:bitacora' %}" class="nav-item">
             <i data-lucide="history" class="nav-icon"></i> Bitácora
         </a>
-        <a href="#" class="nav-item">
-            <i data-lucide="user" class="nav-icon"></i> Usuarios
-        </a>
-        <a href="{% url 'home:logout' %}" class="nav-item">
-            <i data-lucide="log-out" class="nav-icon"></i> Cerrar sesión
-        </a>
     </nav>
+
+    <div class="sidebar-footer">
+        <button type="button" class="btn-sidebar btn-sidebar-salir" onclick="mostrarModalLogout()">
+            <i data-lucide="log-out" class="nav-icon"></i> Salir
+        </button>
+        <a href="#" class="btn-sidebar btn-sidebar-usuario">
+            <i data-lucide="user" class="nav-icon"></i> Usuario
+        </a>
+    </div>
 </aside>
+<div class="modal-overlay" id="modalLogout">
+    <div class="modal-logout-box">
+        <img src="{% static 'home/img/siga_logo.png' %}" alt="SIGA" class="modal-logout-logo">
+        <p class="modal-logout-texto"> ¿Estás seguro de cerrar sesión? </p>
+        <div class="modal-logout-acciones">
+            <a href="{% url 'home:logout' %}" class="modal-logout-si">Sí</a>
+            <button type="button" class="modal-logout-cancelar" onclick="cerrarModalLogout()"> Cancelar </button>
+        </div>
+    </div>
+</div>
 <!-- ADUANAS -->
 <main class="content">
     <div class="header-aduanas">
@@ -71,6 +101,18 @@
             <p>Operaciones hoy</p>
             <h2 class="num-verde">2,304</h2>
         </div>
+    </div>
+
+    <div class="toolbar-aduanas">
+        <input type="text" class="input-buscar" placeholder="Buscar aduana...">
+        <select class="select-filtro">
+            <option>Todas las aduanas</option>
+        </select>
+        <select class="select-filtro">
+            <option>Todos los tipos</option>
+        </select>
+        <button class="btn-filtrar">Filtrar</button>
+        <button class="btn-nueva-aduana">Nueva aduana</button>
     </div>
     <section class="tabla-aduanas">
         <h3> Lista de Aduanas </h3>
@@ -104,6 +146,14 @@
 </main>
 <script>
     lucide.createIcons();
+
+    function mostrarModalLogout() {
+        document.getElementById('modalLogout').classList.add('activo');
+    }
+
+    function cerrarModalLogout() {
+        document.getElementById('modalLogout').classList.remove('activo');
+    }
 </script>
 </body>
 </html>

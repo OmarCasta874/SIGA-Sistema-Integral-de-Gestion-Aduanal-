@@ -9,7 +9,7 @@
     --rojo: #dc2626;
 }
 
-/* ================= RESET ================= */
+/*  RESET  */
 
 * {
     box-sizing: border-box;
@@ -23,7 +23,7 @@ body {
     min-height: 100vh;
 }
 
-/* ================= SIDEBAR ================= */
+/*  SIDEBAR */
 
 .sidebar {
     width: 255px;
@@ -35,6 +35,7 @@ body {
     display: flex;
     flex-direction: column;
     z-index: 100;
+    overflow-y: auto;
 }
 
 .sidebar-logo {
@@ -58,6 +59,7 @@ body {
 
 .sidebar nav {
     padding: 16px 0;
+    flex: 1;
 }
 
 .nav-section-label {
@@ -96,7 +98,47 @@ body {
     height: 18px;
 }
 
-/* ================= MAIN ================= */
+/* SIDEBAR FOOTER  */
+
+.sidebar-footer {
+    padding: 16px 20px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border-top: 1px solid rgba(255,255,255,.1);
+}
+
+.btn-sidebar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.btn-sidebar-salir {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,.25);
+    color: white;
+}
+
+.btn-sidebar-salir:hover {
+    background: rgba(255,255,255,.08);
+}
+
+.btn-sidebar-usuario {
+    background: var(--azul-sidebar-hover);
+    color: white;
+}
+
+.btn-sidebar-usuario:hover {
+    background: #234aa3;
+}
+
+/*  MAIN  */
 
 .main {
     margin-left: 255px;
@@ -112,7 +154,7 @@ body {
     margin-bottom: 28px;
 }
 
-/* ================= CARDS ================= */
+/* CARDS */
 
 .cards-grid {
     display: grid;
@@ -146,7 +188,7 @@ body {
     color: var(--rojo);
 }
 
-/* ================= TABLA ================= */
+/* TABLA */
 
 .panel-recientes {
     width: 100%;
@@ -219,7 +261,7 @@ body {
     text-decoration: none;
 }
 
-/* ================= PILLS ================= */
+/* PILLS */
 
 .estado-pill,
 .semaforo-pill {
@@ -240,7 +282,7 @@ body {
 .semaforo-rojo { background: #fee2e2; color: #dc2626; }
 .semaforo-amarillo { background: #fef3c7; color: #d97706; }
 
-/* ================= HISTORIAL ================= */
+/* HISTORIAL */
 
 .fila-inferior {
     width: 100%;
@@ -306,7 +348,7 @@ body {
     color: var(--gris-texto);
 }
 
-/* ================= SEMAFORO ================= */
+/* SEMAFORO  */
 
 .semaforo-cuerpo {
     display: flex;
@@ -415,7 +457,7 @@ body {
 .icono-doc    { background: #dbeafe; color: #2563eb; }
 .icono-edit   { background: #fef3c7; color: #d97706; }
 
-/* ================= RESPONSIVE ================= */
+/*  RESPONSIVE  */
 
 @media (max-width: 900px) {
     .sidebar {
@@ -436,13 +478,13 @@ body {
         grid-template-columns: 1fr;
     }
 
-    /* 🔧 mejora tabla en móvil */
+    /* mejora tabla en móvil */
     .tabla-pedimentos {
         min-width: 600px;
     }
 }
 
-/* ================= MODALES ================= */
+/*  MODALES */
 .modal-overlay {
     display: none;
     position: fixed;
@@ -511,7 +553,7 @@ body {
     border-top: 1px solid var(--borde);
 }
 
-/* ================= CAMPOS DEL FORMULARIO ================= */
+/*  CAMPOS DEL FORMULARIO  */
 .form-group {
     display: flex;
     flex-direction: column;
@@ -565,7 +607,7 @@ body {
     border-radius: 6px;
     padding: 8px 12px;
 }
-/* ================= BOTONES DEL MODAL ================= */
+/* BOTONES DEL MODAL */
 .btn-cancelar {
     padding: 9px 18px;
     border: 1px solid var(--borde);
@@ -590,7 +632,51 @@ body {
 
 .btn-guardar:hover { background: #0a2354; }
 
-/* ================= ALERTAS DE EXITO/ERROR ================= */
+/* MODAL LOGOUT */
+.modal-logout-box {
+    background: #eaf3fb;
+    border: 1px solid #bfdbfe;
+    border-radius: 16px;
+    padding: 28px 32px;
+    width: 100%;
+    max-width: 360px;
+    text-align: center;
+}
+
+.modal-logout-logo {
+    height: 38px;
+    margin-bottom: 18px;
+}
+
+.modal-logout-texto {
+    font-size: 15px;
+    color: #1a3880;
+    margin-bottom: 22px;
+}
+
+.modal-logout-acciones {
+    display: flex;
+    justify-content: flex-end;
+    gap: 22px;
+}
+
+.modal-logout-si,
+.modal-logout-cancelar {
+    background: none;
+    border: none;
+    color: #1a3880;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.modal-logout-si:hover, 
+.modal-logout-cancelar:hover {
+    text-decoration: underline;
+}
+
+/* ALERTAS DE EXITO/ERROR*/
 .alerta {
     padding: 10px 16px;
     border-radius: 6px;

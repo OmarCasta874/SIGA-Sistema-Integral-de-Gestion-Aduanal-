@@ -15,6 +15,7 @@ from .models import SemaforoFiscal
 from .models import OperacionAduanera 
 from .models import Paquete 
 from .models import Producto
+from .models import CategoriaProductos
 
 from datetime import date
 from datetime import datetime
@@ -47,7 +48,14 @@ def dashboard_view(request):
 
 @login_required
 def operaciones_view(request):
-    return render(request, 'home/operaciones.html')
+    operaciones = OperacionAduanera.objects.all().order_by('-ID_operacion')
+    total_operaciones = operaciones.count()
+    
+    context = {
+        'operaciones': operaciones,
+        'total_operaciones': total_operaciones
+    }
+    return render(request, 'home/operaciones.html', context)
 
 
 def generar_numero_pedimento(codigo_aduana):
@@ -158,11 +166,14 @@ def aduanas_view(request):
 
 @login_required
 def categorias_view(request):
-    return render(request, 'home/categorias.html')
-
-@login_required
-def fracciones_view(request):
-    return render(request, 'home/fracciones.html')
+    categorias = CategoriaProductos.objects.all().order_by("numero")
+    total_categorias = categorias.count()
+    
+    context = {
+        "categorias": categorias,
+        "total_categorias": total_categorias
+    }
+    return render(request, 'home/categorias.html', context)
 
 @login_required
 def bitacora_view(request):

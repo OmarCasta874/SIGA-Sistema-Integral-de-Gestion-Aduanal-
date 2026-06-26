@@ -12,7 +12,6 @@ urlpatterns = [
     path('clientes/', views.clientes_view, name='clientes'),
     path('aduanas/', views.aduanas_view, name='aduanas'),
     path('categorias/', views.categorias_view, name='categorias'),
-    path('fracciones/', views.fracciones_view, name='fracciones'),
     path('bitacora/', views.bitacora_view, name='bitacora'),
     path('api/operacion/', views.api_datos_operacion,  name='api_operacion'),
 ]

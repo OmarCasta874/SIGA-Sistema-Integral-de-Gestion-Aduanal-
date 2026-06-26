@@ -20,42 +20,72 @@
     <nav>
         <p class="nav-section-label">Principal</p>
         <a href="{% url 'home:dashboard' %}" class="nav-item">
-            <i data-lucide="layout-grid" class="nav-icon"></i> Panel general
+            <i data-lucide="layout-grid" class="nav-icon"></i> Dashboard
+        </a>
+        <a href="#" class="nav-item">
+            <i data-lucide="user" class="nav-icon"></i> Usuarios
+        </a>
+        <a href="#" class="nav-item">
+            <i data-lucide="key-round" class="nav-icon"></i> Permisos
+        </a>
+
+        <p class="nav-section-label">Operaciones</p>
+        <a href="{% url 'home:clientes' %}" class="nav-item">
+            <i data-lucide="users" class="nav-icon"></i> Clientes
+        </a>
+        <a href="{% url 'home:aduanas' %}" class="nav-item">
+            <i data-lucide="home" class="nav-icon"></i> Aduanas
         </a>
         <a href="{% url 'home:pedimentos' %}" class="nav-item">
             <i data-lucide="file-text" class="nav-icon"></i> Pedimentos
         </a>
         <a href="{% url 'home:operaciones' %}" class="nav-item active">
-            <i data-lucide="layout-list" class="nav-icon"></i> Operaciones
-            <span class="badge">3</span>
+            <i data-lucide="clipboard-list" class="nav-icon"></i> Operación Aduanera
         </a>
-
-        <p class="nav-section-label">Catálogos</p>
-        <a href="{% url 'home:clientes' %}" class="nav-item">
-            <i data-lucide="user" class="nav-icon"></i> Clientes
+        <a href="#" class="nav-item">
+            <i data-lucide="circle-dollar-sign" class="nav-icon"></i> Pagos
         </a>
-        <a href="{% url 'home:aduanas' %}" class="nav-item">
-            <i data-lucide="home" class="nav-icon"></i> Aduanas
+        <a href="#" class="nav-item">
+            <i data-lucide="receipt" class="nav-icon"></i> Facturas
         </a>
         <a href="{% url 'home:categorias' %}" class="nav-item">
             <i data-lucide="tag" class="nav-icon"></i> Categorías
         </a>
-        <a href="{% url 'home:fracciones' %}" class="nav-item">
-            <i data-lucide="list" class="nav-icon"></i> Fracciones TIGIE
-        </a>
 
-        <p class="nav-section-label">Sistema</p>
+        <p class="nav-section-label">Fiscalización</p>
+        <a href="#" class="nav-item">
+            <i data-lucide="radio" class="nav-icon"></i> Semáforo Fiscal
+        </a>
+        <a href="#" class="nav-item">
+            <i data-lucide="search" class="nav-icon"></i> Inspecciones
+        </a>
+        <a href="#" class="nav-item">
+            <i data-lucide="triangle-alert" class="nav-icon"></i> Sanciones
+        </a>
         <a href="{% url 'home:bitacora' %}" class="nav-item">
             <i data-lucide="history" class="nav-icon"></i> Bitácora
         </a>
-        <a href="#" class="nav-item">
-            <i data-lucide="user" class="nav-icon"></i> Usuarios
-        </a>
-        <a href="{% url 'home:logout' %}" class="nav-item">
-            <i data-lucide="log-out" class="nav-icon"></i> Cerrar sesión
-        </a>
     </nav>
+
+    <div class="sidebar-footer">
+        <button type="button" class="btn-sidebar btn-sidebar-salir" onclick="mostrarModalLogout()">
+            <i data-lucide="log-out" class="nav-icon"></i> Salir
+        </button>
+        <a href="#" class="btn-sidebar btn-sidebar-usuario">
+            <i data-lucide="user" class="nav-icon"></i> Usuario
+        </a>
+    </div>
 </aside>
+<div class="modal-overlay" id="modalLogout">
+    <div class="modal-logout-box">
+        <img src="{% static 'home/img/siga_logo.png' %}" alt="SIGA" class="modal-logout-logo">
+        <p class="modal-logout-texto"> ¿Estás seguro de cerrar sesión? </p>
+        <div class="modal-logout-acciones">
+            <a href="{% url 'home:logout' %}" class="modal-logout-si">Sí</a>
+            <button type="button" class="modal-logout-cancelar" onclick="cerrarModalLogout()"> Cancelar </button>
+        </div>
+    </div>
+</div>
 <!-- OPERACIONES -->
 <main class="content">
     <div class="header-operaciones">
@@ -68,7 +98,7 @@
     <div class="estadisticas">
         <div class="card card-azul">
             <p> Operaciones Activas </p>
-            <h2> 42 </h2>
+            <h2> {{ total_operaciones }} </h2>
         </div>
         <div class="card card-naranja">
             <p> En Revisión </p>
@@ -83,88 +113,56 @@
             <h2> 18 </h2>
         </div>
     </div>
+
+    <div class="toolbar-operaciones">
+        <input type="text" class="input-buscar-op" placeholder="Buscar operación...">
+        <button class="btn-filtrar-op">Filtrar</button>
+    </div>
     <section class="tabla-operaciones">
         <h3> Operaciones Recientes </h3>
         <table>
             <thead>
                 <tr>
-                    <th>Operación</th>
-                    <th>Cliente</th>
+                    <th>ID</th>
+                    <th>Fecha Inicial</th>
+                    <th>Fecha Final</th>
                     <th>Tipo</th>
-                    <th>Estado</th>
-                    <th>Aduana</th>
+                    <th>Acciones</th>
                 </tr>
             </thead>
             <tbody>
+                {% for operacion in operaciones %}
                 <tr>
-                    <td>OP-2024-0114</td>
-                    <td>MexImport LLC</td>
-                    <td>Importación</td>
-                    <td>Validación</td>
-                    <td>Tijuana</td>
+                    <td>{{ operacion.ID_operacion }}</td>
+                    <td>{{ operacion.fecha_inicio }}</td>
+                    <td>{{ operacion.fecha_final|default:"---" }}</td>
+                    <td>{{ operacion.tipo_operacion }}</td>
+                    <td>
+                        <button class="btn-ver">Ver</button>
+                        <button class="btn-editar">Editar</button>
+                    </td>
                 </tr>
+                {% empty %}
                 <tr>
-                    <td>OP-2024-0112</td>
-                    <td>Grupo Bajío</td>
-                    <td>Exportación</td>
-                    <td>Liberado</td>
-                    <td>Tijuana</td>
+                    <td colspan="5" style="text-align: center;">
+                        No hay operaciones registradas.
+                    </td>
                 </tr>
-                <tr>
-                    <td>OP-2024-0110</td>
-                    <td>Baja Pharma</td>
-                    <td>Importación</td>
-                    <td>Pago Pendiente</td>
-                    <td>Tijuana</td>
-                </tr>
-                <tr>
-                    <td>OP-2024-0108</td>
-                    <td>TJ Industrial</td>
-                    <td>Importación</td>
-                    <td>Reconocimiento</td>
-                    <td>Tijuana</td>
-                </tr>
+                {% endfor %}
             </tbody>
         </table>
     </section>
-    <div class="paneles-inferiores">
-        <section class="flujo-operativo">
-            <h3> Flujo Operativo </h3>
-            <div class="barra">
-                <div class="progreso"></div>
-            </div>
-            <div class="etapas">
-                <span>Captura</span>
-                <span>Validación</span>
-                <span>Pago</span>
-                <span>Liberado</span>
-            </div>
-        </section>
-        <section class="actividad-reciente">
-            <h3> Actividad Reciente </h3>
-            <ul class="lista-actividad">
-                <li>
-                    <strong>Documentos cargados</strong>
-                    <span>OP-2024-0114 - Hace 18 min</span>
-                </li>
-                <li>
-                    <strong>Validación SAT completada</strong>
-                    <span>OP-2024-0112 - Hace 42 min</span>
-                </li>
-                <li>
-                    <strong>Pago pendiente detectado</strong>
-                    <span>OP-2024-0110 - Hace 1 h</span>
-                </li>
-                <li>
-                    <strong>Reconocimiento aduanero</strong>
-                    <span>OP-2024-0108 - Hace 2 h</span>
-                </li>
-            </ul>
-        </section>
-    </div>
 </main>
 <script>
     lucide.createIcons();
+
+    function mostrarModalLogout() {
+        document.getElementById('modalLogout').classList.add('activo');
+    }
+
+    function cerrarModalLogout() {
+        document.getElementById('modalLogout').classList.remove('activo');
+    }
 </script>
 </body>
 </html>
