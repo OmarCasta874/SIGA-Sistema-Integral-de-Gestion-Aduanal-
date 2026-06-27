@@ -147,6 +147,12 @@
                     <td>{{ cliente.RFC }}</td>
                     <td>{{ cliente.tipo_persona }}</td>
                     <td><span class="clientes-estado-pill estado-activo">Activo</span></td>
+                    <td class="acciones">
+                    <button class="btn-ver"
+                            onclick="abrirDetalleCliente({{ c.numero }})">
+                        <i data-lucide="eye"></i> Detalles
+                    </button>
+                    </td>
                 </tr>
                 {% empty %}
                 <tr>
@@ -264,6 +270,142 @@
         </form>
     </div>
 </div>
+<!-- ── Modal: Detalles del cliente ── -->
+<div class="modal-overlay" id="modalDetalleCliente">
+    <div class="modal-box modal-box-lg">
+        <div class="modal-header">
+            <div>
+                <h3 id="detalle-nombre">Cargando...</h3>
+                <p id="detalle-rfc" style="font-size:13px; color:#6b7280; margin-top:2px;"></p>
+            </div>
+            <button class="modal-cerrar" onclick="cerrarModal('modalDetalleCliente')">
+                <i data-lucide="x"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+
+            <!-- Info general -->
+            <div class="detalle-grid" style="grid-template-columns:1fr 1fr; gap:12px;">
+                <div class="detalle-card">
+                    <h3>Información general</h3>
+                    <div class="detalle-row">
+                        <span class="detalle-label">Tipo</span>
+                        <span id="detalle-tipo"></span>
+                    </div>
+                    <div class="detalle-row">
+                        <span class="detalle-label">RFC</span>
+                        <span id="detalle-rfc2"></span>
+                    </div>
+                    <div class="detalle-row" id="row-apellidos">
+                        <span class="detalle-label">Apellidos</span>
+                        <span id="detalle-apellidos"></span>
+                    </div>
+                </div>
+
+                <!-- Resumen permisos -->
+                <div class="detalle-card">
+                    <h3>Permisos</h3>
+                    <div id="detalle-resumen-permisos" style="font-size:13.5px; color:#6b7280;">
+                        Cargando...
+                    </div>
+                    <button class="btn-guardar"
+                            style="margin-top:14px; width:100%;"
+                            onclick="abrirAgregarPermiso()">
+                        <i data-lucide="plus"></i> Agregar permiso
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tabla de permisos -->
+            <div id="seccion-permisos" style="margin-top:16px;">
+                <h3 style="font-size:14px; font-weight:600; color:#111827; margin-bottom:12px;">
+                    Permisos registrados
+                </h3>
+                <table class="tabla-pedimentos" id="tabla-permisos">
+                    <thead>
+                        <tr>
+                            <th>Clave / Folio</th>
+                            <th>Autoridad</th>
+                            <th>Vigencia</th>
+                            <th>Estado</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-permisos">
+                        <tr>
+                            <td colspan="5" style="text-align:center; color:#9ca3af; padding:20px;">
+                                Cargando permisos...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- ── Modal: Agregar permiso ── -->
+<div class="modal-overlay" id="modalAgregarPermiso">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3>Agregar permiso</h3>
+            <button class="modal-cerrar" onclick="cerrarModal('modalAgregarPermiso')">
+                <i data-lucide="x"></i>
+            </button>
+        </div>
+        <form id="formPermiso" method="post">
+            {% csrf_token %}
+            <input type="hidden" name="accion" value="agregar_permiso">
+            <input type="hidden" name="cliente_id" id="permiso-cliente-id">
+            <div class="modal-body">
+
+                <div class="form-group">
+                    <label>Autoridad reguladora</label>
+                    <select name="tipo_permiso" class="form-input" required>
+                        <option value="">Selecciona...</option>
+                        <option value="COFEPRIS">COFEPRIS — Alimentos, medicamentos</option>
+                        <option value="SENASICA">SENASICA — Sanidad animal y vegetal</option>
+                        <option value="SEMARNAT">SEMARNAT — Medio ambiente</option>
+                        <option value="SADER">SADER — Agricultura</option>
+                        <option value="SEDENA">SEDENA — Materiales militares</option>
+                        <option value="SE">SE — Secretaría de Economía</option>
+                        <option value="SAT-IMMEX">SAT — Programa IMMEX</option>
+                        <option value="CRE">CRE — Energía / Hidrocarburos</option>
+                        <option value="PROFEPA">PROFEPA — Certificado CITES</option>
+                        <option value="Otro">Otro permiso regulatorio</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Clave / Folio del permiso</label>
+                    <input type="text" name="clave_numerica" class="form-input"
+                           placeholder="Ej. PERM-COFEPRIS-2024-001" required>
+                    <span class="form-hint">Folio oficial del documento del permiso.</span>
+                </div>
+
+                <div class="form-group">
+                    <label>Fecha de vigencia</label>
+                    <input type="date" name="vigencia" class="form-input" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Descripción (opcional)</label>
+                    <textarea name="descripcion" class="form-input" rows="2"
+                              placeholder="Descripción breve..."></textarea>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancelar"
+                        onclick="cerrarModal('modalAgregarPermiso')">
+                    Cancelar
+                </button>
+                <button type="submit" class="btn-guardar">Guardar permiso</button>
+            </div>
+        </form>
+    </div>
+</div>
 <script>
     lucide.createIcons();
 
@@ -282,6 +424,107 @@
     function cerrarModalLogout() {
         document.getElementById('modalLogout').classList.remove('activo');
     }
+    let clienteActualId = null;
+
+async function abrirDetalleCliente(id) {
+    clienteActualId = id;
+    abrirModal('modalDetalleCliente');
+
+    // Resetear contenido mientras carga
+    document.getElementById('detalle-nombre').textContent    = 'Cargando...';
+    document.getElementById('tbody-permisos').innerHTML      =
+        '<tr><td colspan="5" style="text-align:center;color:#9ca3af;padding:20px;">Cargando...</td></tr>';
+
+    try {
+        const resp = await fetch(`/api/cliente/${id}/`);
+        const data = await resp.json();
+
+        // Info general
+        const nombre = `${data.nombre} ${data.primer_apell} ${data.seg_apell}`.trim();
+        document.getElementById('detalle-nombre').textContent  = nombre;
+        document.getElementById('detalle-rfc').textContent     = `RFC: ${data.RFC}`;
+        document.getElementById('detalle-rfc2').textContent    = data.RFC;
+        document.getElementById('detalle-tipo').textContent    = data.tipo_persona;
+        document.getElementById('detalle-apellidos').textContent =
+            `${data.primer_apell} ${data.seg_apell}`.trim() || '—';
+
+        // Ocultar apellidos si es persona moral
+        document.getElementById('row-apellidos').style.display =
+            data.tipo_persona === 'Moral' ? 'none' : '';
+
+        // Resumen de permisos
+        const resumen = document.getElementById('detalle-resumen-permisos');
+        if (data.permisos.length === 0) {
+            resumen.innerHTML = '<span style="color:#9ca3af;">Sin permisos registrados.</span>';
+        } else {
+            const vigentes = data.permisos.filter(p => p.vigente).length;
+            const vencidos = data.permisos.length - vigentes;
+            resumen.innerHTML = `
+                <span style="color:#16a34a; font-weight:600;">${vigentes} vigente${vigentes !== 1 ? 's' : ''}</span>
+                ${vencidos > 0 ? `&nbsp;·&nbsp;<span style="color:#dc2626;">${vencidos} vencido${vencidos !== 1 ? 's' : ''}</span>` : ''}
+            `;
+        }
+
+        // Tabla de permisos
+        const tbody = document.getElementById('tbody-permisos');
+        if (data.permisos.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" style="text-align:center; color:#9ca3af; padding:24px;">
+                        Este cliente no tiene permisos registrados.
+                    </td>
+                </tr>`;
+        } else {
+            tbody.innerHTML = data.permisos.map(p => `
+                <tr>
+                    <td style="font-weight:500;">${p.clave}</td>
+                    <td>${p.tipo}</td>
+                    <td>${p.vigencia}</td>
+                    <td>
+                        <span class="estado-pill ${p.vigente ? 'estado-validado' : 'estado-transmitido'}">
+                            ${p.vigente ? 'Vigente' : 'Vencido'}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn-eliminar"
+                                onclick="eliminarPermiso(${id}, '${p.clave}', this)">
+                            <i data-lucide="trash-2"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+            lucide.createIcons();
+        }
+
+    } catch(e) {
+        console.error('Error al cargar cliente:', e);
+    }
+}
+
+function abrirAgregarPermiso() {
+    document.getElementById('permiso-cliente-id').value = clienteActualId;
+    document.getElementById('formPermiso').action       = '/clientes/';
+    cerrarModal('modalDetalleCliente');
+    abrirModal('modalAgregarPermiso');
+}
+
+async function eliminarPermiso(clienteId, clave, btn) {
+    if (!confirm('¿Eliminar este permiso?')) return;
+
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    try {
+        const resp = await fetch(`/api/cliente/${clienteId}/permiso/${clave}/eliminar/`, {
+            method:  'POST',
+            headers: { 'X-CSRFToken': csrfToken },
+        });
+        const data = await resp.json();
+        if (data.ok) {
+            btn.closest('tr').remove();
+        }
+    } catch(e) {
+        alert('Error al eliminar el permiso.');
+    }
+}
 
     {% if form.errors %}
         document.addEventListener('DOMContentLoaded', function() {

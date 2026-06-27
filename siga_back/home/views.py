@@ -24,6 +24,8 @@ from .models import Bitacora
 from .models import RegimenAduanero
 from .models import EstadoPago
 from .models import Pago
+from .models import TipoImportaciones
+from .models import TipoExportaciones
 
 from datetime import date
 from datetime import datetime
@@ -84,76 +86,77 @@ def dashboard_view(request):
 @login_required
 def clientes_view(request):
     if request.method == 'POST':
-        form = NuevoClienteForm(request.POST)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Cliente registrado correctamente.')
+        accion = request.POST.get('accion', '')
+        if accion == '' or accion == 'nuevo_cliente':
+            form = NuevoClienteForm(request.POST)
+            if form.is_valid():
+                form.save()
+                messages.success(request, 'Cliente registrado correctamente.')
+                return redirect('home:clientes')
+
+        elif accion == 'agregar_permiso':
+            cliente_id = request.POST.get('cliente_id')
+            cliente    = get_object_or_404(Cliente, numero=cliente_id)
+            try:
+                Permiso.objects.create(
+                    clave_numerica = request.POST.get('clave_numerica'),
+                    tipo_permiso   = request.POST.get('tipo_permiso'),
+                    vigencia       = request.POST.get('vigencia'),
+                    descripcion    = request.POST.get('descripcion', ''),
+                    cliente        = cliente,
+                )
+                messages.success(request, 'Permiso agregado correctamente.')
+            except Exception as e:
+                messages.error(request, f'Error al guardar el permiso: {e}')
             return redirect('home:clientes')
-        else:
-            messages.error(request, 'Revisa los campos del formulario.')
-    else:
-        form = NuevoClienteForm()
 
+    form     = NuevoClienteForm()
     clientes = Cliente.objects.all()
-
     paginador = Paginator(clientes, 5)   # 5 clientes por página
     clientes_paginados = paginador.get_page(
         request.GET.get('pagina', 1)
     )
-
     return render(request, 'home/clientes.html', {
-        'clientes': clientes_paginados,
+        'clientes':clientes_paginados,
         'total_clientes': clientes.count(),
-        'form': form,
+        'form':form,
     })
 
 @login_required
-def cliente_detalle_view(request, pk):
+def api_cliente_detalle(request, pk):
     cliente  = get_object_or_404(Cliente, numero=pk)
     permisos = Permiso.objects.filter(cliente=cliente)
     hoy      = date.today()
 
-    return render(request, 'home/cliente_detalle.html', {
-        'cliente':  cliente,
-        'permisos': permisos,
-        'hoy':      hoy,
+    permisos_data = [
+        {
+            'clave':         p.clave_numerica,
+            'tipo':          p.tipo_permiso,
+            'vigencia':      p.vigencia.strftime('%d/%m/%Y'),
+            'vigente':       p.vigencia >= hoy,
+            'descripcion':   p.descripcion or '',
+        }
+        for p in permisos
+    ]
+
+    return JsonResponse({
+        'numero':       cliente.numero,
+        'nombre':       cliente.nombre,
+        'primer_apell': cliente.primer_apell or '',
+        'seg_apell':    cliente.seg_apell or '',
+        'tipo_persona': cliente.tipo_persona,
+        'RFC':          cliente.RFC,
+        'permisos':     permisos_data,
     })
 
 @login_required
-def cliente_permiso_view(request, pk):
-    cliente = get_object_or_404(Cliente, numero=pk)
-
+def api_permiso_eliminar(request, pk, clave):
     if request.method == 'POST':
-        form = NuevoPermisoForm(request.POST)
-        if form.is_valid():
-            permiso         = form.save(commit=False)
-            permiso.cliente = cliente
-            permiso.save()
-            messages.success(
-                request,
-                f'Permiso {permiso.clave_numerica} registrado correctamente.'
-            )
-            return redirect('home:cliente_detalle', pk=pk)
-        else:
-            messages.error(request, 'Revisa los campos del formulario.')
-    else:
-        form = NuevoPermisoForm()
-
-    return render(request, 'home/cliente_permiso.html', {
-        'cliente': cliente,
-        'form':    form,
-    })
-
-@login_required
-def cliente_permiso_eliminar_view(request, pk, clave):
-    cliente = get_object_or_404(Cliente, numero=pk)
-    permiso = get_object_or_404(Permiso, clave_numerica=clave, cliente=cliente)
-
-    if request.method == 'POST':
+        cliente = get_object_or_404(Cliente, numero=pk)
+        permiso = get_object_or_404(Permiso, clave_numerica=clave, cliente=cliente)
         permiso.delete()
-        messages.success(request, 'Permiso eliminado correctamente.')
-
-    return redirect('home:cliente_detalle', pk=pk)
+        return JsonResponse({'ok': True})
+    return JsonResponse({'ok': False}, status=405)
 
 @login_required
 def operaciones_view(request):
@@ -161,30 +164,26 @@ def operaciones_view(request):
     operaciones = OperacionAduanera.objects.select_related(
         'cliente', 'aduana'
     ).all().order_by('-ID_operacion')
-
     if query:
         operaciones = operaciones.filter(
             cliente__nombre__icontains=query
         ) | operaciones.filter(
             tipo_operacion__icontains=query
-        ) | operaciones.filter(
-            aduana__nombre__icontains=query
         )
-
-    ops_con_estado = []
-    for op in operaciones:
-        ops_con_estado.append({
-            'op':    op,
-            'paso':  estado_operacion(op),
-        })
-
+    ops_con_estado = [
+        {'op': op, 'paso': estado_operacion(op)}
+        for op in operaciones
+    ]
     paginador = Paginator(ops_con_estado, 8)
-    pagina    = request.GET.get('pagina', 1)
-
     return render(request, 'home/operaciones.html', {
-        'operaciones':       paginador.get_page(pagina),
+        'operaciones':       paginador.get_page(request.GET.get('pagina', 1)),
         'total_operaciones': operaciones.count(),
         'query':             query,
+        'clientes':          Cliente.objects.all(),
+        'tipos_importacion': TipoImportaciones.objects.all(),
+        'tipos_exportacion': TipoExportaciones.objects.all(),
+        'regimenes':         RegimenAduanero.objects.all(),
+        'hoy':               date.today(),
     })
 
 @login_required

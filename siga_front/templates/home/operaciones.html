@@ -91,9 +91,10 @@
     <div class="header-operaciones">
         <h1> Operaciones </h1>
 
-        <a href="{% url 'home:operacion_nueva' %}" class="btn-nueva" style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center;">
-            <i data-lucide="plus"></i>Nueva Operación
-    </a>
+        <button class="btn-filtrar-op" onclick="abrirModal('modalNuevaOperacion')">
+            <i data-lucide="plus"></i>
+            Nueva operación
+        </button>
     </div>
     <div class="estadisticas">
         <div class="card card-azul">
@@ -155,6 +156,272 @@
         </table>
     </section>
 </main>
+<!-- ── Modal Nueva Operación: 3 pasos ── -->
+<div class="modal-overlay" id="modalNuevaOperacion">
+    <div class="modal-box modal-box-lg">
+        <div class="modal-header">
+            <div>
+                <h3>Nueva operación aduanera</h3>
+                <p id="modal-subtitulo" style="font-size:13px;color:#6b7280;margin-top:2px;">
+                    Paso 1 de 3 — Información general
+                </p>
+            </div>
+            <button class="modal-cerrar" onclick="cerrarModal('modalNuevaOperacion')">
+                <i data-lucide="x"></i>
+            </button>
+        </div>
+
+        <!-- Barra de progreso del modal -->
+        <div style="padding: 0 24px;">
+            <div class="progreso-barra" style="margin: 16px 0;">
+                <div class="progreso-paso activo" id="prog-1">
+                    <div class="progreso-circulo">1</div>
+                    <span>General</span>
+                </div>
+                <div class="progreso-linea" id="linea-1"></div>
+                <div class="progreso-paso" id="prog-2">
+                    <div class="progreso-circulo">2</div>
+                    <span id="prog-2-label">Operación</span>
+                </div>
+                <div class="progreso-linea" id="linea-2"></div>
+                <div class="progreso-paso" id="prog-3">
+                    <div class="progreso-circulo">3</div>
+                    <span>Confirmar</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- PASO 1: Info general -->
+        <div id="paso-1">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Tipo de operación</label>
+                    <select id="op-tipo" class="form-input" required>
+                        <option value="">Selecciona...</option>
+                        <option value="Importación">Importación</option>
+                        <option value="Exportación">Exportación</option>
+                        <option value="Tránsito">Tránsito (próximamente)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Cliente asociado</label>
+                    <select id="op-cliente" class="form-input" required>
+                        <option value="">Selecciona un cliente...</option>
+                        {% for c in clientes %}
+                            <option value="{{ c.numero }}">
+                                {{ c.nombre }} {{ c.primer_apell|default:'' }} — {{ c.RFC }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Aduana</label>
+                        <input type="text" id="op-aduana-texto" class="form-input"
+                               value="{{ request.user.nombre_pila }} — Aduana de Tijuana"
+                               readonly>
+                        <input type="hidden" id="op-aduana" value="400">
+                        <span class="form-hint">
+                            Asignada automáticamente según el usuario activo.
+                        </span>
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha de apertura</label>
+                        <input type="text" id="op-fecha" class="form-input"
+                               value="{{ hoy|date:'d/m/Y' }}" readonly>
+                        <span class="form-hint">Fecha actual del sistema.</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancelar"
+                        onclick="cerrarModal('modalNuevaOperacion')">
+                    Cancelar
+                </button>
+                <button type="button" class="btn-guardar" onclick="pasarPaso2()">
+                    Continuar →
+                </button>
+            </div>
+        </div>
+
+        <!-- PASO 2A: Importación -->
+        <div id="paso-2-importacion" style="display:none;">
+            <form method="post" action="{% url 'home:operacion_nueva' %}" id="form-importacion">
+                {% csrf_token %}
+                <input type="hidden" name="tipo_operacion" value="Importación">
+                <input type="hidden" name="cliente"  id="imp-cliente">
+                <input type="hidden" name="aduana"   id="imp-aduana">
+                <div class="modal-body">
+                    <div class="form-info">
+                        <i data-lucide="info"></i>
+                        Importación — El cliente <strong id="imp-nombre-cliente"></strong>
+                        recibirá mercancía del extranjero.
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Proveedor extranjero</label>
+                            <input type="text" name="proveedor" class="form-input"
+                                   placeholder="Ej. Toyota Japan Co.">
+                        </div>
+                        <div class="form-group">
+                            <label>País de origen</label>
+                            <input type="text" name="pais_origen" class="form-input"
+                                   placeholder="Ej. Japón">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>País de destino</label>
+                            <input type="text" name="pais_destino" class="form-input"
+                                   value="México" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>Tipo de importación</label>
+                            <select name="tipo_importacion" class="form-input">
+                                <option value="">Selecciona...</option>
+                                {% for t in tipos_importacion %}
+                                    <option value="{{ t.tipo_importacion }}">{{ t.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Régimen aduanero</label>
+                        <select name="regimen_adu" class="form-input">
+                            <option value="">Selecciona...</option>
+                            {% for r in regimenes %}
+                                {% if 'import' in r.descripcion|lower or 'temporal' in r.descripcion|lower or 'depósito' in r.descripcion|lower %}
+                                    <option value="{{ r.num_regimen }}">
+                                        {{ r.clave_oficial }} — {{ r.descripcion }}
+                                    </option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                        <span class="form-hint">
+                            Solo se muestran regímenes aplicables a importación.
+                        </span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancelar" onclick="volverPaso1()">
+                        ← Atrás
+                    </button>
+                    <button type="button" class="btn-guardar" onclick="pasarPaso3('importacion')">
+                        Continuar →
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- PASO 2B: Exportación -->
+        <div id="paso-2-exportacion" style="display:none;">
+            <form method="post" action="{% url 'home:operacion_nueva' %}" id="form-exportacion">
+                {% csrf_token %}
+                <input type="hidden" name="tipo_operacion" value="Exportación">
+                <input type="hidden" name="cliente"  id="exp-cliente">
+                <input type="hidden" name="aduana"   id="exp-aduana">
+                <div class="modal-body">
+                    <div class="form-info">
+                        <i data-lucide="info"></i>
+                        Exportación — El cliente <strong id="exp-nombre-cliente"></strong>
+                        enviará mercancía al extranjero.
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Cliente comprador (destino)</label>
+                            <input type="text" name="comprador" class="form-input"
+                                   placeholder="Ej. Amazon USA Inc.">
+                        </div>
+                        <div class="form-group">
+                            <label>País de destino</label>
+                            <input type="text" name="pais_destino" class="form-input"
+                                   placeholder="Ej. Estados Unidos">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>País de origen</label>
+                            <input type="text" name="pais_origen" class="form-input"
+                                   value="México" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>Tipo de exportación</label>
+                            <select name="tipo_exportacion" class="form-input">
+                                <option value="">Selecciona...</option>
+                                {% for t in tipos_exportacion %}
+                                    <option value="{{ t.tipo_exportacion }}">{{ t.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Régimen aduanero</label>
+                        <select name="regimen_adu" class="form-input">
+                            <option value="">Selecciona...</option>
+                            {% for r in regimenes %}
+                                {% if 'export' in r.descripcion|lower %}
+                                    <option value="{{ r.num_regimen }}">
+                                        {{ r.clave_oficial }} — {{ r.descripcion }}
+                                    </option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                        <span class="form-hint">
+                            Solo se muestran regímenes aplicables a exportación.
+                        </span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancelar" onclick="volverPaso1()">
+                        ← Atrás
+                    </button>
+                    <button type="button" class="btn-guardar" onclick="pasarPaso3('exportacion')">
+                        Continuar →
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- PASO 3: Confirmación -->
+        <div id="paso-3" style="display:none;">
+            <div class="modal-body">
+                <div class="form-info" style="background:#dcfce7; border-color:#bbf7d0; color:#16a34a;">
+                    <i data-lucide="check-circle-2"></i>
+                    Revisa los datos antes de confirmar la operación.
+                </div>
+                <div class="detalle-card" style="margin-top:12px;">
+                    <h3>Resumen de la operación</h3>
+                    <div class="detalle-row">
+                        <span class="detalle-label">Tipo</span>
+                        <span id="resumen-tipo"></span>
+                    </div>
+                    <div class="detalle-row">
+                        <span class="detalle-label">Cliente</span>
+                        <span id="resumen-cliente"></span>
+                    </div>
+                    <div class="detalle-row">
+                        <span class="detalle-label">Aduana</span>
+                        <span id="resumen-aduana"></span>
+                    </div>
+                    <div class="detalle-row">
+                        <span class="detalle-label">Fecha apertura</span>
+                        <span id="resumen-fecha"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancelar" id="btn-volver-paso2"
+                        onclick="volverPaso2()">
+                    ← Atrás
+                </button>
+                <button type="button" class="btn-guardar" onclick="confirmarOperacion()">
+                    Confirmar y abrir operación ✓
+                </button>
+            </div>
+        </div>
+
+    </div>
+</div>
 <script>
     lucide.createIcons();
 
@@ -164,6 +431,129 @@
 
     function cerrarModalLogout() {
         document.getElementById('modalLogout').classList.remove('activo');
+    
+    let tipoOperacionActual = null;
+
+function pasarPaso2() {
+    const tipo    = document.getElementById('op-tipo').value;
+    const cliente = document.getElementById('op-cliente');
+    const aduana  = document.getElementById('op-aduana').value;
+
+    if (!tipo) {
+        alert('Selecciona el tipo de operación.');
+        return;
+    }
+    if (!cliente.value) {
+        alert('Selecciona un cliente.');
+        return;
+    }
+
+    tipoOperacionActual = tipo;
+    const nombreCliente = cliente.options[cliente.selectedIndex].text;
+
+    // Ocultar paso 1
+    document.getElementById('paso-1').style.display = 'none';
+
+    // Actualizar barra de progreso
+    document.getElementById('prog-1').classList.remove('activo');
+    document.getElementById('prog-1').classList.add('completo');
+    document.getElementById('prog-1').querySelector('.progreso-circulo').innerHTML =
+        '<i data-lucide="check"></i>';
+    document.getElementById('linea-1').classList.add('completa');
+    document.getElementById('prog-2').classList.add('activo');
+
+    if (tipo === 'Importación') {
+        document.getElementById('prog-2-label').textContent = 'Importación';
+        document.getElementById('modal-subtitulo').textContent = 'Paso 2 de 3 — Datos de importación';
+        document.getElementById('imp-cliente').value = cliente.value;
+        document.getElementById('imp-aduana').value  = aduana;
+        document.getElementById('imp-nombre-cliente').textContent = nombreCliente.split('—')[0].trim();
+        document.getElementById('paso-2-importacion').style.display = '';
+
+    } else if (tipo === 'Exportación') {
+        document.getElementById('prog-2-label').textContent = 'Exportación';
+        document.getElementById('modal-subtitulo').textContent = 'Paso 2 de 3 — Datos de exportación';
+        document.getElementById('exp-cliente').value = cliente.value;
+        document.getElementById('exp-aduana').value  = aduana;
+        document.getElementById('exp-nombre-cliente').textContent = nombreCliente.split('—')[0].trim();
+        document.getElementById('paso-2-exportacion').style.display = '';
+
+    } else {
+        alert('Tránsito estará disponible próximamente.');
+        document.getElementById('paso-1').style.display = '';
+        return;
+    }
+
+    lucide.createIcons();
+}
+
+function pasarPaso3(tipo) {
+    document.getElementById(`paso-2-${tipo}`).style.display = 'none';
+
+    // Barra de progreso
+    document.getElementById('prog-2').classList.remove('activo');
+    document.getElementById('prog-2').classList.add('completo');
+    document.getElementById('prog-2').querySelector('.progreso-circulo').innerHTML =
+        '<i data-lucide="check"></i>';
+    document.getElementById('linea-2').classList.add('completa');
+    document.getElementById('prog-3').classList.add('activo');
+    document.getElementById('modal-subtitulo').textContent = 'Paso 3 de 3 — Confirmar';
+
+    // Resumen
+    const cliente = document.getElementById('op-cliente');
+    document.getElementById('resumen-tipo').textContent    =
+        tipoOperacionActual;
+    document.getElementById('resumen-cliente').textContent =
+        cliente.options[cliente.selectedIndex].text;
+    document.getElementById('resumen-aduana').textContent  =
+        document.getElementById('op-aduana-texto').value;
+    document.getElementById('resumen-fecha').textContent   =
+        document.getElementById('op-fecha').value;
+
+    document.getElementById('paso-3').style.display = '';
+    lucide.createIcons();
+}
+
+function volverPaso1() {
+    document.getElementById('paso-2-importacion').style.display = 'none';
+    document.getElementById('paso-2-exportacion').style.display = 'none';
+    document.getElementById('paso-1').style.display = '';
+
+    // Resetear barra
+    document.getElementById('prog-1').classList.add('activo');
+    document.getElementById('prog-1').classList.remove('completo');
+    document.getElementById('prog-1').querySelector('.progreso-circulo').textContent = '1';
+    document.getElementById('linea-1').classList.remove('completa');
+    document.getElementById('prog-2').classList.remove('activo');
+    document.getElementById('modal-subtitulo').textContent = 'Paso 1 de 3 — Información general';
+}
+
+function volverPaso2() {
+    document.getElementById('paso-3').style.display = 'none';
+
+    // Resetear barra paso 3
+    document.getElementById('prog-2').classList.add('activo');
+    document.getElementById('prog-2').classList.remove('completo');
+    document.getElementById('prog-2').querySelector('.progreso-circulo').textContent = '2';
+    document.getElementById('linea-2').classList.remove('completa');
+    document.getElementById('prog-3').classList.remove('activo');
+
+    if (tipoOperacionActual === 'Importación') {
+        document.getElementById('paso-2-importacion').style.display = '';
+        document.getElementById('modal-subtitulo').textContent = 'Paso 2 de 3 — Datos de importación';
+    } else {
+        document.getElementById('paso-2-exportacion').style.display = '';
+        document.getElementById('modal-subtitulo').textContent = 'Paso 2 de 3 — Datos de exportación';
+    }
+}
+
+function confirmarOperacion() {
+    if (tipoOperacionActual === 'Importación') {
+        document.getElementById('form-importacion').submit();
+    } else {
+        document.getElementById('form-exportacion').submit();
+    }
+}
     }
 </script>
 </body>

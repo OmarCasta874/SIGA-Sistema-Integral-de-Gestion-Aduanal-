@@ -115,6 +115,38 @@ button i {
 }
 
 .btn-filtrar-op {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+
+    padding: 10px 22px;
+
+    border: none;
+    border-radius: 8px;
+
+    background: #2563EB;
+    color: #fff;
+
+    font-size: 14px;
+    font-weight: 600;
+
+    cursor: pointer;
+    white-space: nowrap;
+
+    transition: background 0.2s ease;
+}
+
+.btn-filtrar-op:hover {
+    background: #1D4FD1;
+}
+
+.btn-filtrar-op i {
+    width: 18px;
+    height: 18px;
+}
+
+.btn-nueva_operacion-op {
     padding: 10px 22px;
     border: none;
     border-radius: 8px;
@@ -126,7 +158,7 @@ button i {
     white-space: nowrap;
 }
 
-.btn-filtrar-op:hover {
+.btn-nueva_operacion-op:hover {
     background: #1D4FD1;
 }
 
