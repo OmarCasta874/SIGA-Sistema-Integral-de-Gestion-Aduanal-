@@ -1,0 +1,81 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Agregar permiso — SIGA</title>
+    <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body>
+{% include 'home/partials/sidebar.html' %}
+
+<main class="main">
+    <div class="page-header">
+        <a href="{% url 'home:cliente_detalle' cliente.numero %}" class="btn-volver">
+            <i data-lucide="arrow-left"></i> Volver a {{ cliente.nombre }}
+        </a>
+        <h1 class="page-title">Agregar permiso</h1>
+        <p class="page-subtitle">
+            Registra un permiso regulatorio para
+            <strong>{{ cliente.nombre }} {{ cliente.primer_apell|default:'' }}</strong>
+        </p>
+    </div>
+
+    {% if messages %}
+        {% for m in messages %}
+            <div class="alerta alerta-{{ m.tags }}">{{ m }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="form-card">
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label>{{ form.tipo_permiso.label }}</label>
+                {{ form.tipo_permiso }}
+            </div>
+
+            <div class="form-group">
+                <label>{{ form.clave_numerica.label }}</label>
+                {{ form.clave_numerica }}
+                <span class="form-hint">
+                    Este es el folio oficial que aparece en el documento del permiso.
+                </span>
+            </div>
+
+            <div class="form-group">
+                <label>{{ form.vigencia.label }}</label>
+                {{ form.vigencia }}
+            </div>
+
+            <div class="form-group">
+                <label>{{ form.descripcion.label }}</label>
+                {{ form.descripcion }}
+            </div>
+
+            {% if form.errors %}
+            <div class="form-errores">
+                {% for field in form %}
+                    {% for error in field.errors %}
+                        <p>{{ field.label }}: {{ error }}</p>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="modal-footer" style="padding:24px 0 0; border:none;">
+                <a href="{% url 'home:cliente_detalle' cliente.numero %}"
+                   class="btn-cancelar">Cancelar</a>
+                <button type="submit" class="btn-guardar">
+                    Guardar permiso
+                </button>
+            </div>
+        </form>
+    </div>
+</main>
+
+<script>lucide.createIcons();</script>
+</body>
+</html>

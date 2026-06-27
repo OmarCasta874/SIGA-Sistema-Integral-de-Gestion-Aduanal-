@@ -159,13 +159,50 @@
         </table>
 
         <div class="clientes-paginacion">
-            <button class="pagina-btn pagina-flecha"><i data-lucide="chevron-left"></i></button>
-            <button class="pagina-btn pagina-activa">1</button>
-            <button class="pagina-btn">2</button>
-            <button class="pagina-btn">3</button>
-            <button class="pagina-btn pagina-flecha"><i data-lucide="chevron-right"></i></button>
-        </div>
+
+    {% if clientes.has_previous %}
+        <a href="?pagina={{ clientes.previous_page_number }}"
+           class="pagina-btn pagina-flecha">
+            <i data-lucide="chevron-left"></i>
+        </a>
+    {% else %}
+        <button class="pagina-btn pagina-flecha" disabled>
+            <i data-lucide="chevron-left"></i>
+        </button>
+    {% endif %}
+
+    {% for num in clientes.paginator.page_range %}
+
+        {% if clientes.number == num %}
+
+            <button class="pagina-btn pagina-activa">
+                {{ num }}
+            </button>
+
+        {% elif num >= clientes.number|add:"-2" and num <= clientes.number|add:"2" %}
+
+            <a href="?pagina={{ num }}"
+               class="pagina-btn">
+                {{ num }}
+            </a>
+
+        {% endif %}
+
+    {% endfor %}
+
+    {% if clientes.has_next %}
+        <a href="?pagina={{ clientes.next_page_number }}"
+           class="pagina-btn pagina-flecha">
+            <i data-lucide="chevron-right"></i>
+        </a>
+    {% else %}
+        <button class="pagina-btn pagina-flecha" disabled>
+            <i data-lucide="chevron-right"></i>
+        </button>
+    {% endif %}
+
     </div>
+</div>
 </main>
 <div class="modal-overlay" id="modalCliente">
     <div class="modal-box">
@@ -246,14 +283,12 @@
         document.getElementById('modalLogout').classList.remove('activo');
     }
 
-    // Si el form tuvo errores, reabre el modal automáticamente
     {% if form.errors %}
         document.addEventListener('DOMContentLoaded', function() {
-            abrirModal('modalCliente');  // o 'modalPedimento' en pedimentos.html
+            abrirModal('modalCliente');
         });
     {% endif %}
 
-    // Cerrar al hacer click fuera del modal
     document.querySelectorAll('.modal-overlay').forEach(overlay => {
         overlay.addEventListener('click', function(e) {
             if (e.target === this) cerrarModal(this.id);
@@ -274,7 +309,6 @@ function aplicarTipoPersona() {
     const tipo = tipoPersona.value;
 
     if (tipo === 'Física') {
-        // Habilitar todos los campos
         campoPrimero.disabled = false;
         campoSegundo.disabled = checkSinSeg.checked;
         campoRFC.disabled     = false;
@@ -282,7 +316,6 @@ function aplicarTipoPersona() {
         filaSegundo.style.opacity  = checkSinSeg.checked ? '0.4' : '1';
 
     } else if (tipo === 'Moral') {
-        // Bloquear apellidos para empresas
         campoPrimero.disabled = true;
         campoSegundo.disabled = true;
         campoPrimero.value    = '';
@@ -292,7 +325,6 @@ function aplicarTipoPersona() {
         campoRFC.disabled     = false;
 
     } else {
-        // Sin selección: bloquear todo menos tipo
         campoPrimero.disabled = true;
         campoSegundo.disabled = true;
         campoRFC.disabled     = true;
@@ -301,7 +333,6 @@ function aplicarTipoPersona() {
         filaSegundo.style.opacity  = '0.4';
     }
 
-    // Si tipo está seleccionado, habilitar nombre
     if (tipo) campoNombre.disabled = false;
 }
 
@@ -313,7 +344,6 @@ checkSinSeg.addEventListener('change', function() {
     filaSegundo.style.opacity = this.checked ? '0.4' : '1';
 });
 
-// Aplicar al cargar (en caso de error de validación que reabre el modal)
 aplicarTipoPersona();
 
 // ── Filtro de búsqueda de clientes ──────────────────────

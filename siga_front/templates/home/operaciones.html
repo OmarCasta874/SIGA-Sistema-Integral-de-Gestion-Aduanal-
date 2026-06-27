@@ -17,7 +17,7 @@
         <img src="{% static 'home/img/siga_logo_light.png' %}" alt="SIGA">
         <button class="sidebar-toggle"><i data-lucide="panel-left"></i></button>
     </div>
-    <nav>
+<nav>
         <p class="nav-section-label">Principal</p>
         <a href="{% url 'home:dashboard' %}" class="nav-item">
             <i data-lucide="layout-grid" class="nav-icon"></i> Dashboard
@@ -33,13 +33,13 @@
         <a href="{% url 'home:clientes' %}" class="nav-item">
             <i data-lucide="users" class="nav-icon"></i> Clientes
         </a>
-        <a href="{% url 'home:aduanas' %}" class="nav-item">
+        <a href="{% url 'home:aduanas' %}" class="nav-item active">
             <i data-lucide="home" class="nav-icon"></i> Aduanas
         </a>
         <a href="{% url 'home:pedimentos' %}" class="nav-item">
             <i data-lucide="file-text" class="nav-icon"></i> Pedimentos
         </a>
-        <a href="{% url 'home:operaciones' %}" class="nav-item active">
+        <a href="{% url 'home:operaciones' %}" class="nav-item">
             <i data-lucide="clipboard-list" class="nav-icon"></i> Operación Aduanera
         </a>
         <a href="#" class="nav-item">
@@ -91,9 +91,9 @@
     <div class="header-operaciones">
         <h1> Operaciones </h1>
 
-        <button class="btn-nueva">
+        <a href="{% url 'home:operacion_nueva' %}" class="btn-nueva" style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center;">
             <i data-lucide="plus"></i>Nueva Operación
-        </button>
+    </a>
     </div>
     <div class="estadisticas">
         <div class="card card-azul">
@@ -138,7 +138,9 @@
                     <td>{{ operacion.fecha_final|default:"---" }}</td>
                     <td>{{ operacion.tipo_operacion }}</td>
                     <td>
-                        <button class="btn-ver">Ver</button>
+                        <a href="{% url 'home:operacion_detalle' operacion.op.pk %}" style="text-decoration: none;">
+                            <button class="btn-ver">Ver</button>
+                        </a>
                         <button class="btn-editar">Editar</button>
                     </td>
                 </tr>

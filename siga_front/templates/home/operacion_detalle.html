@@ -1,0 +1,131 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Operación {{ op.ID_operacion }} — SIGA</title>
+    <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body>
+{% include 'home/partials/sidebar.html' %}
+
+<main class="main">
+    <div class="page-header">
+        <a href="{% url 'home:operaciones' %}" class="btn-volver">
+            <i data-lucide="arrow-left"></i> Volver
+        </a>
+        <h1 class="page-title">
+            Operación #{{ op.ID_operacion }}
+            <span class="tipo-badge tipo-{{ op.tipo_operacion|lower }}">
+                {{ op.tipo_operacion }}
+            </span>
+        </h1>
+    </div>
+
+    {% if messages %}
+        {% for m in messages %}
+            <div class="alerta alerta-{{ m.tags }}">{{ m }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Barra de progreso -->
+    <div class="progreso-barra">
+        <div class="progreso-paso {% if paso >= 1 %}activo{% endif %} {% if paso > 1 %}completo{% endif %}">
+            <div class="progreso-circulo">
+                {% if paso > 1 %}
+                    <i data-lucide="check"></i>
+                {% else %}
+                    1
+                {% endif %}
+            </div>
+            <span>Operación aduanera</span>
+        </div>
+        <div class="progreso-linea {% if paso > 1 %}completa{% endif %}"></div>
+        <div class="progreso-paso {% if paso >= 2 %}activo{% endif %} {% if paso > 2 %}completo{% endif %}">
+            <div class="progreso-circulo">
+                {% if paso > 2 %}
+                    <i data-lucide="check"></i>
+                {% else %}
+                    2
+                {% endif %}
+            </div>
+            <span>Pedimento</span>
+        </div>
+        <div class="progreso-linea {% if paso > 2 %}completa{% endif %}"></div>
+        <div class="progreso-paso {% if paso >= 3 %}activo{% endif %}">
+            <div class="progreso-circulo">3</div>
+            <span>Pago</span>
+        </div>
+    </div>
+
+    <!-- Datos de la operación -->
+    <div class="detalle-grid">
+        <div class="detalle-card">
+            <h3>Datos de la operación</h3>
+            <div class="detalle-row">
+                <span class="detalle-label">Cliente</span>
+                <span>{{ op.cliente.nombre }} {{ op.cliente.primer_apell|default:'' }}</span>
+            </div>
+            <div class="detalle-row">
+                <span class="detalle-label">Aduana</span>
+                <span>{{ op.aduana.nombre }}</span>
+            </div>
+            <div class="detalle-row">
+                <span class="detalle-label">Fecha apertura</span>
+                <span>{{ op.fecha_inicio }}</span>
+            </div>
+            <div class="detalle-row">
+                <span class="detalle-label">Estado</span>
+                <span>{{ op.estado|default:'Abierta' }}</span>
+            </div>
+        </div>
+
+        <!-- Pedimento si ya existe -->
+        {% if pedimento %}
+        <div class="detalle-card">
+            <h3>Pedimento</h3>
+            <div class="detalle-row">
+                <span class="detalle-label">Número</span>
+                <span>{{ pedimento.numero_pedimento }}</span>
+            </div>
+            <div class="detalle-row">
+                <span class="detalle-label">Clave</span>
+                <span>{{ pedimento.clave_pedimento }}</span>
+            </div>
+            <div class="detalle-row">
+                <span class="detalle-label">Valor total</span>
+                <span>${{ pedimento.valor_total }}</span>
+            </div>
+            <div class="detalle-row">
+                <span class="detalle-label">Semáforo</span>
+                <span class="{% if 'Verde' in pedimento.semaforo.resultado %}texto-verde{% else %}texto-rojo{% endif %}">
+                    {{ pedimento.semaforo.resultado }}
+                </span>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Acción del siguiente paso -->
+    <div class="siguiente-paso">
+        {% if paso == 1 %}
+            <a href="{% url 'home:operacion_pedimento' op.ID_operacion %}" class="btn-guardar">
+                Continuar — Generar pedimento →
+            </a>
+        {% elif paso == 2 %}
+            <p class="form-hint">Pedimento generado. El siguiente paso es registrar el pago.</p>
+            <button class="btn-guardar" disabled style="opacity:0.5; cursor:not-allowed;">
+                Registrar pago (próximamente)
+            </button>
+        {% else %}
+            <p class="texto-verde" style="font-weight:600;">
+                ✓ Operación completada y pagada.
+            </p>
+        {% endif %}
+    </div>
+</main>
+
+<script>lucide.createIcons();</script>
+</body>
+</html>

@@ -1,0 +1,121 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ cliente.nombre }} — SIGA</title>
+    <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body>
+{% include 'home/partials/sidebar.html' %}
+
+<main class="main">
+
+    <!-- Encabezado -->
+    <div class="page-header">
+        <a href="{% url 'home:clientes' %}" class="btn-volver">
+            <i data-lucide="arrow-left"></i> Volver a clientes
+        </a>
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-top:8px;">
+            <div>
+                <h1 class="page-title">{{ cliente.nombre }} {{ cliente.primer_apell|default:'' }}</h1>
+                <p class="page-subtitle">RFC: {{ cliente.RFC }} · {{ cliente.tipo_persona }}</p>
+            </div>
+            <a href="{% url 'home:cliente_permiso' cliente.numero %}" class="btn-guardar">
+                <i data-lucide="plus"></i> Agregar permiso
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for m in messages %}
+            <div class="alerta alerta-{{ m.tags }}">{{ m }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Info general -->
+    <div class="detalle-grid" style="grid-template-columns: 1fr 2fr; margin-bottom:24px;">
+        <div class="detalle-card">
+            <h3>Información general</h3>
+            <div class="detalle-row">
+                <span class="detalle-label">Número</span>
+                <span>{{ cliente.numero }}</span>
+            </div>
+            <div class="detalle-row">
+                <span class="detalle-label">Tipo</span>
+                <span>{{ cliente.tipo_persona }}</span>
+            </div>
+            <div class="detalle-row">
+                <span class="detalle-label">RFC</span>
+                <span>{{ cliente.RFC }}</span>
+            </div>
+            {% if cliente.primer_apell %}
+            <div class="detalle-row">
+                <span class="detalle-label">Apellidos</span>
+                <span>{{ cliente.primer_apell }} {{ cliente.seg_apell|default:'' }}</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Permisos -->
+        <div class="detalle-card">
+            <h3>Permisos registrados</h3>
+
+            {% if permisos %}
+                <table class="tabla-pedimentos">
+                    <thead>
+                        <tr>
+                            <th>Clave / Folio</th>
+                            <th>Autoridad</th>
+                            <th>Vigencia</th>
+                            <th>Estado</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for permiso in permisos %}
+                        <tr>
+                            <td style="font-weight:500; color:#111827;">
+                                {{ permiso.clave_numerica }}
+                            </td>
+                            <td>{{ permiso.tipo_permiso }}</td>
+                            <td>{{ permiso.vigencia }}</td>
+                            <td>
+                                {% if permiso.vigencia >= hoy %}
+                                    <span class="estado-pill estado-validado">Vigente</span>
+                                {% else %}
+                                    <span class="estado-pill estado-transmitido">Vencido</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <form method="post"
+                                      action="{% url 'home:cliente_permiso_eliminar' cliente.numero permiso.clave_numerica %}"
+                                      onsubmit="return confirm('¿Eliminar este permiso?')">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn-eliminar">
+                                        <i data-lucide="trash-2"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="empty-state">
+                    <i data-lucide="file-x"></i>
+                    <p>Este cliente no tiene permisos registrados.</p>
+                    <a href="{% url 'home:cliente_permiso' cliente.numero %}" class="btn-guardar" style="margin-top:12px;">
+                        Agregar primer permiso
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+</main>
+
+<script>lucide.createIcons();</script>
+</body>
+</html>

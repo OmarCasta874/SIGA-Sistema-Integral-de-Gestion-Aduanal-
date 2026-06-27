@@ -302,11 +302,6 @@
         document.getElementById('modalLogout').classList.remove('activo');
     }
 
-    {% if form.errors %}
-        document.addEventListener('DOMContentLoaded', function() {
-            abrirModal('modalCliente');
-        });
-    {% endif %}
     document.querySelectorAll('.modal-overlay').forEach(overlay => {
         overlay.addEventListener('click', function(e) {
             if (e.target === this) cerrarModal(this.id);

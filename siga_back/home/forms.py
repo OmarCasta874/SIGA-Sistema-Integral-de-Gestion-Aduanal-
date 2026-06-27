@@ -2,7 +2,15 @@ from django import forms
 from django.contrib.auth import authenticate
 
 from .models import Cliente
-from .models import Pedimento, RegimenAduanero, SemaforoFiscal, Permiso, OperacionAduanera, TipoImportaciones, TipoExportaciones
+from .models import Pedimento
+from .models import RegimenAduanero
+from .models import SemaforoFiscal
+from .models import Permiso
+from .models import OperacionAduanera
+from .models import Aduana
+from .models import TipoImportaciones
+from .models import TipoExportaciones
+
 
 class LoginForm(forms.Form):
     correo = forms.EmailField(
@@ -127,5 +135,82 @@ class NuevoPedimentoForm(forms.ModelForm):
                 'readonly': True,
                 'style': 'background:#f9fafb; color:#6b7280; cursor:not-allowed;',
                 'step': '0.01'
+            }),
+        }
+
+
+# ──────────────────────────────────────────────────────────────────
+# Formulario Nueva Operacion Aduanera
+# ──────────────────────────────────────────────────────────────────
+class NuevaOperacionForm(forms.ModelForm):
+    class Meta:
+        model = OperacionAduanera
+        fields = ['tipo_operacion', 'cliente', 'aduana']
+        labels = {
+            'tipo_operacion': 'Tipo de operación',
+            'cliente':        'Cliente asociado',
+            'aduana':         'Aduana de despacho',
+        }
+        widgets = {
+            'tipo_operacion': forms.Select(
+                choices=[
+                    ('',            'Selecciona...'),
+                    ('Importación', 'Importación'),
+                    ('Exportación', 'Exportación'),
+                    ('Tránsito',    'Tránsito'),
+                ],
+                attrs={'class': 'form-input'}
+            ),
+            'cliente': forms.Select(attrs={'class': 'form-input'}),
+            'aduana':  forms.Select(attrs={'class': 'form-input'}),
+        }
+
+# ──────────────────────────────────────────────────────────────────
+# Formulario Permiso
+# ──────────────────────────────────────────────────────────────────
+from .models import Permiso
+
+TIPOS_PERMISO = [
+    ('',                           'Selecciona la autoridad...'),
+    ('COFEPRIS',                   'COFEPRIS — Alimentos, medicamentos y dispositivos médicos'),
+    ('SENASICA',                   'SENASICA — Sanidad animal y vegetal'),
+    ('SEMARNAT',                   'SEMARNAT — Medio ambiente y recursos naturales'),
+    ('SADER',                      'SADER — Agricultura y desarrollo rural'),
+    ('SEDENA',                     'SEDENA — Materiales y equipos militares'),
+    ('SE',                         'SE — Secretaría de Economía (cupos y fracciones)'),
+    ('SAT-IMMEX',                  'SAT — Programa IMMEX (maquila)'),
+    ('CRE',                        'CRE — Comisión Reguladora de Energía'),
+    ('PROFEPA',                    'PROFEPA — Certificado CITES (flora y fauna)'),
+    ('Otro',                       'Otro permiso regulatorio'),
+]
+
+
+class NuevoPermisoForm(forms.ModelForm):
+    class Meta:
+        model  = Permiso
+        fields = ['clave_numerica', 'tipo_permiso', 'vigencia', 'descripcion']
+        labels = {
+            'clave_numerica': 'Clave / Folio del permiso',
+            'tipo_permiso':   'Autoridad reguladora',
+            'vigencia':       'Fecha de vigencia',
+            'descripcion':    'Descripción (opcional)',
+        }
+        widgets = {
+            'clave_numerica': forms.TextInput(attrs={
+                'class': 'form-input',
+                'placeholder': 'Ej. PERM-COFEPRIS-2024-001'
+            }),
+            'tipo_permiso': forms.Select(
+                choices=TIPOS_PERMISO,
+                attrs={'class': 'form-input'}
+            ),
+            'vigencia': forms.DateInput(attrs={
+                'class': 'form-input',
+                'type':  'date'
+            }),
+            'descripcion': forms.Textarea(attrs={
+                'class': 'form-input',
+                'rows':  2,
+                'placeholder': 'Descripción breve del permiso...'
             }),
         }
