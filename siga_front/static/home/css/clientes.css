@@ -198,3 +198,16 @@
     width: 16px;
     height: 16px;
 }
+
+.btn-detalles {
+    padding: 6px 14px;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.btn-detalles i {
+    width: 14px;
+    height: 14px;
+}

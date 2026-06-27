@@ -148,7 +148,7 @@
                     <td>{{ cliente.tipo_persona }}</td>
                     <td><span class="clientes-estado-pill estado-activo">Activo</span></td>
                     <td class="acciones">
-                    <button class="btn-ver"
+                    <button class="btn-guardar btn-detalles"
                             onclick="abrirDetalleCliente({{ c.numero }})">
                         <i data-lucide="eye"></i> Detalles
                     </button>
@@ -436,7 +436,9 @@ async function abrirDetalleCliente(id) {
         '<tr><td colspan="5" style="text-align:center;color:#9ca3af;padding:20px;">Cargando...</td></tr>';
 
     try {
-        const resp = await fetch(`/api/cliente/${id}/`);
+        const resp = await fetch(`/api/cliente/${id}/`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
         const data = await resp.json();
 
         // Info general

@@ -33,13 +33,13 @@
         <a href="{% url 'home:clientes' %}" class="nav-item">
             <i data-lucide="users" class="nav-icon"></i> Clientes
         </a>
-        <a href="{% url 'home:aduanas' %}" class="nav-item active">
+        <a href="{% url 'home:aduanas' %}" class="nav-item">
             <i data-lucide="home" class="nav-icon"></i> Aduanas
         </a>
         <a href="{% url 'home:pedimentos' %}" class="nav-item">
             <i data-lucide="file-text" class="nav-icon"></i> Pedimentos
         </a>
-        <a href="{% url 'home:operaciones' %}" class="nav-item">
+        <a href="{% url 'home:operaciones' %}" class="nav-item active">
             <i data-lucide="clipboard-list" class="nav-icon"></i> Operación Aduanera
         </a>
         <a href="#" class="nav-item">
@@ -92,8 +92,7 @@
         <h1> Operaciones </h1>
 
         <button class="btn-filtrar-op" onclick="abrirModal('modalNuevaOperacion')">
-            <i data-lucide="plus"></i>
-            Nueva operación
+            <i data-lucide="plus"></i>Nueva operación
         </button>
     </div>
     <div class="estadisticas">
@@ -124,35 +123,43 @@
         <table>
             <thead>
                 <tr>
-                    <th>ID</th>
-                    <th>Fecha Inicial</th>
-                    <th>Fecha Final</th>
-                    <th>Tipo</th>
+                    <th>Tipo de operación</th>
+                    <th>Cliente asociado</th>
+                    <th>Aduana</th>
+                    <th>Fecha de apertura</th>
                     <th>Acciones</th>
                 </tr>
             </thead>
             <tbody>
-                {% for operacion in operaciones %}
-                <tr>
-                    <td>{{ operacion.ID_operacion }}</td>
-                    <td>{{ operacion.fecha_inicio }}</td>
-                    <td>{{ operacion.fecha_final|default:"---" }}</td>
-                    <td>{{ operacion.tipo_operacion }}</td>
-                    <td>
-                        <a href="{% url 'home:operacion_detalle' operacion.op.pk %}" style="text-decoration: none;">
-                            <button class="btn-ver">Ver</button>
-                        </a>
-                        <button class="btn-editar">Editar</button>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="5" style="text-align: center;">
-                        No hay operaciones registradas.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
+            {% for operacion in operaciones %}
+            <tr>
+                <td>{{ operacion.op.tipo_operacion }}</td>
+
+            <td>
+                {{ operacion.op.cliente.nombre }}
+                {{ operacion.op.cliente.primer_apell|default:'' }}
+            </td>
+
+            <td>{{ operacion.op.aduana}}</td>
+
+            <td>{{ operacion.op.fecha_inicio|date:"d/m/Y" }}</td>
+
+            <td>
+                <a href="{% url 'home:operacion_detalle' operacion.op.pk %}">
+                    <button class="btn-ver">Ver</button>
+                </a>
+
+                <button class="btn-editar">Editar</button>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="5" style="text-align:center;">
+                No hay operaciones registradas.
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
         </table>
     </section>
 </main>
@@ -221,15 +228,13 @@
                                value="{{ request.user.nombre_pila }} — Aduana de Tijuana"
                                readonly>
                         <input type="hidden" id="op-aduana" value="400">
-                        <span class="form-hint">
-                            Asignada automáticamente según el usuario activo.
-                        </span>
+                        
                     </div>
                     <div class="form-group">
                         <label>Fecha de apertura</label>
                         <input type="text" id="op-fecha" class="form-input"
                                value="{{ hoy|date:'d/m/Y' }}" readonly>
-                        <span class="form-hint">Fecha actual del sistema.</span>
+                        
                     </div>
                 </div>
             </div>
@@ -425,136 +430,144 @@
 <script>
     lucide.createIcons();
 
+    // ── Funciones generales de modal ──────────────────────────────
+    function abrirModal(id) {
+        document.getElementById(id).classList.add('activo');
+    }
+
+    function cerrarModal(id) {
+        document.getElementById(id).classList.remove('activo');
+    }
+
+    // ── Modal de logout ───────────────────────────────────────────
     function mostrarModalLogout() {
         document.getElementById('modalLogout').classList.add('activo');
     }
 
     function cerrarModalLogout() {
         document.getElementById('modalLogout').classList.remove('activo');
-    
+    }
+
+    // ── Modal Nueva Operación: 3 pasos ────────────────────────────
     let tipoOperacionActual = null;
 
-function pasarPaso2() {
-    const tipo    = document.getElementById('op-tipo').value;
-    const cliente = document.getElementById('op-cliente');
-    const aduana  = document.getElementById('op-aduana').value;
+    function pasarPaso2() {
+        const tipo    = document.getElementById('op-tipo').value;
+        const cliente = document.getElementById('op-cliente');
+        const aduana  = document.getElementById('op-aduana').value;
 
-    if (!tipo) {
-        alert('Selecciona el tipo de operación.');
-        return;
+        if (!tipo) {
+            alert('Selecciona el tipo de operación.');
+            return;
+        }
+        if (!cliente.value) {
+            alert('Selecciona un cliente.');
+            return;
+        }
+
+        tipoOperacionActual = tipo;
+        const nombreCliente = cliente.options[cliente.selectedIndex].text;
+
+        document.getElementById('paso-1').style.display = 'none';
+
+        document.getElementById('prog-1').classList.remove('activo');
+        document.getElementById('prog-1').classList.add('completo');
+        document.getElementById('prog-1').querySelector('.progreso-circulo').innerHTML =
+            '<i data-lucide="check"></i>';
+        document.getElementById('linea-1').classList.add('completa');
+        document.getElementById('prog-2').classList.add('activo');
+
+        if (tipo === 'Importación') {
+            document.getElementById('prog-2-label').textContent         = 'Importación';
+            document.getElementById('modal-subtitulo').textContent      = 'Paso 2 de 3 — Datos de importación';
+            document.getElementById('imp-cliente').value                = cliente.value;
+            document.getElementById('imp-aduana').value                 = aduana;
+            document.getElementById('imp-nombre-cliente').textContent   = nombreCliente.split('—')[0].trim();
+            document.getElementById('paso-2-importacion').style.display = '';
+
+        } else if (tipo === 'Exportación') {
+            document.getElementById('prog-2-label').textContent         = 'Exportación';
+            document.getElementById('modal-subtitulo').textContent      = 'Paso 2 de 3 — Datos de exportación';
+            document.getElementById('exp-cliente').value                = cliente.value;
+            document.getElementById('exp-aduana').value                 = aduana;
+            document.getElementById('exp-nombre-cliente').textContent   = nombreCliente.split('—')[0].trim();
+            document.getElementById('paso-2-exportacion').style.display = '';
+
+        } else {
+            alert('Tránsito estará disponible próximamente.');
+            document.getElementById('paso-1').style.display = '';
+            return;
+        }
+
+        lucide.createIcons();
     }
-    if (!cliente.value) {
-        alert('Selecciona un cliente.');
-        return;
+
+    function pasarPaso3(tipo) {
+        document.getElementById(`paso-2-${tipo}`).style.display = 'none';
+
+        document.getElementById('prog-2').classList.remove('activo');
+        document.getElementById('prog-2').classList.add('completo');
+        document.getElementById('prog-2').querySelector('.progreso-circulo').innerHTML =
+            '<i data-lucide="check"></i>';
+        document.getElementById('linea-2').classList.add('completa');
+        document.getElementById('prog-3').classList.add('activo');
+        document.getElementById('modal-subtitulo').textContent = 'Paso 3 de 3 — Confirmar';
+
+        const cliente = document.getElementById('op-cliente');
+        document.getElementById('resumen-tipo').textContent    = tipoOperacionActual;
+        document.getElementById('resumen-cliente').textContent = cliente.options[cliente.selectedIndex].text;
+        document.getElementById('resumen-aduana').textContent  = document.getElementById('op-aduana-texto').value;
+        document.getElementById('resumen-fecha').textContent   = document.getElementById('op-fecha').value;
+
+        document.getElementById('paso-3').style.display = '';
+        lucide.createIcons();
     }
 
-    tipoOperacionActual = tipo;
-    const nombreCliente = cliente.options[cliente.selectedIndex].text;
+    function volverPaso1() {
+        document.getElementById('paso-2-importacion').style.display = 'none';
+        document.getElementById('paso-2-exportacion').style.display = 'none';
+        document.getElementById('paso-1').style.display             = '';
 
-    // Ocultar paso 1
-    document.getElementById('paso-1').style.display = 'none';
-
-    // Actualizar barra de progreso
-    document.getElementById('prog-1').classList.remove('activo');
-    document.getElementById('prog-1').classList.add('completo');
-    document.getElementById('prog-1').querySelector('.progreso-circulo').innerHTML =
-        '<i data-lucide="check"></i>';
-    document.getElementById('linea-1').classList.add('completa');
-    document.getElementById('prog-2').classList.add('activo');
-
-    if (tipo === 'Importación') {
-        document.getElementById('prog-2-label').textContent = 'Importación';
-        document.getElementById('modal-subtitulo').textContent = 'Paso 2 de 3 — Datos de importación';
-        document.getElementById('imp-cliente').value = cliente.value;
-        document.getElementById('imp-aduana').value  = aduana;
-        document.getElementById('imp-nombre-cliente').textContent = nombreCliente.split('—')[0].trim();
-        document.getElementById('paso-2-importacion').style.display = '';
-
-    } else if (tipo === 'Exportación') {
-        document.getElementById('prog-2-label').textContent = 'Exportación';
-        document.getElementById('modal-subtitulo').textContent = 'Paso 2 de 3 — Datos de exportación';
-        document.getElementById('exp-cliente').value = cliente.value;
-        document.getElementById('exp-aduana').value  = aduana;
-        document.getElementById('exp-nombre-cliente').textContent = nombreCliente.split('—')[0].trim();
-        document.getElementById('paso-2-exportacion').style.display = '';
-
-    } else {
-        alert('Tránsito estará disponible próximamente.');
-        document.getElementById('paso-1').style.display = '';
-        return;
+        document.getElementById('prog-1').classList.add('activo');
+        document.getElementById('prog-1').classList.remove('completo');
+        document.getElementById('prog-1').querySelector('.progreso-circulo').textContent = '1';
+        document.getElementById('linea-1').classList.remove('completa');
+        document.getElementById('prog-2').classList.remove('activo');
+        document.getElementById('modal-subtitulo').textContent = 'Paso 1 de 3 — Información general';
     }
 
-    lucide.createIcons();
-}
+    function volverPaso2() {
+        document.getElementById('paso-3').style.display = 'none';
 
-function pasarPaso3(tipo) {
-    document.getElementById(`paso-2-${tipo}`).style.display = 'none';
+        document.getElementById('prog-2').classList.add('activo');
+        document.getElementById('prog-2').classList.remove('completo');
+        document.getElementById('prog-2').querySelector('.progreso-circulo').textContent = '2';
+        document.getElementById('linea-2').classList.remove('completa');
+        document.getElementById('prog-3').classList.remove('activo');
 
-    // Barra de progreso
-    document.getElementById('prog-2').classList.remove('activo');
-    document.getElementById('prog-2').classList.add('completo');
-    document.getElementById('prog-2').querySelector('.progreso-circulo').innerHTML =
-        '<i data-lucide="check"></i>';
-    document.getElementById('linea-2').classList.add('completa');
-    document.getElementById('prog-3').classList.add('activo');
-    document.getElementById('modal-subtitulo').textContent = 'Paso 3 de 3 — Confirmar';
-
-    // Resumen
-    const cliente = document.getElementById('op-cliente');
-    document.getElementById('resumen-tipo').textContent    =
-        tipoOperacionActual;
-    document.getElementById('resumen-cliente').textContent =
-        cliente.options[cliente.selectedIndex].text;
-    document.getElementById('resumen-aduana').textContent  =
-        document.getElementById('op-aduana-texto').value;
-    document.getElementById('resumen-fecha').textContent   =
-        document.getElementById('op-fecha').value;
-
-    document.getElementById('paso-3').style.display = '';
-    lucide.createIcons();
-}
-
-function volverPaso1() {
-    document.getElementById('paso-2-importacion').style.display = 'none';
-    document.getElementById('paso-2-exportacion').style.display = 'none';
-    document.getElementById('paso-1').style.display = '';
-
-    // Resetear barra
-    document.getElementById('prog-1').classList.add('activo');
-    document.getElementById('prog-1').classList.remove('completo');
-    document.getElementById('prog-1').querySelector('.progreso-circulo').textContent = '1';
-    document.getElementById('linea-1').classList.remove('completa');
-    document.getElementById('prog-2').classList.remove('activo');
-    document.getElementById('modal-subtitulo').textContent = 'Paso 1 de 3 — Información general';
-}
-
-function volverPaso2() {
-    document.getElementById('paso-3').style.display = 'none';
-
-    // Resetear barra paso 3
-    document.getElementById('prog-2').classList.add('activo');
-    document.getElementById('prog-2').classList.remove('completo');
-    document.getElementById('prog-2').querySelector('.progreso-circulo').textContent = '2';
-    document.getElementById('linea-2').classList.remove('completa');
-    document.getElementById('prog-3').classList.remove('activo');
-
-    if (tipoOperacionActual === 'Importación') {
-        document.getElementById('paso-2-importacion').style.display = '';
-        document.getElementById('modal-subtitulo').textContent = 'Paso 2 de 3 — Datos de importación';
-    } else {
-        document.getElementById('paso-2-exportacion').style.display = '';
-        document.getElementById('modal-subtitulo').textContent = 'Paso 2 de 3 — Datos de exportación';
+        if (tipoOperacionActual === 'Importación') {
+            document.getElementById('paso-2-importacion').style.display = '';
+            document.getElementById('modal-subtitulo').textContent       = 'Paso 2 de 3 — Datos de importación';
+        } else {
+            document.getElementById('paso-2-exportacion').style.display = '';
+            document.getElementById('modal-subtitulo').textContent       = 'Paso 2 de 3 — Datos de exportación';
+        }
     }
-}
 
-function confirmarOperacion() {
-    if (tipoOperacionActual === 'Importación') {
-        document.getElementById('form-importacion').submit();
-    } else {
-        document.getElementById('form-exportacion').submit();
+    function confirmarOperacion() {
+        if (tipoOperacionActual === 'Importación') {
+            document.getElementById('form-importacion').submit();
+        } else {
+            document.getElementById('form-exportacion').submit();
+        }
     }
-}
-    }
+
+    // Cerrar modales al hacer click fuera
+    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+        overlay.addEventListener('click', function(e) {
+            if (e.target === this) cerrarModal(this.id);
+        });
+    });
 </script>
 </body>
 </html>
