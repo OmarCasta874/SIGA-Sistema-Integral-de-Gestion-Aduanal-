@@ -83,10 +83,21 @@ def logout_view(request):
 def dashboard_view(request):
     return render(request, 'home/dashboard.html')
 
+def generar_folio_permiso(autoridad):
+    anio = date.today().year
+    prefijo   = f'PERM-{autoridad}-{anio}-'
+    existentes = Permiso.objects.filter(
+        clave_numerica__startswith=prefijo
+    ).count()
+
+    consecutivo = str(existentes + 1).zfill(3)
+    return f'{prefijo}{consecutivo}'
+
 @login_required
 def clientes_view(request):
     if request.method == 'POST':
         accion = request.POST.get('accion', '')
+
         if accion == '' or accion == 'nuevo_cliente':
             form = NuevoClienteForm(request.POST)
             if form.is_valid():
@@ -95,31 +106,63 @@ def clientes_view(request):
                 return redirect('home:clientes')
 
         elif accion == 'agregar_permiso':
-            cliente_id = request.POST.get('cliente_id')
-            cliente    = get_object_or_404(Cliente, numero=cliente_id)
+            cliente_id  = request.POST.get('cliente_id')
+            autoridad   = request.POST.get('tipo_permiso')
+            cliente     = get_object_or_404(Cliente, numero=cliente_id)
+
+            # Validar si el cliente ya tiene un permiso de esta misma autoridad
+            ya_tiene = Permiso.objects.filter(
+                cliente=cliente,
+                tipo_permiso=autoridad
+            ).exists()
+
+            if ya_tiene:
+                messages.error(
+                    request,
+                    f'El cliente ya cuenta con un permiso {autoridad} registrado. '
+                    f'No es posible generar un nuevo permiso de la misma autoridad para este cliente.'
+                )
+                return redirect('home:clientes')
+
             try:
+                folio = generar_folio_permiso(autoridad)
                 Permiso.objects.create(
-                    clave_numerica = request.POST.get('clave_numerica'),
-                    tipo_permiso   = request.POST.get('tipo_permiso'),
+                    clave_numerica = folio,
+                    tipo_permiso   = autoridad,
                     vigencia       = request.POST.get('vigencia'),
                     descripcion    = request.POST.get('descripcion', ''),
                     cliente        = cliente,
                 )
-                messages.success(request, 'Permiso agregado correctamente.')
+                messages.success(
+                    request,
+                    f'Permiso registrado correctamente con folio: {folio}'
+                )
             except Exception as e:
                 messages.error(request, f'Error al guardar el permiso: {e}')
+
             return redirect('home:clientes')
 
-    form     = NuevoClienteForm()
+    form  = NuevoClienteForm()
+    query = request.GET.get('q', '')
+
     clientes = Cliente.objects.all()
-    paginador = Paginator(clientes, 5)   # 5 clientes por página
-    clientes_paginados = paginador.get_page(
-        request.GET.get('pagina', 1)
-    )
+    if query:
+        clientes = clientes.filter(
+            nombre__icontains=query
+        ) | clientes.filter(
+            primer_apell__icontains=query
+        ) | clientes.filter(
+            RFC__icontains=query
+        )
+
+    paginador          = Paginator(clientes, 5)
+    clientes_paginados = paginador.get_page(request.GET.get('pagina', 1))
+
     return render(request, 'home/clientes.html', {
-        'clientes':clientes_paginados,
-        'total_clientes': clientes.count(),
-        'form':form,
+        'clientes':       clientes_paginados,
+        'total_clientes': Cliente.objects.count(),
+        'form':           form,
+        'query':          query,
     })
 
 @login_required

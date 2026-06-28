@@ -114,14 +114,35 @@
     </div>
 
     <div class="clientes-toolbar">
-        <input type="text" class="clientes-buscar" placeholder="Buscar cliente...">
-        <select class="clientes-select">
-            <option>Todos los estados</option>
-        </select>
-        <select class="clientes-select">
-            <option>Todos los tipos</option>
-        </select>
-        <button class="clientes-filtrar-btn">Filtrar</button>
+        <form method="get" action="{% url 'home:clientes' %}" style="display:flex; gap:10px; flex:1;">
+
+    <input
+        type="text"
+        name="q"
+        value="{{ query }}"
+        class="clientes-buscar"
+        placeholder="Buscar cliente..."
+    >
+
+    <select class="clientes-select">
+        <option>Todos los estados</option>
+    </select>
+
+    <select class="clientes-select">
+        <option>Todos los tipos</option>
+    </select>
+
+    <button type="submit" class="clientes-filtrar-btn">
+        Filtrar
+    </button>
+
+    {% if query %}
+        <a href="{% url 'home:clientes' %}" class="btn-limpiar">
+            ✕ Limpiar
+        </a>
+    {% endif %}
+
+</form>
         <button class="clientes-nuevo-btn" onclick="abrirModal('modalCliente')">+ Nuevo cliente</button>
     </div>
 
@@ -134,6 +155,7 @@
                     <th>RFC</th>
                     <th>Tipo</th>
                     <th>Estado</th>
+                    <th>Acciones</th>
                 </tr>
             </thead>
             <tbody>
@@ -148,9 +170,12 @@
                     <td>{{ cliente.tipo_persona }}</td>
                     <td><span class="clientes-estado-pill estado-activo">Activo</span></td>
                     <td class="acciones">
-                    <button class="btn-guardar btn-detalles"
-                            onclick="abrirDetalleCliente({{ c.numero }})">
-                        <i data-lucide="eye"></i> Detalles
+                    <button class="btn-ver"
+                            onclick="abrirDetalleCliente({{ cliente.numero }})">
+                        Ver
+                    </button>
+                    <button class="btn-eliminar-cliente">
+                        Eliminar
                     </button>
                     </td>
                 </tr>
@@ -167,8 +192,7 @@
         <div class="clientes-paginacion">
 
     {% if clientes.has_previous %}
-        <a href="?pagina={{ clientes.previous_page_number }}"
-           class="pagina-btn pagina-flecha">
+        <a href="?pagina={{ clientes.previous_page_number }}&q={{ query }}" class="pag-btn">
             <i data-lucide="chevron-left"></i>
         </a>
     {% else %}
@@ -377,11 +401,10 @@
                     </select>
                 </div>
 
-                <div class="form-group">
-                    <label>Clave / Folio del permiso</label>
-                    <input type="text" name="clave_numerica" class="form-input"
-                           placeholder="Ej. PERM-COFEPRIS-2024-001" required>
-                    <span class="form-hint">Folio oficial del documento del permiso.</span>
+                <div class="form-info">
+                    <i data-lucide="info"></i>
+                    El folio se generará automáticamente al guardar.
+                    Formato: PERM-[AUTORIDAD]-{{ hoy.year }}-001
                 </div>
 
                 <div class="form-group">
@@ -430,31 +453,28 @@ async function abrirDetalleCliente(id) {
     clienteActualId = id;
     abrirModal('modalDetalleCliente');
 
-    // Resetear contenido mientras carga
-    document.getElementById('detalle-nombre').textContent    = 'Cargando...';
-    document.getElementById('tbody-permisos').innerHTML      =
-        '<tr><td colspan="5" style="text-align:center;color:#9ca3af;padding:20px;">Cargando...</td></tr>';
-
     try {
-        const resp = await fetch(`/api/cliente/${id}/`, {
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        });
-        const data = await resp.json();
+        const resp = await fetch(`/api/cliente/${id}/`);
 
-        // Info general
-        const nombre = `${data.nombre} ${data.primer_apell} ${data.seg_apell}`.trim();
-        document.getElementById('detalle-nombre').textContent  = nombre;
+        // Verificar que la respuesta sea válida
+        if (!resp.ok) {
+            console.error('Error HTTP:', resp.status);
+            return;
+        }
+
+        const data = await resp.json();
+        console.log('Datos recibidos:', data); // Para verificar en consola
+
+        document.getElementById('detalle-nombre').textContent  = `${data.nombre} ${data.primer_apell} ${data.seg_apell}`.trim();
         document.getElementById('detalle-rfc').textContent     = `RFC: ${data.RFC}`;
         document.getElementById('detalle-rfc2').textContent    = data.RFC;
         document.getElementById('detalle-tipo').textContent    = data.tipo_persona;
         document.getElementById('detalle-apellidos').textContent =
             `${data.primer_apell} ${data.seg_apell}`.trim() || '—';
 
-        // Ocultar apellidos si es persona moral
         document.getElementById('row-apellidos').style.display =
             data.tipo_persona === 'Moral' ? 'none' : '';
 
-        // Resumen de permisos
         const resumen = document.getElementById('detalle-resumen-permisos');
         if (data.permisos.length === 0) {
             resumen.innerHTML = '<span style="color:#9ca3af;">Sin permisos registrados.</span>';
@@ -462,18 +482,17 @@ async function abrirDetalleCliente(id) {
             const vigentes = data.permisos.filter(p => p.vigente).length;
             const vencidos = data.permisos.length - vigentes;
             resumen.innerHTML = `
-                <span style="color:#16a34a; font-weight:600;">${vigentes} vigente${vigentes !== 1 ? 's' : ''}</span>
+                <span style="color:#16a34a;font-weight:600;">${vigentes} vigente${vigentes !== 1 ? 's' : ''}</span>
                 ${vencidos > 0 ? `&nbsp;·&nbsp;<span style="color:#dc2626;">${vencidos} vencido${vencidos !== 1 ? 's' : ''}</span>` : ''}
             `;
         }
 
-        // Tabla de permisos
         const tbody = document.getElementById('tbody-permisos');
         if (data.permisos.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="5" style="text-align:center; color:#9ca3af; padding:24px;">
-                        Este cliente no tiene permisos registrados.
+                    <td colspan="5" style="text-align:center;color:#9ca3af;padding:24px;">
+                        Sin permisos registrados.
                     </td>
                 </tr>`;
         } else {
@@ -500,9 +519,9 @@ async function abrirDetalleCliente(id) {
 
     } catch(e) {
         console.error('Error al cargar cliente:', e);
+        document.getElementById('detalle-nombre').textContent = 'Error al cargar datos';
     }
 }
-
 function abrirAgregarPermiso() {
     document.getElementById('permiso-cliente-id').value = clienteActualId;
     document.getElementById('formPermiso').action       = '/clientes/';
@@ -591,17 +610,6 @@ checkSinSeg.addEventListener('change', function() {
 
 aplicarTipoPersona();
 
-// ── Filtro de búsqueda de clientes ──────────────────────
-const inputBuscar = document.querySelector('.clientes-buscar');
-const filaTabla   = document.querySelectorAll('.tabla-clientes tbody tr');
-
-inputBuscar.addEventListener('input', function() {
-    const texto = this.value.toLowerCase().trim();
-    filaTabla.forEach(fila => {
-        const contenido = fila.textContent.toLowerCase();
-        fila.style.display = contenido.includes(texto) ? '' : 'none';
-    });
-});
 </script>
 </body>
 </html>

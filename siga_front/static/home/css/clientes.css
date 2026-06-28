@@ -211,3 +211,40 @@
     width: 14px;
     height: 14px;
 }
+
+.btn-ver {
+    background: #DBEAFE;
+    color: #2563EB;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-right: 6px;
+}
+
+.btn-ver:hover {
+    background: #C5DCFB;
+}
+
+.btn-eliminar-cliente {
+    background: #FEE2E2;
+    color: #DC2626;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-eliminar-cliente:hover {
+    background: #FECACA;
+}
+
+.acciones {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
