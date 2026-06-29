@@ -4,10 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Categorías — SIGA</title>
+    <title>Usuarios — SIGA</title>
     <link rel="icon" type="image/x-icon" href="{% static 'home/img/siga_logo.png' %}">
     <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
-    <link rel="stylesheet" href="{% static 'home/css/categorias.css' %}">
+    <link rel="stylesheet" href="{% static 'home/css/usuarios.css' %}">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 <body>
@@ -21,7 +21,7 @@
         <a href="{% url 'home:dashboard' %}" class="nav-item">
             <i data-lucide="layout-grid" class="nav-icon"></i> Dashboard
         </a>
-        <a href="{% url 'home:usuarios' %}" class="nav-item">
+        <a href="{% url 'home:usuarios' %}" class="nav-item active">
             <i data-lucide="user" class="nav-icon"></i> Usuarios
         </a>
         <a href="{% url 'home:permisos' %}" class="nav-item">
@@ -47,7 +47,7 @@
         <a href="#" class="nav-item">
             <i data-lucide="receipt" class="nav-icon"></i> Facturas
         </a>
-        <a href="{% url 'home:categorias' %}" class="nav-item active">
+        <a href="{% url 'home:categorias' %}" class="nav-item">
             <i data-lucide="tag" class="nav-icon"></i> Categorías
         </a>
 
@@ -75,6 +75,55 @@
         </a>
     </div>
 </aside>
+
+<main class="main">
+    <h1 class="page-title">Usuarios</h1>
+
+    <div class="usuarios-card">
+        <div class="usuarios-toolbar">
+            <div class="usuarios-search">
+                <input type="text" placeholder="Buscar Usuario...">
+            </div>
+            <select class="usuarios-select">
+                <option>Todos los usuarios</option>
+            </select>
+            <select class="usuarios-select">
+                <option>Todos los tipos</option>
+            </select>
+            <button type="button" class="btn-filtrar">Filtrar</button>
+            <button type="button" class="btn-nuevo-usuario">
+                + Nuevo usuario
+            </button>
+        </div>
+
+        <div class="usuarios-tabla-header">
+            <span class="usuarios-tabla-titulo">Usuarios nuevos</span>
+            <a href="#" class="usuarios-ver-todos">Ver todos -> </a>
+        </div>
+
+        <table class="usuarios-tabla">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>Fecha Alta</th>
+                    <th>Correo</th>
+                    <th>Rol</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><a href="#" class="usuarios-id">28000001</a></td>
+                    <td>Ana Cardenas</td>
+                    <td>12-06-2026</td>
+                    <td><span class="usuarios-correo">anacardenas@gmail.com</span></td>
+                    <td><span class="pill pill-administrador">ADMINISTRADOR</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+
 <div class="modal-overlay" id="modalLogout">
     <div class="modal-logout-box">
         <img src="{% static 'home/img/siga_logo.png' %}" alt="SIGA" class="modal-logout-logo">
@@ -85,65 +134,6 @@
         </div>
     </div>
 </div>
-<main class="main">
-    <h1 class="page-title">Categorías</h1>
-    <div class="cards-grid cards-grid-categorias">
-        <div class="card">
-            <div class="card-label">Total Categorías</div>
-            <div class="card-number"> {{ total_categorias }}</div>
-        </div>
-        <div class="card">
-            <div class="card-label">Categorías activas</div>
-            <div class="card-number card-number-verde">10</div>
-        </div>
-        <div class="card">
-            <div class="card-label">Productos registrados</div>
-            <div class="card-number card-number-naranja">2,304</div>
-        </div>
-        <div class="card">
-            <div class="card-label">Categoría más usada</div>
-            <div class="card-number card-number-rojo">Electrónicos</div>
-        </div>
-    </div>
-
-    <div class="categorias-toolbar">
-        <div class="categorias-buscador">
-            <input type="text" placeholder="Buscar categoría...">
-        </div>
-        <button class="btn-nueva-categoria">
-            <i data-lucide="plus"></i> Nueva categoría
-        </button>
-    </div>
-
-    <div class="panel-categorias">
-        <table class="tabla-categorias">
-            <thead>
-                <tr>
-                    <th>NÚMERO</th>
-                    <th>CATEGORÍA</th>
-                    <th>DESCRIPCIÓN</th>
-                    <th>ARANCEL</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for categoria in categorias %}
-                <tr>
-                    <td>{{ categoria.numero }}</td>
-                    <td>{{ categoria.nombre }}</td>
-                    <td>{{ categoria.descripcion|default:"Sin descripción" }}</td>
-                    <td>{{ categoria.arancel }}</td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="4" style="text-align:center;">
-                        No hay categorías registradas.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</main>
 
 <script>
     lucide.createIcons();

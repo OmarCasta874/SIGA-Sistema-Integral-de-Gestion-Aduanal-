@@ -1,0 +1,192 @@
+/* USUARIOS */
+.usuarios-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+/* BARRA DE HERRAMIENTAS */
+.usuarios-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.usuarios-search {
+    flex: 1;
+}
+
+.usuarios-search input {
+    width: 100%;
+    height: 40px;
+    padding: 0 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #111827;
+    background: #ffffff;
+}
+
+.usuarios-search input::placeholder {
+    color: #9ca3af;
+}
+
+.usuarios-search input:focus {
+    outline: none;
+    border-color: #2563eb;
+}
+
+.usuarios-select {
+    height: 40px;
+    padding: 0 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #f3f4f6;
+    color: #374151;
+    font-size: 14px;
+    min-width: 160px;
+    cursor: pointer;
+}
+
+.usuarios-select:focus {
+    outline: none;
+    border-color: #2563eb;
+}
+
+.btn-filtrar {
+    height: 40px;
+    padding: 0 20px;
+    border: none;
+    border-radius: 8px;
+    background: #2563eb;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.btn-filtrar:hover {
+    background: #1d4ed8;
+}
+
+.btn-nuevo-usuario {
+    height: 40px;
+    padding: 0 20px;
+    border: none;
+    border-radius: 8px;
+    background: #1e3a8a;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.btn-nuevo-usuario:hover {
+    background: #16306b;
+}
+
+/* TABLA */
+.usuarios-tabla-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.usuarios-tabla-titulo {
+    font-size: 15px;
+    font-weight: 600;
+    color: #111827;
+}
+
+.usuarios-ver-todos {
+    font-size: 13px;
+    color: #2563eb;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.usuarios-ver-todos:hover {
+    text-decoration: underline;
+}
+
+.usuarios-tabla {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.usuarios-tabla thead th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 8px 12px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.usuarios-tabla tbody td {
+    padding: 14px 12px;
+    font-size: 14px;
+    color: #374151;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.usuarios-tabla tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.usuarios-id {
+    color: #2563eb;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.usuarios-id:hover {
+    text-decoration: underline;
+}
+
+.usuarios-correo {
+    background: #f3f4f6;
+    color: #374151;
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+}
+
+/* ESTADOS */
+.pill {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.pill-administrador {
+    background: #dbeafe;
+    color: #2563eb;
+}
+
+.pill-operador {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.pill-supervisor {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.pill-inactivo {
+    background: #fee2e2;
+    color: #dc2626;
+}

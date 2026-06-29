@@ -30,6 +30,9 @@ from .models import TipoExportaciones
 from datetime import date
 from datetime import datetime
 import random
+import requests
+
+API_BASE = "http://127.0.0.1:8000/api"
 
 def generar_numero_pedimento(codigo_aduana):
     hoy           = date.today()
@@ -145,22 +148,32 @@ def clientes_view(request):
     form  = NuevoClienteForm()
     query = request.GET.get('q', '')
 
-    clientes = Cliente.objects.all()
+    try:
+        response = requests.get(f"{API_BASE}/clientes/")
+        response.raise_for_status()
+        clientes = response.json()
+    except requests.exceptions.RequestException:
+        clientes = []
+        messages.error(request, 'No fue posible obtener la lista de clientes desde la API.')
+
+    # Búsqueda
     if query:
-        clientes = clientes.filter(
-            nombre__icontains=query
-        ) | clientes.filter(
-            primer_apell__icontains=query
-        ) | clientes.filter(
-            RFC__icontains=query
-        )
+        q = query.lower()
+
+        clientes = [
+            cliente for cliente in clientes
+            if q in cliente['nombre'].lower()
+            or q in (cliente['primer_apell'] or '').lower()
+            or q in cliente['RFC'].lower()
+        ]
+
 
     paginador          = Paginator(clientes, 5)
     clientes_paginados = paginador.get_page(request.GET.get('pagina', 1))
 
     return render(request, 'home/clientes.html', {
         'clientes':       clientes_paginados,
-        'total_clientes': Cliente.objects.count(),
+        'total_clientes': len(clientes),
         'form':           form,
         'query':          query,
     })
@@ -337,10 +350,17 @@ def pedimentos_view(request):
 
 @login_required
 def aduanas_view(request):
-    aduanas = Aduana.objects.all()
+    try:
+        response = requests.get(f"{API_BASE}/aduanas/")
+        response.raise_for_status()
+        aduanas = response.json()
+    except requests.exceptions.RequestException:
+        aduanas = []
+        messages.error(request, "No fue posible conectar con la API.")
+    
     return render(request, 'home/aduanas.html', {
         'aduanas':       aduanas,
-        'total_aduanas': aduanas.count(),
+        'total_aduanas': len(aduanas),
     })
 
 @login_required
@@ -384,3 +404,15 @@ def api_datos_operacion(request):
         'aduana_codigo':  op.aduana_id,
         'aduana_nombre':  op.aduana.nombre,
     })
+    
+@login_required
+def usuarios_view(request):
+    return render(request, 'home/usuarios.html')
+
+@login_required
+def permisos_view(request):
+    return render(request, 'home/permisos.html')
+
+@login_required
+def perfilusuario_view(request):
+    return render(request, 'home/perfil_usuario.html')

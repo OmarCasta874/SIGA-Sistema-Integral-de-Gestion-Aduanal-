@@ -1,5 +1,11 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from .views import ClienteViewSet, AduanaViewSet
 from . import views
+
+router = DefaultRouter()
+router.register(r'clientes', ClienteViewSet, basename='clientes')
+router.register(r'aduanas', AduanaViewSet, basename='aduanas')
 
 app_name = 'home'
 
@@ -19,4 +25,8 @@ urlpatterns = [
     path('categorias/', views.categorias_view, name='categorias'),
     path('bitacora/', views.bitacora_view, name='bitacora'),
     path('api/operacion/', views.api_datos_operacion,  name='api_operacion'),
+]
+
+urlpatterns += [
+    path('api/', include(router.urls)),
 ]

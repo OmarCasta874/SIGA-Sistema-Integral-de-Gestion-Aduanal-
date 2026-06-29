@@ -1,0 +1,178 @@
+/* PERMISOS */
+.permisos-card {
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+/* BARRA DE HERRAMIENTAS */
+.permisos-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.permisos-search {
+    flex: 1;
+}
+
+.permisos-search input {
+    width: 100%;
+    height: 40px;
+    padding: 0 14px;
+    border: 1px solid #D1D5DB;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #111827;
+    background: #FFFFFF;
+}
+
+.permisos-search input::placeholder {
+    color: #9CA3AF;
+}
+
+.permisos-search input:focus {
+    outline: none;
+    border-color: #2563EB;
+}
+
+.permisos-select {
+    height: 40px;
+    padding: 0 14px;
+    border: 1px solid #D1D5DB;
+    border-radius: 8px;
+    background: #F3F4F6;
+    color: #374151;
+    font-size: 14px;
+    min-width: 160px;
+    cursor: pointer;
+}
+
+.permisos-select:focus {
+    outline: none;
+    border-color: #2563EB;
+}
+
+.btn-filtrar {
+    height: 40px;
+    padding: 0 20px;
+    border: none;
+    border-radius: 8px;
+    background: #2563EB;
+    color: #FFFFFF;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.btn-filtrar:hover {
+    background: #1D4ED8;
+}
+
+.btn-nuevo-permiso {
+    height: 40px;
+    padding: 0 20px;
+    border: none;
+    border-radius: 8px;
+    background: #1E3A8A;
+    color: #FFFFFF;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.btn-nuevo-permiso:hover {
+    background: #16306B;
+}
+
+/* TABLA */
+.permisos-tabla-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.permisos-tabla-titulo {
+    font-size: 15px;
+    font-weight: 600;
+    color: #111827;
+}
+
+.permisos-ver-todos {
+    font-size: 13px;
+    color: #2563EB;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.permisos-ver-todos:hover {
+    text-decoration: underline;
+}
+
+.permisos-tabla {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.permisos-tabla thead th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: #9CA3AF;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 8px 12px;
+    border-bottom: 1px solid #E5E7EB;
+}
+
+.permisos-tabla tbody td {
+    padding: 14px 12px;
+    font-size: 14px;
+    color: #374151;
+    border-bottom: 1px solid #F3F4F6;
+}
+
+.permisos-tabla tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.permisos-clave {
+    color: #2563EB;
+    font-weight: 500;
+}
+
+.permisos-clave:hover {
+    text-decoration: underline;
+}
+
+/* ESTADOS */
+.pill {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.pill-previos {
+    background: #DCFCE7;
+    color: #16A34A;
+}
+
+.pill-restringido {
+    background: #FEE2E2;
+    color: #DC2626;
+}
+
+.pill-libre {
+    background: #DBEAFE;
+    color: #2563EB;
+}

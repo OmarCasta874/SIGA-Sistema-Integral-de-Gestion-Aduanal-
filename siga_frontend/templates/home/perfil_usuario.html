@@ -1,13 +1,13 @@
-{% load static %}
+{% load static %} 
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Categorías — SIGA</title>
+    <title>Perfil — SIGA</title>
     <link rel="icon" type="image/x-icon" href="{% static 'home/img/siga_logo.png' %}">
     <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
-    <link rel="stylesheet" href="{% static 'home/css/categorias.css' %}">
+    <link rel="stylesheet" href="{% static 'home/css/perfil_usuario.css' %}">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 <body>
@@ -27,7 +27,7 @@
         <a href="{% url 'home:permisos' %}" class="nav-item">
             <i data-lucide="key-round" class="nav-icon"></i> Permisos
         </a>
-
+ 
         <p class="nav-section-label">Operaciones</p>
         <a href="{% url 'home:clientes' %}" class="nav-item">
             <i data-lucide="users" class="nav-icon"></i> Clientes
@@ -47,10 +47,10 @@
         <a href="#" class="nav-item">
             <i data-lucide="receipt" class="nav-icon"></i> Facturas
         </a>
-        <a href="{% url 'home:categorias' %}" class="nav-item active">
+        <a href="{% url 'home:categorias' %}" class="nav-item">
             <i data-lucide="tag" class="nav-icon"></i> Categorías
         </a>
-
+ 
         <p class="nav-section-label">Fiscalización</p>
         <a href="#" class="nav-item">
             <i data-lucide="radio" class="nav-icon"></i> Semáforo Fiscal
@@ -65,7 +65,7 @@
             <i data-lucide="history" class="nav-icon"></i> Bitácora
         </a>
     </nav>
-
+ 
     <div class="sidebar-footer">
         <button type="button" class="btn-sidebar btn-sidebar-salir" onclick="mostrarModalLogout()">
             <i data-lucide="log-out" class="nav-icon"></i> Salir
@@ -75,6 +75,58 @@
         </a>
     </div>
 </aside>
+
+<main class="main">
+    <div class="perfil-encabezado">
+        <img src="{% static 'home/img/warehouse_worker.jpg' %}" alt="Francisco Javier" class="perfil-foto">
+        <div class="perfil-encabezado-texto">
+            <h1 class="perfil-nombre">FRANCISCO JAVIER</h1>
+            <p class="perfil-rol">Administrador</p>
+        </div>
+    </div>
+
+    <div class="perfil-seccion">
+        <h2 class="perfil-seccion-titulo">Datos personales: </h2>
+
+        <label class="perfil-label">Nombre completo: </label>
+        <input type="text" class="perfil-input perfil-input-ancho" value="Francisco Javier" readonly>
+
+        <div class="perfil-fila">
+            <div class="perfil-campo">
+                <label class="perfil-label">Correo: </label>
+                <input type="email" class="perfil-input" value="fjavier@aduana.gob.mx" readonly>
+            </div>
+            <div class="perfil-campo">
+                <label class="perfil-label">Fecha de alta: </label>
+                <input type="text" class="perfil-input" value="10 - 06 - 2026" readonly>
+            </div>
+        </div>
+    </div>
+
+    <div class="perfil-seccion">
+        <h2 class="perfil-seccion-titulo">Permiso asignado: </h2>
+        <div class="perfil-fila perfil-fila-3">
+            <div class="perfil-campo">
+                <label class="perfil-label">Tipo de permiso: </label>
+                <input type="text" class="perfil-input" value="Admin" readonly>
+            </div>
+            <div class="perfil-campo">
+                <label class="perfil-label">Clave: </label>
+                <input type="text" class="perfil-input" value="AD - FJAV" readonly>
+            </div>
+            <div class="perfil-campo">
+                <label class="perfil-label">Vigencia del permiso: </label>
+                <input type="text" class="perfil-input" value="2 años" readonly>
+            </div>
+        </div>
+    </div>
+
+    <div class="perfil-acciones">
+        <button type="button" class="btn-perfil">Editar perfil</button>
+        <button type="button" class="btn-perfil">Cambiar de cuenta</button>
+        <button type="button" class="btn-perfil" onclick="mostrarModalLogout()">Cerrar Sesión</button>
+    </div>
+</main>
 <div class="modal-overlay" id="modalLogout">
     <div class="modal-logout-box">
         <img src="{% static 'home/img/siga_logo.png' %}" alt="SIGA" class="modal-logout-logo">
@@ -85,66 +137,6 @@
         </div>
     </div>
 </div>
-<main class="main">
-    <h1 class="page-title">Categorías</h1>
-    <div class="cards-grid cards-grid-categorias">
-        <div class="card">
-            <div class="card-label">Total Categorías</div>
-            <div class="card-number"> {{ total_categorias }}</div>
-        </div>
-        <div class="card">
-            <div class="card-label">Categorías activas</div>
-            <div class="card-number card-number-verde">10</div>
-        </div>
-        <div class="card">
-            <div class="card-label">Productos registrados</div>
-            <div class="card-number card-number-naranja">2,304</div>
-        </div>
-        <div class="card">
-            <div class="card-label">Categoría más usada</div>
-            <div class="card-number card-number-rojo">Electrónicos</div>
-        </div>
-    </div>
-
-    <div class="categorias-toolbar">
-        <div class="categorias-buscador">
-            <input type="text" placeholder="Buscar categoría...">
-        </div>
-        <button class="btn-nueva-categoria">
-            <i data-lucide="plus"></i> Nueva categoría
-        </button>
-    </div>
-
-    <div class="panel-categorias">
-        <table class="tabla-categorias">
-            <thead>
-                <tr>
-                    <th>NÚMERO</th>
-                    <th>CATEGORÍA</th>
-                    <th>DESCRIPCIÓN</th>
-                    <th>ARANCEL</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for categoria in categorias %}
-                <tr>
-                    <td>{{ categoria.numero }}</td>
-                    <td>{{ categoria.nombre }}</td>
-                    <td>{{ categoria.descripcion|default:"Sin descripción" }}</td>
-                    <td>{{ categoria.arancel }}</td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="4" style="text-align:center;">
-                        No hay categorías registradas.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</main>
-
 <script>
     lucide.createIcons();
 

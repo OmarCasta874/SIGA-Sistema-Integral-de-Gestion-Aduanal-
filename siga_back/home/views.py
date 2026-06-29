@@ -384,3 +384,16 @@ def api_datos_operacion(request):
         'aduana_codigo':  op.aduana_id,
         'aduana_nombre':  op.aduana.nombre,
     })
+    
+# API's Django REST Framework
+from rest_framework import viewsets
+from .serializers import ClienteSerializer
+from .serializers import AduanaSerializer
+
+class ClienteViewSet(viewsets.ModelViewSet):
+    queryset = Cliente.objects.all()
+    serializer_class = ClienteSerializer
+    
+class AduanaViewSet(viewsets.ModelViewSet):
+    queryset = Aduana.objects.all()
+    serializer_class = AduanaSerializer
