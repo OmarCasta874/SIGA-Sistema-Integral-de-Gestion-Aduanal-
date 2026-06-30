@@ -4,14 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aduanas — SIGA</title>
+    <title>Facturas — SIGA</title>
     <link rel="icon" type="image/x-icon" href="{% static 'home/img/siga_logo.png' %}">
     <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
-    <link rel="stylesheet" href="{% static 'home/css/aduanas.css' %}">
+    <link rel="stylesheet" href="{% static 'home/css/facturas.css' %}">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 <body>
-<!-- SIDEBAR -->
+
 <aside class="sidebar">
     <div class="sidebar-logo">
         <img src="{% static 'home/img/siga_logo_light.png' %}" alt="SIGA">
@@ -33,7 +33,7 @@
         <a href="{% url 'home:clientes' %}" class="nav-item">
             <i data-lucide="users" class="nav-icon"></i> Clientes
         </a>
-        <a href="{% url 'home:aduanas' %}" class="nav-item active">
+        <a href="{% url 'home:aduanas' %}" class="nav-item">
             <i data-lucide="home" class="nav-icon"></i> Aduanas
         </a>
         <a href="{% url 'home:pedimentos' %}" class="nav-item">
@@ -45,7 +45,7 @@
         <a href="{% url 'home:pagos' %}" class="nav-item">
             <i data-lucide="circle-dollar-sign" class="nav-icon"></i> Pagos
         </a>
-        <a href="{% url 'home:facturas' %}" class="nav-item">
+        <a href="{% url 'home:facturas' %}" class="nav-item active">
             <i data-lucide="receipt" class="nav-icon"></i> Facturas
         </a>
         <a href="{% url 'home:categorias' %}" class="nav-item">
@@ -76,6 +76,7 @@
         </a>
     </div>
 </aside>
+
 <div class="modal-overlay" id="modalLogout">
     <div class="modal-logout-box">
         <img src="{% static 'home/img/siga_logo.png' %}" alt="SIGA" class="modal-logout-logo">
@@ -86,64 +87,53 @@
         </div>
     </div>
 </div>
-<!-- ADUANAS -->
-<main class="content">
-    <div class="header-aduanas">
-        <h1> Aduanas </h1>
-    </div>
 
-    <div class="estadisticas-aduanas">
-        <div class="card-aduana">
-            <p>Aduanas activas</p>
-            <h2 class="num-azul">{{ total_aduanas }}</h2>
-        </div>
-        <div class="card-aduana">
-            <p>Operaciones hoy</p>
-            <h2 class="num-verde">2,304</h2>
-        </div>
+<main class="main">
+    <h1 class="facturas-titulo">Facturas</h1>
+    <div class="facturas-toolbar">
+        <input type="text" class="facturas-buscar" placeholder="Buscar Factura...">
+        <button type="button" class="btn-facturas btn-facturas-filtrar">Filtrar</button>
+        <button type="button" class="btn-facturas btn-facturas-nuevo"> + Nueva Factura </button>
     </div>
+    <div class="facturas-card">
+        <h2 class="facturas-card-titulo">Operaciones Recientes</h2>
 
-    <div class="toolbar-aduanas">
-        <input type="text" class="input-buscar" placeholder="Buscar aduana...">
-        <select class="select-filtro">
-            <option>Todas las aduanas</option>
-        </select>
-        <select class="select-filtro">
-            <option>Todos los tipos</option>
-        </select>
-        <button class="btn-filtrar">Filtrar</button>
-        <button class="btn-nueva-aduana">Nueva aduana</button>
-    </div>
-    <section class="tabla-aduanas">
-        <h3> Lista de Aduanas </h3>
-        <table>
+        <table class="facturas-tabla">
             <thead>
                 <tr>
-                    <th>Aduana</th>
-                    <th>Clave</th>
-                    <th>Ciudad</th>
-                    <th>Estado</th>
+                    <th>NUMERO</th>
+                    <th>FOLIO</th>
+                    <th>FECHA</th>
+                    <th>TOTAL</th>
+                    <th>OPERACIÓN</th>
+                    <th>ACCIONES</th>
                 </tr>
             </thead>
             <tbody>
-                {% for aduana in aduanas %}
+                {% for factura in facturas %}
                 <tr>
-                    <td>{{ aduana.nombre }}</td>
-                    <td>{{ aduana.codigo }}</td>
-                    <td>{{ aduana.ciudad }}</td>
-                    <td><span class="estado estado-activa">Activa</span></td>
+                    <td>{{ factura.codigo }}</td>
+                    <td>{{ factura.folio_fiscal }}</td>
+                    <td>{{ factura.fecha_factura }}</td>
+                    <td>${{ factura.total }}</td>
+                    <td>{{ factura.operacion_id }}</td>
+                    <td>
+                        <a href="#" class="btn-accion btn-accion-ver">Ver</a>
+                        <a href="#" class="btn-accion btn-accion-editar">Editar</a>
+                    </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="4">
-                        No hay aduanas registradas.
+                    <td colspan="6" style="text-align:center; color:#9CA3AF; padding:24px 0;">
+                        No hay facturas registradas.
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
-    </section>
+    </div>
 </main>
+
 <script>
     lucide.createIcons();
 

@@ -1,172 +1,147 @@
+import datetime
+
+from django.contrib import messages
 from django.contrib.auth import login as auth_login, logout as auth_logout
 from django.contrib.auth.decorators import login_required
-from django.contrib import messages
-from django.shortcuts import render, redirect, get_object_or_404
 from django.core.paginator import Paginator
 from django.http import JsonResponse
+from django.shortcuts import redirect, render
 
-from .forms import LoginForm
-from .forms import NuevoClienteForm
-from .forms import NuevoPedimentoForm
-from .forms import NuevaOperacionForm
-from .forms import NuevoPermisoForm
+from . import api_client as api
+from .forms import (
+    LoginForm,
+    NuevoClienteForm,
+    NuevaOperacionForm,
+    NuevoPedimentoForm,
+    NuevoPermisoForm,
+)
 
-from .models import Cliente
-from .models import Aduana
-from .models import Pedimento
-from .models import SemaforoFiscal
-from .models import OperacionAduanera 
-from .models import Paquete 
-from .models import Producto
-from .models import CategoriaProductos
-from .models import Permiso
-from .models import Bitacora
-from .models import RegimenAduanero
-from .models import EstadoPago
-from .models import Pago
-from .models import TipoImportaciones
-from .models import TipoExportaciones
 
-from datetime import date
-from datetime import datetime
-import random
-import requests
+# ── Helpers de conversión para compatibilidad con templates ────────────────────
 
-API_BASE = "http://127.0.0.1:8000/api"
+def _to_date(value):
+    """Convierte string ISO 'YYYY-MM-DD' a datetime.date para filtros de template."""
+    if isinstance(value, str):
+        try:
+            return datetime.date.fromisoformat(value)
+        except ValueError:
+            return value
+    return value
 
-def generar_numero_pedimento(codigo_aduana):
-    hoy           = date.today()
-    anio_2d       = str(hoy.year)[-2:]
-    ultimo_digito = str(hoy.year)[-1:]
-    patente       = '3991'
-    cod_aduana    = str(codigo_aduana).zfill(2)
-    total         = Pedimento.objects.count() + 1
-    consecutivo   = str(total).zfill(6)
-    return f"{anio_2d} {cod_aduana} {patente} {ultimo_digito} {consecutivo}"
 
-def generar_semaforo():
-    resultado = random.choices(
-        ['Verde - Desaduanamiento libre', 'Rojo - Reconocimiento aduanero'],
-        weights=[70, 30],
-        k=1
-    )[0]
-    return SemaforoFiscal.objects.create(
-        hora=datetime.now().time(),
-        resultado=resultado
-    )
+def _build_op_ctx(op: dict) -> dict:
+    op = dict(op)
+    if isinstance(op.get('aduana'), dict):
+        op['aduana'] = op['aduana']['nombre']
+    op['fecha_inicio'] = _to_date(op.get('fecha_inicio', ''))
+    op['pk']           = op.get('ID_operacion')
+    return op
 
-def estado_operacion(op):
-    tiene_pedimento = Pedimento.objects.filter(ope_aduanera=op).exists()
-    if not tiene_pedimento:
-        return 1
 
-    tiene_pago = EstadoPago.objects.filter(pago__isnull=False).exists()
-    if not tiene_pago:
-        return 2
-    return 3
+# ── Auth ───────────────────────────────────────────────────────────────────────
 
 def login_view(request):
     if request.user.is_authenticated:
         return redirect('home:dashboard')
+
     if request.method == 'POST':
         form = LoginForm(request, data=request.POST)
         if form.is_valid():
+            # 1) Sesión Django (para @login_required)
             auth_login(request, form.get_user())
+            # 2) Token API para todas las llamadas posteriores
+            try:
+                resp = api.post(request, '/auth/login/', {
+                    'correo':    request.POST.get('correo', ''),
+                    'contrasena': request.POST.get('contrasena', ''),
+                })
+                if resp.status_code == 200:
+                    request.session['api_token'] = resp.json().get('token', '')
+            except Exception:
+                pass
             return redirect('home:dashboard')
     else:
         form = LoginForm(request)
+
     return render(request, 'home/login.html', {'form': form})
+
 
 @login_required
 def logout_view(request):
+    try:
+        api.post(request, '/auth/logout/')
+    except Exception:
+        pass
+    request.session.pop('api_token', None)
     auth_logout(request)
     return redirect('home:login')
+
 
 @login_required
 def dashboard_view(request):
     return render(request, 'home/dashboard.html')
 
-def generar_folio_permiso(autoridad):
-    anio = date.today().year
-    prefijo   = f'PERM-{autoridad}-{anio}-'
-    existentes = Permiso.objects.filter(
-        clave_numerica__startswith=prefijo
-    ).count()
 
-    consecutivo = str(existentes + 1).zfill(3)
-    return f'{prefijo}{consecutivo}'
+# ── Clientes ───────────────────────────────────────────────────────────────────
 
 @login_required
 def clientes_view(request):
     if request.method == 'POST':
         accion = request.POST.get('accion', '')
 
-        if accion == '' or accion == 'nuevo_cliente':
+        if accion in ('', 'nuevo_cliente'):
             form = NuevoClienteForm(request.POST)
             if form.is_valid():
-                form.save()
-                messages.success(request, 'Cliente registrado correctamente.')
-                return redirect('home:clientes')
+                resp = api.post(request, '/clientes/', form.cleaned_data)
+                if resp.status_code == 201:
+                    messages.success(request, 'Cliente registrado correctamente.')
+                else:
+                    messages.error(request, f'Error al registrar cliente: {api.safe_json(resp).get("RFC", resp.text)}')
+            else:
+                messages.error(request, 'Revisa los campos del formulario.')
+            return redirect('home:clientes')
 
-        elif accion == 'agregar_permiso':
+        if accion == 'agregar_permiso':
             cliente_id  = request.POST.get('cliente_id')
-            autoridad   = request.POST.get('tipo_permiso')
-            cliente     = get_object_or_404(Cliente, numero=cliente_id)
+            tipo_permiso = request.POST.get('tipo_permiso', '')
+            vigencia    = request.POST.get('vigencia', '')
+            descripcion  = request.POST.get('descripcion', '')
 
-            # Validar si el cliente ya tiene un permiso de esta misma autoridad
-            ya_tiene = Permiso.objects.filter(
-                cliente=cliente,
-                tipo_permiso=autoridad
-            ).exists()
-
-            if ya_tiene:
-                messages.error(
-                    request,
-                    f'El cliente ya cuenta con un permiso {autoridad} registrado. '
-                    f'No es posible generar un nuevo permiso de la misma autoridad para este cliente.'
-                )
-                return redirect('home:clientes')
-
-            try:
-                folio = generar_folio_permiso(autoridad)
-                Permiso.objects.create(
-                    clave_numerica = folio,
-                    tipo_permiso   = autoridad,
-                    vigencia       = request.POST.get('vigencia'),
-                    descripcion    = request.POST.get('descripcion', ''),
-                    cliente        = cliente,
-                )
-                messages.success(
-                    request,
-                    f'Permiso registrado correctamente con folio: {folio}'
-                )
-            except Exception as e:
-                messages.error(request, f'Error al guardar el permiso: {e}')
-
+            resp = api.post(request, f'/clientes/{cliente_id}/permisos/', {
+                'tipo_permiso': tipo_permiso,
+                'vigencia':     vigencia,
+                'descripcion':  descripcion,
+            })
+            if resp.status_code in (200, 201):
+                data  = api.safe_json(resp)
+                folio = data.get('folio', '')
+                if data.get('renovado'):
+                    messages.success(request, f'Permiso {folio} renovado correctamente.')
+                else:
+                    messages.success(request, f'Permiso registrado con folio: {folio}')
+            else:
+                error = api.safe_json(resp).get('error', resp.text)
+                messages.error(request, error)
             return redirect('home:clientes')
 
     form  = NuevoClienteForm()
     query = request.GET.get('q', '')
 
     try:
-        response = requests.get(f"{API_BASE}/clientes/")
-        response.raise_for_status()
-        clientes = response.json()
-    except requests.exceptions.RequestException:
+        resp     = api.get(request, '/clientes/')
+        clientes = api.safe_json(resp, []) if resp.status_code == 200 else []
+    except Exception:
         clientes = []
-        messages.error(request, 'No fue posible obtener la lista de clientes desde la API.')
+        messages.error(request, 'No fue posible obtener la lista de clientes.')
 
-    # Búsqueda
     if query:
-        q = query.lower()
-
+        q        = query.lower()
         clientes = [
-            cliente for cliente in clientes
-            if q in cliente['nombre'].lower()
-            or q in (cliente['primer_apell'] or '').lower()
-            or q in cliente['RFC'].lower()
+            c for c in clientes
+            if q in c.get('nombre', '').lower()
+            or q in (c.get('primer_apell') or '').lower()
+            or q in c.get('RFC', '').lower()
         ]
-
 
     paginador          = Paginator(clientes, 5)
     clientes_paginados = paginador.get_page(request.GET.get('pagina', 1))
@@ -176,171 +151,205 @@ def clientes_view(request):
         'total_clientes': len(clientes),
         'form':           form,
         'query':          query,
+        'hoy':            datetime.date.today(),
     })
+
+
+# ── API proxy para JS del template de clientes ─────────────────────────────────
 
 @login_required
 def api_cliente_detalle(request, pk):
-    cliente  = get_object_or_404(Cliente, numero=pk)
-    permisos = Permiso.objects.filter(cliente=cliente)
-    hoy      = date.today()
+    resp = api.get(request, f'/clientes/{pk}/')
+    if resp.status_code == 200:
+        data = resp.json()
+        return JsonResponse({
+            'numero':       data.get('numero'),
+            'nombre':       data.get('nombre'),
+            'primer_apell': data.get('primer_apell') or '',
+            'seg_apell':    data.get('seg_apell') or '',
+            'tipo_persona': data.get('tipo_persona'),
+            'RFC':          data.get('RFC'),
+            'permisos':     data.get('permisos', []),
+        })
+    return JsonResponse({'error': 'No encontrado'}, status=resp.status_code)
 
-    permisos_data = [
-        {
-            'clave':         p.clave_numerica,
-            'tipo':          p.tipo_permiso,
-            'vigencia':      p.vigencia.strftime('%d/%m/%Y'),
-            'vigente':       p.vigencia >= hoy,
-            'descripcion':   p.descripcion or '',
-        }
-        for p in permisos
-    ]
-
-    return JsonResponse({
-        'numero':       cliente.numero,
-        'nombre':       cliente.nombre,
-        'primer_apell': cliente.primer_apell or '',
-        'seg_apell':    cliente.seg_apell or '',
-        'tipo_persona': cliente.tipo_persona,
-        'RFC':          cliente.RFC,
-        'permisos':     permisos_data,
-    })
 
 @login_required
 def api_permiso_eliminar(request, pk, clave):
     if request.method == 'POST':
-        cliente = get_object_or_404(Cliente, numero=pk)
-        permiso = get_object_or_404(Permiso, clave_numerica=clave, cliente=cliente)
-        permiso.delete()
-        return JsonResponse({'ok': True})
+        resp = api.delete(request, f'/clientes/{pk}/permisos/{clave}/')
+        ok   = resp.status_code in (200, 204)
+        return JsonResponse({'ok': ok})
     return JsonResponse({'ok': False}, status=405)
+
+
+# ── Operaciones ────────────────────────────────────────────────────────────────
 
 @login_required
 def operaciones_view(request):
     query = request.GET.get('q', '')
-    operaciones = OperacionAduanera.objects.select_related(
-        'cliente', 'aduana'
-    ).all().order_by('-ID_operacion')
+
+    try:
+        resp_ops = api.get(request, '/operaciones/')
+        ops_raw  = api.safe_json(resp_ops, []) if resp_ops.status_code == 200 else []
+    except Exception:
+        ops_raw = []
+        messages.error(request, 'No fue posible obtener las operaciones.')
+
     if query:
-        operaciones = operaciones.filter(
-            cliente__nombre__icontains=query
-        ) | operaciones.filter(
-            tipo_operacion__icontains=query
-        )
+        q       = query.lower()
+        ops_raw = [
+            o for o in ops_raw
+            if q in o.get('tipo_operacion', '').lower()
+            or q in (o.get('cliente') or {}).get('nombre', '').lower()
+        ]
+
     ops_con_estado = [
-        {'op': op, 'paso': estado_operacion(op)}
-        for op in operaciones
+        {'op': _build_op_ctx(o), 'paso': o.get('paso', 1)}
+        for o in ops_raw
     ]
+
     paginador = Paginator(ops_con_estado, 8)
+
+    try:
+        clientes = api.safe_json(api.get(request, '/clientes/'), [])
+    except Exception:
+        clientes = []
+
+    try:
+        tipos_importacion = api.safe_json(api.get(request, '/tipos-importacion/'), [])
+        tipos_exportacion = api.safe_json(api.get(request, '/tipos-exportacion/'), [])
+        regimenes         = api.safe_json(api.get(request, '/regimenes/'), [])
+    except Exception:
+        tipos_importacion = tipos_exportacion = regimenes = []
+
     return render(request, 'home/operaciones.html', {
         'operaciones':       paginador.get_page(request.GET.get('pagina', 1)),
-        'total_operaciones': operaciones.count(),
+        'total_operaciones': len(ops_raw),
         'query':             query,
-        'clientes':          Cliente.objects.all(),
-        'tipos_importacion': TipoImportaciones.objects.all(),
-        'tipos_exportacion': TipoExportaciones.objects.all(),
-        'regimenes':         RegimenAduanero.objects.all(),
-        'hoy':               date.today(),
+        'clientes':          clientes,
+        'tipos_importacion': tipos_importacion,
+        'tipos_exportacion': tipos_exportacion,
+        'regimenes':         regimenes,
+        'hoy':               datetime.date.today(),
     })
+
 
 @login_required
 def operacion_nueva_view(request):
     if request.method == 'POST':
         form = NuevaOperacionForm(request.POST)
         if form.is_valid():
-            op = form.save(commit=False)
-            op.fecha_inicio = date.today()
-            op.usuario      = request.user
-            op.bitacora     = Bitacora.objects.create(
-                descripcion=f'Apertura de operación aduanera | '
-                            f'Tipo: {op.tipo_operacion} | '
-                            f'Cliente: {op.cliente}',
-                fecha=date.today(),
-                hora=datetime.now().time()
-            )
-            op.save()
-            messages.success(
-                request,
-                f'Operación abierta correctamente. Ahora completa el pedimento.'
-            )
-            return redirect('home:operacion_detalle', pk=op.ID_operacion)
+            resp = api.post(request, '/operaciones/', form.cleaned_data)
+            if resp.status_code == 201:
+                pk = resp.json().get('ID_operacion')
+                messages.success(request, 'Operación abierta correctamente. Ahora completa el pedimento.')
+                return redirect('home:operacion_detalle', pk=pk)
+            else:
+                messages.error(request, f'Error al crear operación: {resp.text}')
         else:
             messages.error(request, 'Revisa los campos del formulario.')
-    else:
-        form = NuevaOperacionForm()
-    return render(request, 'home/operacion_nueva.html', {'form': form})
+    return redirect('home:operaciones')
+
 
 @login_required
 def operacion_detalle_view(request, pk):
-    op   = get_object_or_404(OperacionAduanera, ID_operacion=pk)
-    paso = estado_operacion(op)
+    try:
+        resp = api.get(request, f'/operaciones/{pk}/')
+        if resp.status_code != 200:
+            messages.error(request, 'Operación no encontrada.')
+            return redirect('home:operaciones')
+        data = resp.json()
+    except Exception:
+        messages.error(request, 'No se pudo conectar con la API.')
+        return redirect('home:operaciones')
 
-    pedimento = Pedimento.objects.filter(ope_aduanera=op).first()
-
+    pedimento = data.get('pedimento')
     return render(request, 'home/operacion_detalle.html', {
-        'op':        op,
-        'paso':      paso,
+        'op':        data,
+        'paso':      data.get('paso', 1),
         'pedimento': pedimento,
     })
 
+
 @login_required
 def operacion_pedimento_view(request, pk):
-    op = get_object_or_404(OperacionAduanera, ID_operacion=pk)
-    if Pedimento.objects.filter(ope_aduanera=op).exists():
+    try:
+        resp_op = api.get(request, f'/operaciones/{pk}/')
+        if resp_op.status_code != 200:
+            return redirect('home:operaciones')
+        op = resp_op.json()
+    except Exception:
+        return redirect('home:operaciones')
+
+    if op.get('pedimento'):
         messages.warning(request, 'Esta operación ya tiene un pedimento generado.')
         return redirect('home:operacion_detalle', pk=pk)
+
     if request.method == 'POST':
-        form = NuevoPedimentoForm(request.POST)
-        if form.is_valid():
-            pedimento                  = form.save(commit=False)
-            pedimento.ope_aduanera     = op
-            pedimento.semaforo         = generar_semaforo()
-            pedimento.numero_pedimento = generar_numero_pedimento(op.aduana_id)
-            pedimento.fecha_registro   = date.today()
-            paquetes = Paquete.objects.filter(ope_aduanera=op)
-            pedimento.valor_total = sum(
-                float(prod.valor_unitario)
-                for paq in paquetes
-                for prod in Producto.objects.filter(paquete=paq)
-            )
-            pedimento.save()
+        resp = api.post(request, f'/operaciones/{pk}/pedimento/', {
+            'clave_pedimento':  request.POST.get('clave_pedimento', ''),
+            'regimen_adu':      request.POST.get('regimen_adu'),
+            'permiso':          request.POST.get('permiso'),
+            'tipo_importacion': request.POST.get('tipo_importacion') or None,
+            'tipo_exportacion': request.POST.get('tipo_exportacion') or None,
+        })
+        if resp.status_code == 201:
+            data = resp.json()
             messages.success(
                 request,
-                f'Pedimento {pedimento.numero_pedimento} generado. '
-                f'Semáforo: {pedimento.semaforo.resultado}'
+                f'Pedimento {data["numero_pedimento"]} generado. '
+                f'Semáforo: {data["semaforo_resultado"]}'
             )
             return redirect('home:operacion_detalle', pk=pk)
         else:
-            messages.error(request, 'Revisa los campos del formulario.')
-    else:
-        initial = {'ope_aduanera': op}
-        if op.tipo_operacion == 'Importación':
-            initial['tipo_exportacion'] = None
-        else:
-            initial['tipo_importacion'] = None
-        form = NuevoPedimentoForm(initial=initial)
+            messages.error(request, f'Error al generar pedimento: {resp.text}')
+
+    try:
+        regimenes = api.safe_json(api.get(request, '/regimenes/'), [])
+        permisos  = api.safe_json(
+            api.get(request, f'/clientes/{op["cliente"]["numero"]}/permisos/'), []
+        )
+        tipos_importacion = api.safe_json(api.get(request, '/tipos-importacion/'), [])
+        tipos_exportacion = api.safe_json(api.get(request, '/tipos-exportacion/'), [])
+    except Exception:
+        regimenes = permisos = tipos_importacion = tipos_exportacion = []
+
+    form = NuevoPedimentoForm()
     return render(request, 'home/operacion_pedimento.html', {
-        'op':   op,
-        'form': form,
-        'paso': 2,
+        'op':               op,
+        'form':             form,
+        'paso':             2,
+        'regimenes':        regimenes,
+        'permisos':         permisos,
+        'tipos_importacion': tipos_importacion,
+        'tipos_exportacion': tipos_exportacion,
     })
+
+
+# ── Pedimentos ─────────────────────────────────────────────────────────────────
 
 @login_required
 def pedimentos_view(request):
-    query     = request.GET.get('q', '')
-    pedimentos = Pedimento.objects.select_related(
-        'regimen_adu', 'semaforo', 'ope_aduanera'
-    ).all()
+    query = request.GET.get('q', '')
+
+    try:
+        resp      = api.get(request, '/pedimentos/')
+        pedimentos = api.safe_json(resp, []) if resp.status_code == 200 else []
+    except Exception:
+        pedimentos = []
+        messages.error(request, 'No fue posible obtener los pedimentos.')
 
     if query:
-        pedimentos = pedimentos.filter(
-            numero_pedimento__icontains=query
-        ) | pedimentos.filter(
-            regimen_adu__descripcion__icontains=query
-        ) | pedimentos.filter(
-            clave_pedimento__icontains=query
-        )
+        q          = query.lower()
+        pedimentos = [
+            p for p in pedimentos
+            if q in p.get('numero_pedimento', '').lower()
+            or q in (p.get('regimen_adu') or {}).get('descripcion', '').lower()
+            or q in p.get('clave_pedimento', '').lower()
+        ]
 
-    paginador          = Paginator(pedimentos, 5)
+    paginador            = Paginator(pedimentos, 5)
     pedimentos_paginados = paginador.get_page(request.GET.get('pagina', 1))
 
     return render(request, 'home/pedimentos.html', {
@@ -348,70 +357,151 @@ def pedimentos_view(request):
         'query':      query,
     })
 
+
+# ── Aduanas ────────────────────────────────────────────────────────────────────
+
 @login_required
 def aduanas_view(request):
     try:
-        response = requests.get(f"{API_BASE}/aduanas/")
-        response.raise_for_status()
-        aduanas = response.json()
-    except requests.exceptions.RequestException:
+        resp    = api.get(request, '/aduanas/')
+        aduanas = api.safe_json(resp, []) if resp.status_code == 200 else []
+    except Exception:
         aduanas = []
-        messages.error(request, "No fue posible conectar con la API.")
-    
+        messages.error(request, 'No fue posible conectar con la API.')
+
     return render(request, 'home/aduanas.html', {
         'aduanas':       aduanas,
         'total_aduanas': len(aduanas),
     })
 
+
+# ── Categorías ─────────────────────────────────────────────────────────────────
+
 @login_required
 def categorias_view(request):
-    categorias = CategoriaProductos.objects.all().order_by('numero')
+    try:
+        resp       = api.get(request, '/categorias/')
+        categorias = api.safe_json(resp, []) if resp.status_code == 200 else []
+    except Exception:
+        categorias = []
+        messages.error(request, 'No fue posible obtener las categorías.')
+
     return render(request, 'home/categorias.html', {
         'categorias':       categorias,
-        'total_categorias': categorias.count(),
+        'total_categorias': len(categorias),
     })
+
+
+# ── Bitácora ───────────────────────────────────────────────────────────────────
 
 @login_required
 def bitacora_view(request):
-    entradas = Bitacora.objects.all().order_by('-fecha', '-hora')
+    try:
+        resp     = api.get(request, '/bitacora/')
+        entradas = api.safe_json(resp, []) if resp.status_code == 200 else []
+    except Exception:
+        entradas = []
+        messages.error(request, 'No fue posible obtener la bitácora.')
+
     paginador = Paginator(entradas, 15)
     return render(request, 'home/bitacora.html', {
         'entradas': paginador.get_page(request.GET.get('pagina', 1)),
     })
+
+
+# ── API proxy: datos de operación para el formulario de pedimento ──────────────
 
 @login_required
 def api_datos_operacion(request):
     operacion_id = request.GET.get('id')
     if not operacion_id:
         return JsonResponse({'error': 'ID requerido'}, status=400)
-    try:
-        op = OperacionAduanera.objects.select_related('aduana').get(
-            ID_operacion=operacion_id
-        )
-    except OperacionAduanera.DoesNotExist:
+
+    resp = api.get(request, f'/operaciones/{operacion_id}/')
+    if resp.status_code != 200:
         return JsonResponse({'error': 'No encontrada'}, status=404)
 
-    paquetes    = Paquete.objects.filter(ope_aduanera=op)
-    valor_total = sum(
-        float(prod.valor_unitario)
-        for paq in paquetes
-        for prod in Producto.objects.filter(paquete=paq)
-    )
+    data    = resp.json()
+    aduana  = data.get('aduana') or {}
+    cliente = data.get('cliente') or {}
 
     return JsonResponse({
-        'tipo_operacion': op.tipo_operacion,
-        'valor_total':    round(valor_total, 2),
-        'aduana_codigo':  op.aduana_id,
-        'aduana_nombre':  op.aduana.nombre,
+        'tipo_operacion': data.get('tipo_operacion'),
+        'aduana_codigo':  aduana.get('codigo'),
+        'aduana_nombre':  aduana.get('nombre'),
+        'cliente_nombre': f"{cliente.get('nombre', '')} {cliente.get('primer_apell', '')}".strip(),
     })
-    
+
+
+# ── Secciones stub ─────────────────────────────────────────────────────────────
+
 @login_required
 def usuarios_view(request):
-    return render(request, 'home/usuarios.html')
+    try:
+        resp     = api.get(request, '/usuarios/')
+        usuarios = api.safe_json(resp, []) if resp.status_code == 200 else []
+    except Exception:
+        usuarios = []
+    return render(request, 'home/usuarios.html', {'usuarios': usuarios})
+
+
+@login_required
+def pagos_view(request):
+    try:
+        resp  = api.get(request, '/pagos/')
+        pagos = api.safe_json(resp, []) if resp.status_code == 200 else []
+    except Exception:
+        pagos = []
+    return render(request, 'home/pagos.html', {'pagos': pagos})
+
+
+@login_required
+def facturas_view(request):
+    try:
+        resp     = api.get(request, '/facturas/')
+        facturas = api.safe_json(resp, []) if resp.status_code == 200 else []
+    except Exception:
+        facturas = []
+    return render(request, 'home/facturas.html', {'facturas': facturas})
+
 
 @login_required
 def permisos_view(request):
-    return render(request, 'home/permisos.html')
+    query       = request.GET.get('q', '')
+    tipo_filtro = request.GET.get('tipo', '')
+
+    try:
+        resp      = api.get(request, '/permisos/')
+        todos     = api.safe_json(resp, []) if resp.status_code == 200 else []
+    except Exception:
+        todos = []
+        messages.error(request, 'No fue posible obtener los permisos.')
+
+    tipos_disponibles = sorted({p.get('tipo_permiso', '') for p in todos if p.get('tipo_permiso')})
+
+    permisos = todos
+    if tipo_filtro:
+        permisos = [p for p in permisos if p.get('tipo_permiso') == tipo_filtro]
+    if query:
+        q        = query.lower()
+        permisos = [
+            p for p in permisos
+            if q in p.get('clave_numerica', '').lower()
+            or q in p.get('tipo_permiso', '').lower()
+            or q in p.get('cliente_nombre', '').lower()
+        ]
+
+    paginador          = Paginator(permisos, 10)
+    permisos_paginados = paginador.get_page(request.GET.get('pagina', 1))
+
+    return render(request, 'home/permisos.html', {
+        'permisos':          permisos_paginados,
+        'total_permisos':    len(permisos),
+        'tipos_disponibles': tipos_disponibles,
+        'tipo_filtro':       tipo_filtro,
+        'query':             query,
+    })
+
 
 @login_required
 def perfilusuario_view(request):

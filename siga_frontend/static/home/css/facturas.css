@@ -1,0 +1,119 @@
+/* FACTURAS */
+.facturas-titulo {
+    font-size: 28px;
+    font-weight: 600;
+    color: #1E3A8A;
+    margin-bottom: 24px;
+}
+
+/* BARRA DE HERRAMIENTAS */
+.facturas-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.facturas-buscar {
+    flex: 1;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 14px;
+    color: #374151;
+}
+
+.facturas-buscar:focus {
+    outline: none;
+    border-color: #1E3A8A;
+}
+
+.btn-facturas {
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #FFFFFF;
+    background: #1E3A8A;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.btn-facturas:hover {
+    background: #1E2F6F;
+}
+
+.facturas-card {
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 10px;
+    padding: 20px;
+}
+
+.facturas-card-titulo {
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 16px;
+}
+
+.facturas-tabla {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.facturas-tabla thead th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: #9CA3AF;
+    text-transform: uppercase;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #E5E7EB;
+}
+
+.facturas-tabla tbody td {
+    padding: 14px 0;
+    font-size: 14px;
+    color: #374151;
+    border-bottom: 1px solid #F3F4F6;
+}
+
+.facturas-tabla tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* BOTONES */
+.btn-accion {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 6px;
+    text-decoration: none;
+    margin-right: 8px;
+}
+
+.btn-accion-ver {
+    background: #EFF6FF;
+    color: #1E3A8A;
+}
+
+.btn-accion-ver:hover {
+    background: #DBEAFE;
+}
+
+.btn-accion-editar {
+    background: #FEF3C7;
+    color: #92400E;
+}
+
+.btn-accion-editar:hover {
+    background: #FDE68A;
+}
