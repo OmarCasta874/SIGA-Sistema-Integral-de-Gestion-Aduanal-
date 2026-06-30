@@ -365,10 +365,17 @@ def aduanas_view(request):
 
 @login_required
 def categorias_view(request):
-    categorias = CategoriaProductos.objects.all().order_by('numero')
+    try:
+        response = requests.get(f"{API_BASE}/categorias/")
+        response.raise_for_status()
+        categorias = response.json()
+    except requests.exceptions.RequestException:
+        categorias = []
+        messages.error(request, "No fue posible conectar con la API.")
+    
     return render(request, 'home/categorias.html', {
         'categorias':       categorias,
-        'total_categorias': categorias.count(),
+        'total_categorias': len(categorias),
     })
 
 @login_required
@@ -416,3 +423,11 @@ def permisos_view(request):
 @login_required
 def perfilusuario_view(request):
     return render(request, 'home/perfil_usuario.html')
+
+@login_required
+def pagos_view(request):
+    return render(request, 'home/pagos.html')
+
+@login_required
+def facturas_view(request):
+    return render(request, 'home/facturas.html')

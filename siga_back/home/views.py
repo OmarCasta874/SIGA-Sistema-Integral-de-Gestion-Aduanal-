@@ -389,6 +389,7 @@ def api_datos_operacion(request):
 from rest_framework import viewsets
 from .serializers import ClienteSerializer
 from .serializers import AduanaSerializer
+from .serializers import CategoriaSerializer
 
 class ClienteViewSet(viewsets.ModelViewSet):
     queryset = Cliente.objects.all()
@@ -397,3 +398,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
 class AduanaViewSet(viewsets.ModelViewSet):
     queryset = Aduana.objects.all()
     serializer_class = AduanaSerializer
+    
+class CategoriaViewSet(viewsets.ModelViewSet):
+    queryset = CategoriaProductos.objects.all()
+    serializer_class = CategoriaSerializer
