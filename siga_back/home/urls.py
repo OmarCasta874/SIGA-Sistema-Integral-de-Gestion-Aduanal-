@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import ClienteViewSet, AduanaViewSet, CategoriaViewSet
@@ -31,3 +32,7 @@ urlpatterns = [
 urlpatterns += [
     path('api/', include(router.urls)),
 ]
+=======
+# home/ solo aloja modelos — las URLs de la API están en api/urls.py
+urlpatterns = []
+>>>>>>> cano

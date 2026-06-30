@@ -415,6 +415,11 @@ class Pago(models.Model):
     saldo_final = models.DecimalField(max_digits=12, decimal_places=2, db_column='saldo_final')
     monto = models.DecimalField(max_digits=12, decimal_places=2, db_column='monto')
     fecha_pago = models.DateField(db_column='fecha_pago')
+    pedimento = models.ForeignKey(
+        'Pedimento', on_delete=models.SET_NULL,
+        db_column='pedimento', related_name='pagos',
+        blank=True, null=True,
+    )
 
     class Meta:
         managed = False

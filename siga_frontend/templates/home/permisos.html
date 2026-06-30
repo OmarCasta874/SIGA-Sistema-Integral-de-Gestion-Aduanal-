@@ -79,56 +79,204 @@
 <main class="main">
     <h1 class="page-title">Permisos</h1>
 
+    {% if messages %}
+        {% for msg in messages %}
+            <div class="alerta alerta-{{ msg.tags }}">{{ msg }}</div>
+        {% endfor %}
+    {% endif %}
+
     <div class="permisos-card">
-        <div class="permisos-toolbar">
-            <div class="permisos-search">
-                <input type="text" placeholder="Buscar permiso...">
+        <form method="get" action="{% url 'home:permisos' %}">
+            <div class="permisos-toolbar">
+                <div class="permisos-search">
+                    <input type="text" name="q" value="{{ query }}"
+                           placeholder="Buscar por folio, tipo o cliente...">
+                </div>
+                <select class="permisos-select" name="tipo">
+                    <option value="">Todos los tipos</option>
+                    {% for tipo in tipos_disponibles %}
+                        <option value="{{ tipo }}" {% if tipo == tipo_filtro %}selected{% endif %}>
+                            {{ tipo }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn-filtrar">Filtrar</button>
+                {% if query or tipo_filtro %}
+                    <a href="{% url 'home:permisos' %}" class="btn-filtrar"
+                       style="background:#6B7280;text-decoration:none;">Limpiar</a>
+                {% endif %}
             </div>
-            <select class="permisos-select">
-                <option>Todos los permisos</option>
-            </select>
-            <select class="permisos-select">
-                <option>Todos los tipos</option>
-            </select>
-            <button type="button" class="btn-filtrar">Filtrar</button>
-            <button type="button" class="btn-nuevo-permiso">
-                + Nuevo permiso
-            </button>
-        </div>
+        </form>
 
         <div class="permisos-tabla-header">
-            <span class="permisos-tabla-titulo">Permisos</span>
-            <a href="#" class="permisos-ver-todos">Ver todos -> </a>
+            <span class="permisos-tabla-titulo">
+                Historial de permisos
+                <span style="font-size:13px;font-weight:400;color:#6B7280;margin-left:8px;">
+                    {{ total_permisos }} resultado{% if total_permisos != 1 %}s{% endif %}
+                </span>
+            </span>
         </div>
 
         <table class="permisos-tabla">
             <thead>
                 <tr>
-                    <th>Clave</th>
+                    <th>Folio</th>
+                    <th>Tipo / Autoridad</th>
+                    <th>Cliente</th>
                     <th>Vigencia</th>
-                    <th>Descripción</th>
-                    <th>Tipo</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td><a href="#" class="permisos-clave">001-001-001</a></td>
-                    <td>25-12-2026</td>
-                    <td>Producto sensible</td>
-                    <td><span class="pill pill-previos">PERMISOS PREVIOS</span></td>
-                </tr>
+                {% for p in permisos %}
+                    <tr>
+                        <td><span class="permisos-clave">{{ p.clave_numerica }}</span></td>
+                        <td>{{ p.tipo_permiso }}</td>
+                        <td>{{ p.cliente_nombre }}</td>
+                        <td>{{ p.vigencia_fmt }}</td>
+                        <td>
+                            {% if p.vigente %}
+                                <span class="pill pill-previos">Vigente</span>
+                            {% else %}
+                                <span class="pill pill-restringido">Vencido</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="btn-ver"
+                                    onclick="verPermiso(
+                                        '{{ p.clave_numerica }}',
+                                        '{{ p.tipo_permiso }}',
+                                        '{{ p.cliente_nombre|escapejs }}',
+                                        {{ p.cliente_numero }},
+                                        '{{ p.vigencia_fmt }}',
+                                        {{ p.vigente|yesno:'true,false' }},
+                                        '{{ p.descripcion|default:''|escapejs }}'
+                                    )">
+                                Ver
+                            </button>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6" style="text-align:center;color:#9CA3AF;padding:32px 0;">
+                            No se encontraron permisos{% if query or tipo_filtro %} con los filtros aplicados{% endif %}.
+                        </td>
+                    </tr>
+                {% endfor %}
             </tbody>
         </table>
+
+        {% if permisos.has_other_pages %}
+            <div class="clientes-paginacion">
+                {% if permisos.has_previous %}
+                    <a href="?pagina={{ permisos.previous_page_number }}&q={{ query }}&tipo={{ tipo_filtro }}"
+                       class="pagina-btn pagina-flecha">
+                        <i data-lucide="chevron-left"></i>
+                    </a>
+                {% else %}
+                    <button class="pagina-btn pagina-flecha" disabled>
+                        <i data-lucide="chevron-left"></i>
+                    </button>
+                {% endif %}
+
+                {% for num in permisos.paginator.page_range %}
+                    {% if permisos.number == num %}
+                        <button class="pagina-btn pagina-activa">{{ num }}</button>
+                    {% elif num >= permisos.number|add:"-2" and num <= permisos.number|add:"2" %}
+                        <a href="?pagina={{ num }}&q={{ query }}&tipo={{ tipo_filtro }}"
+                           class="pagina-btn">{{ num }}</a>
+                    {% endif %}
+                {% endfor %}
+
+                {% if permisos.has_next %}
+                    <a href="?pagina={{ permisos.next_page_number }}&q={{ query }}&tipo={{ tipo_filtro }}"
+                       class="pagina-btn pagina-flecha">
+                        <i data-lucide="chevron-right"></i>
+                    </a>
+                {% else %}
+                    <button class="pagina-btn pagina-flecha" disabled>
+                        <i data-lucide="chevron-right"></i>
+                    </button>
+                {% endif %}
+            </div>
+        {% endif %}
     </div>
 </main>
 
+<!-- ── Modal: Detalle del permiso ── -->
+<div class="modal-overlay" id="modalDetallePermiso">
+    <div class="modal-box">
+        <div class="modal-header">
+            <div>
+                <h3 id="dp-folio" style="font-size:18px;font-weight:700;color:#1E3A8A;"></h3>
+                <p id="dp-tipo" style="font-size:13px;color:#6b7280;margin-top:2px;"></p>
+            </div>
+            <button class="modal-cerrar" onclick="cerrarModal('modalDetallePermiso')">
+                <i data-lucide="x"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="detalle-grid" style="grid-template-columns:1fr 1fr;gap:12px;">
+
+                <div class="detalle-card">
+                    <h3>Datos del permiso</h3>
+                    <div class="detalle-row">
+                        <span class="detalle-label">Folio</span>
+                        <span id="dp-folio2" style="font-weight:600;"></span>
+                    </div>
+                    <div class="detalle-row">
+                        <span class="detalle-label">Autoridad</span>
+                        <span id="dp-tipo2"></span>
+                    </div>
+                    <div class="detalle-row">
+                        <span class="detalle-label">Vigencia</span>
+                        <span id="dp-vigencia"></span>
+                    </div>
+                    <div class="detalle-row">
+                        <span class="detalle-label">Estado</span>
+                        <span id="dp-estado"></span>
+                    </div>
+                    <div class="detalle-row" id="dp-row-descripcion">
+                        <span class="detalle-label">Descripción</span>
+                        <span id="dp-descripcion" style="color:#6b7280;font-style:italic;"></span>
+                    </div>
+                </div>
+
+                <div class="detalle-card">
+                    <h3>Cliente enlazado</h3>
+                    <div class="detalle-row">
+                        <span class="detalle-label">Nombre</span>
+                        <span id="dp-cliente-nombre"></span>
+                    </div>
+                    <div class="detalle-row">
+                        <span class="detalle-label">No. cliente</span>
+                        <span id="dp-cliente-numero" style="color:#6b7280;"></span>
+                    </div>
+                    <a id="dp-link-cliente" href="#"
+                       class="btn-guardar"
+                       style="display:inline-block;margin-top:16px;width:100%;text-align:center;text-decoration:none;">
+                        Ver cliente
+                    </a>
+                </div>
+
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn-cancelar"
+                    onclick="cerrarModal('modalDetallePermiso')">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Modal: Logout ── -->
 <div class="modal-overlay" id="modalLogout">
     <div class="modal-logout-box">
         <img src="{% static 'home/img/siga_logo.png' %}" alt="SIGA" class="modal-logout-logo">
         <p class="modal-logout-texto"> ¿Estás seguro de cerrar sesión? </p>
         <div class="modal-logout-acciones">
             <a href="{% url 'home:logout' %}" class="modal-logout-si">Sí</a>
-            <button type="button" class="modal-logout-cancelar" onclick="cerrarModalLogout()"> Cancelar </button>
+            <button type="button" class="modal-logout-cancelar" onclick="cerrarModalLogout()">Cancelar</button>
         </div>
     </div>
 </div>
@@ -136,12 +284,52 @@
 <script>
     lucide.createIcons();
 
+    function cerrarModal(id) {
+        document.getElementById(id).classList.remove('activo');
+    }
+
     function mostrarModalLogout() {
         document.getElementById('modalLogout').classList.add('activo');
     }
 
     function cerrarModalLogout() {
         document.getElementById('modalLogout').classList.remove('activo');
+    }
+
+    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+        overlay.addEventListener('click', function(e) {
+            if (e.target === this) cerrarModal(this.id);
+        });
+    });
+
+    function verPermiso(folio, tipo, clienteNombre, clienteNumero, vigencia, vigente, descripcion) {
+        document.getElementById('dp-folio').textContent   = folio;
+        document.getElementById('dp-tipo').textContent    = tipo;
+        document.getElementById('dp-folio2').textContent  = folio;
+        document.getElementById('dp-tipo2').textContent   = tipo;
+        document.getElementById('dp-vigencia').textContent = vigencia;
+        document.getElementById('dp-cliente-nombre').textContent = clienteNombre;
+        document.getElementById('dp-cliente-numero').textContent = '#' + clienteNumero;
+        document.getElementById('dp-link-cliente').href   = '{% url "home:clientes" %}?q=' + encodeURIComponent(clienteNombre);
+
+        const estadoEl = document.getElementById('dp-estado');
+        if (vigente) {
+            estadoEl.innerHTML = '<span class="pill pill-previos">Vigente</span>';
+        } else {
+            estadoEl.innerHTML = '<span class="pill pill-restringido">Vencido</span>';
+        }
+
+        const descEl  = document.getElementById('dp-descripcion');
+        const descRow = document.getElementById('dp-row-descripcion');
+        if (descripcion) {
+            descEl.textContent     = descripcion;
+            descRow.style.display  = '';
+        } else {
+            descRow.style.display  = 'none';
+        }
+
+        document.getElementById('modalDetallePermiso').classList.add('activo');
+        lucide.createIcons();
     }
 </script>
 </body>

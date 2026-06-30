@@ -38,12 +38,15 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework.authtoken',
+    'corsheaders',
     'home',
     'api',
     'core',
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -58,7 +61,7 @@ ROOT_URLCONF = 'siga_back.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR.parent / 'siga_frontend' / 'templates'],
+        'DIRS': [],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -124,9 +127,7 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 # Rutas adicionales para buscar archivos estáticos (CSS, JS, imágenes)
-STATICFILES_DIRS = [
-    BASE_DIR.parent / 'siga_front' / 'static',
-]
+STATICFILES_DIRS = []
 
 # Parche temporal para permitir MariaDB de XAMPP (< 10.6) y desactivar RETURNING
 from django.db.backends.base.base import BaseDatabaseWrapper
@@ -137,3 +138,22 @@ DatabaseFeatures.can_return_columns_from_insert = property(lambda self: False)
 DatabaseFeatures.can_return_rows_from_bulk_insert = property(lambda self: False)
 
 AUTH_USER_MODEL = 'home.Usuario'
+
+# ── Django REST Framework ──────────────────────────────────────────────────────
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
+
+# ── CORS (permitir peticiones desde el frontend en otro puerto) ────────────────
+CORS_ALLOWED_ORIGINS = [
+    'http://127.0.0.1:8001',
+    'http://localhost:8001',
+    'http://127.0.0.1:8000',
+    'http://localhost:8000',
+]
+CORS_ALLOW_CREDENTIALS = True

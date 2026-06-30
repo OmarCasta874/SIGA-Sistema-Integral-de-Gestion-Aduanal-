@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 from django.contrib.auth import login as auth_login, logout as auth_logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -402,3 +403,7 @@ class AduanaViewSet(viewsets.ModelViewSet):
 class CategoriaViewSet(viewsets.ModelViewSet):
     queryset = CategoriaProductos.objects.all()
     serializer_class = CategoriaSerializer
+=======
+# Las vistas del backend se encuentran en api/views.py
+# Este módulo queda vacío — home/ solo expone modelos y admin.
+>>>>>>> cano

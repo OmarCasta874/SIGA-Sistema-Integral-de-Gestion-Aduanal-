@@ -19,9 +19,15 @@ urlpatterns = [
     path('categorias/', views.categorias_view, name='categorias'),
     path('bitacora/', views.bitacora_view, name='bitacora'),
     path('api/operacion/', views.api_datos_operacion,  name='api_operacion'),
+    path('pagos/', views.pagos_view, name='pagos'),
+    path('facturas/', views.facturas_view, name='facturas'),
     path('permisos/', views.permisos_view, name='permisos'),
     path('usuarios/', views.usuarios_view, name='usuarios'),
+<<<<<<< HEAD
     path('perfilusuario', views.perfilusuario_view, name='perfilusuario'),
     path('pagos', views.pagos_view, name='pagos'),
     path('facturas', views.facturas_view, name='facturas'),
+=======
+    path('perfilusuario/', views.perfilusuario_view, name='perfilusuario'),
+>>>>>>> cano
 ]
