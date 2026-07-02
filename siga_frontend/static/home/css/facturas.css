@@ -109,11 +109,9 @@
     background: #DBEAFE;
 }
 
-<<<<<<< HEAD
 .btn-accion-editar:hover {
     background: #FDE68A;
 }
-=======
 .btn-accion-editar {
     background: #FEF3C7;
     color: #92400E;
@@ -122,4 +120,3 @@
 .btn-accion-editar:hover {
     background: #FDE68A;
 }
->>>>>>> cano

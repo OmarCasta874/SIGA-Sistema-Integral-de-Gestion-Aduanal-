@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
+from .views import DashboardAPIView
 
 router = DefaultRouter()
 router.register(r'clientes',          views.ClienteViewSet,         basename='cliente')
@@ -26,5 +27,6 @@ urlpatterns = [
         views.PermisoDeleteView.as_view(),
         name='api-permiso-delete',
     ),
+    path('dashboard/', DashboardAPIView.as_view(), name='dashboard'),
     path('', include(router.urls)),
 ]

@@ -16,6 +16,8 @@ from .forms import (
     NuevoPermisoForm,
 )
 
+import requests
+
 
 # ── Helpers de conversión para compatibilidad con templates ────────────────────
 
@@ -79,7 +81,21 @@ def logout_view(request):
 
 @login_required
 def dashboard_view(request):
-    return render(request, 'home/dashboard.html')
+    try:
+        response = api.get(request, '/dashboard/')
+        response.raise_for_status()
+        
+        dashboard = response.json()
+    except requests.RequestException:
+        dashboard = {}
+        
+    return render(
+        request, 
+        'home/dashboard.html',
+        {
+            "dashboard": dashboard
+        }
+    )
 
 
 # ── Clientes ───────────────────────────────────────────────────────────────────
@@ -380,22 +396,19 @@ def aduanas_view(request):
 @login_required
 def categorias_view(request):
     try:
-<<<<<<< HEAD
-        response = requests.get(f"{API_BASE}/categorias/")
+        response = api.get(request, "/categorias/")
         response.raise_for_status()
         categorias = response.json()
     except requests.exceptions.RequestException:
         categorias = []
         messages.error(request, "No fue posible conectar con la API.")
     
-=======
         resp       = api.get(request, '/categorias/')
         categorias = api.safe_json(resp, []) if resp.status_code == 200 else []
     except Exception:
         categorias = []
         messages.error(request, 'No fue posible obtener las categorías.')
 
->>>>>>> cano
     return render(request, 'home/categorias.html', {
         'categorias':       categorias,
         'total_categorias': len(categorias),
@@ -516,14 +529,23 @@ def permisos_view(request):
 @login_required
 def perfilusuario_view(request):
     return render(request, 'home/perfil_usuario.html')
-<<<<<<< HEAD
 
-@login_required
-def pagos_view(request):
-    return render(request, 'home/pagos.html')
+#@login_required
+#def pagos_view(request):
+#    return render(request, 'home/pagos.html')
 
 @login_required
 def facturas_view(request):
     return render(request, 'home/facturas.html')
-=======
->>>>>>> cano
+
+@login_required
+def semaforofiscal_view(request):
+    return render(request, 'home/semaforo_fiscal.html')
+
+@login_required
+def sanciones_view(request):
+    return render(request, 'home/sanciones.html')
+
+@login_required
+def inspecciones_view(request):
+    return render(request, 'home/inspecciones.html')

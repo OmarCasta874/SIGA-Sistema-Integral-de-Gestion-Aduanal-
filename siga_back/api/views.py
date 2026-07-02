@@ -413,3 +413,39 @@ class FacturaViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class       = FacturaSerializer
     authentication_classes = [TokenAuthentication]
     permission_classes     = [IsAuthenticated]
+
+# -- Dashboard ------------------------------------------------------------------
+class DashboardAPIView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        pedimentos_recientes = Pedimento.objects.select_related(
+                "ope_aduanera__cliente",
+                "regimen_adu",
+                "semaforo",
+            ).order_by("-fecha_registro")[:5]
+    
+        pedimentos = []
+        
+        for p in pedimentos_recientes:
+            pedimentos.append({
+                "numero": p.numero_pedimento,
+                "cliente": str(p.ope_aduanera.cliente),
+                "regimen": str(p.regimen_adu),
+                "estado": p.ope_aduanera.tipo_operacion,
+                "semaforo": p.semaforo.resultado,
+            })
+            
+        data = {
+            "total_pedimentos": Pedimento.objects.count(),
+            "total_pagos": Pago.objects.count(),
+            "total_clientes": Cliente.objects.count(),
+            "total_operaciones": OperacionAduanera.objects.count(),
+            "total_aduanas": Aduana.objects.count(),
+            "pedimentos": pedimentos,
+        }
+        
+        print("PEDIMENTOS: ", pedimentos)
+        print("DATA: ", data)
+        return Response(data)

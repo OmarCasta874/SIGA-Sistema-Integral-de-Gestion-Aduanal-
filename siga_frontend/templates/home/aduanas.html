@@ -53,13 +53,13 @@
         </a>
 
         <p class="nav-section-label">Fiscalización</p>
-        <a href="#" class="nav-item">
+        <a href="{% url 'home:semaforo_fiscal' %}" class="nav-item">
             <i data-lucide="radio" class="nav-icon"></i> Semáforo Fiscal
         </a>
-        <a href="#" class="nav-item">
+        <a href="{% url 'home:inspecciones' %}" class="nav-item">
             <i data-lucide="search" class="nav-icon"></i> Inspecciones
         </a>
-        <a href="#" class="nav-item">
+        <a href="{% url 'home:sanciones' %}" class="nav-item">
             <i data-lucide="triangle-alert" class="nav-icon"></i> Sanciones
         </a>
         <a href="{% url 'home:bitacora' %}" class="nav-item">

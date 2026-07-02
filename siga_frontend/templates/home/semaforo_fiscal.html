@@ -4,10 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pagos — SIGA</title>
+    <title>Semáforo Fiscal  — SIGA</title>
     <link rel="icon" type="image/x-icon" href="{% static 'home/img/siga_logo.png' %}">
     <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
-    <link rel="stylesheet" href="{% static 'home/css/pagos.css' %}">
+    <link rel="stylesheet" href="{% static 'home/css/semaforo_fiscal.css' %}">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 <body>
@@ -42,7 +42,7 @@
         <a href="{% url 'home:operaciones' %}" class="nav-item">
             <i data-lucide="clipboard-list" class="nav-icon"></i> Operación Aduanera
         </a>
-        <a href="{% url 'home:pagos' %}" class="nav-item active">
+        <a href="{% url 'home:pagos' %}" class="nav-item">
             <i data-lucide="circle-dollar-sign" class="nav-icon"></i> Pagos
         </a>
         <a href="{% url 'home:facturas' %}" class="nav-item">
@@ -53,7 +53,7 @@
         </a>
 
         <p class="nav-section-label">Fiscalización</p>
-        <a href="{% url 'home:semaforo_fiscal' %}" class="nav-item">
+        <a href="{% url 'home:semaforo_fiscal' %}" class="nav-item active">
             <i data-lucide="radio" class="nav-icon"></i> Semáforo Fiscal
         </a>
         <a href="{% url 'home:inspecciones' %}" class="nav-item">
@@ -77,6 +77,69 @@
     </div>
 </aside>
 
+<main class="main">
+    <header class="semaforo-header">
+        <h1>Semáforo Fiscal</h1>
+    </header>
+
+    <section class="semaforo-stats">
+        <div class="stat-card">
+            <p class="stat-label">Total de Fracciones</p>
+            <p class="stat-value stat-value-blue">1,284</p>
+        </div>
+        <div class="stat-card">
+            <p class="stat-label">Importaciones</p>
+            <p class="stat-value stat-value-green">842</p>
+        </div>
+        <div class="stat-card">
+            <p class="stat-label">Exportaciones</p>
+            <p class="stat-value stat-value-amber">442</p>
+        </div>
+        <div class="stat-card">
+            <p class="stat-label">Más utilizada</p>
+            <p class="stat-value stat-value-red">8471.30.01</p>
+        </div>
+    </section>
+    <section class="semaforo-toolbar">
+        <div class="semaforo-search">
+            <i data-lucide="search" class="semaforo-search-icon"></i>
+            <input type="text" placeholder="Buscar en el Semáforo Fiscal...">
+        </div>
+        <button type="button" class="btn-nueva-accion">
+            <i data-lucide="plus" class="nav-icon"></i> Nueva acción
+        </button>
+    </section>
+
+    <section class="semaforo-tabla-wrapper">
+        <table class="semaforo-tabla">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Hora</th>
+                    <th>Resultado</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>000002</td>
+                    <td>02-26-2026</td>
+                    <td><span class="pill pill-aprobada">Aprobada</span></td>
+                </tr>
+                <tr>
+                    <td>32636565</td>
+                    <td>10-02-2026</td>
+                    <td><span class="pill pill-revision">Revisión</span></td>
+                </tr>
+                <tr>
+                    <td>645646546</td>
+                    <td>24-05-2026</td>
+                    <td><span class="pill pill-restringida">Restringida</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+</main>
+
 <div class="modal-overlay" id="modalLogout">
     <div class="modal-logout-box">
         <img src="{% static 'home/img/siga_logo.png' %}" alt="SIGA" class="modal-logout-logo">
@@ -87,57 +150,6 @@
         </div>
     </div>
 </div>
-
-<main class="main">
-    <h1 class="pagos-titulo">Pagos</h1>
-
-    <div class="pagos-toolbar">
-        <input type="text" class="pagos-buscar" placeholder="Buscar pago...">
-        <button type="button" class="btn-pagos btn-pagos-filtrar">Filtrar</button>
-        <button type="button" class="btn-pagos btn-pagos-nuevo">Nuevo pago</button>
-    </div>
-
-    <div class="pagos-card">
-        <h2 class="pagos-card-titulo">Operaciones recientes</h2>
-
-        <table class="pagos-tabla">
-            <thead>
-                <tr>
-                    <th>NUMERO</th>
-                    <th>MONTO</th>
-                    <th>FECHA</th>
-                    <th>ESTADO</th>
-                    <th>PEDIMENTO</th>
-                    <th>ACCIONES</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for pago in pagos %}
-                <tr>
-                    <td>{{ pago.no_transaccion }}</td>
-                    <td>${{ pago.monto }}</td>
-                    <td>{{ pago.fecha_pago }}</td>
-                    <td>
-                        <span class="pill pill-{{ pago.estado|lower }}">{{ pago.estado }}</span>
-                    </td>
-                    <td>{{ pago.pedimento_num }}</td>
-                    <td>
-                        <a href="#" class="btn-accion btn-accion-ver">Ver</a>
-                        <a href="#" class="btn-accion btn-accion-editar">Editar</a>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="6" style="text-align:center; color:#9CA3AF; padding:24px 0;">
-                        No hay pagos registrados.
-                    </td>
-                </tr>
-                {% endfor %}
-
-            </tbody>
-        </table>
-    </div>
-</main>
 
 <script>
     lucide.createIcons();
@@ -150,9 +162,6 @@
         document.getElementById('modalLogout').classList.remove('activo');
     }
 </script>
+
 </body>
-<<<<<<< HEAD
 </html>
-=======
-</html>
->>>>>>> cano

@@ -4,14 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pagos — SIGA</title>
+    <title>Panel de control — SIGA</title>
     <link rel="icon" type="image/x-icon" href="{% static 'home/img/siga_logo.png' %}">
     <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
-    <link rel="stylesheet" href="{% static 'home/css/pagos.css' %}">
+    <link rel="stylesheet" href="{% static 'home/css/sanciones.css' %}">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 <body>
-
+ 
 <aside class="sidebar">
     <div class="sidebar-logo">
         <img src="{% static 'home/img/siga_logo_light.png' %}" alt="SIGA">
@@ -28,7 +28,7 @@
         <a href="{% url 'home:permisos' %}" class="nav-item">
             <i data-lucide="key-round" class="nav-icon"></i> Permisos
         </a>
-
+ 
         <p class="nav-section-label">Operaciones</p>
         <a href="{% url 'home:clientes' %}" class="nav-item">
             <i data-lucide="users" class="nav-icon"></i> Clientes
@@ -42,7 +42,7 @@
         <a href="{% url 'home:operaciones' %}" class="nav-item">
             <i data-lucide="clipboard-list" class="nav-icon"></i> Operación Aduanera
         </a>
-        <a href="{% url 'home:pagos' %}" class="nav-item active">
+        <a href="{% url 'home:pagos' %}" class="nav-item">
             <i data-lucide="circle-dollar-sign" class="nav-icon"></i> Pagos
         </a>
         <a href="{% url 'home:facturas' %}" class="nav-item">
@@ -51,7 +51,7 @@
         <a href="{% url 'home:categorias' %}" class="nav-item">
             <i data-lucide="tag" class="nav-icon"></i> Categorías
         </a>
-
+ 
         <p class="nav-section-label">Fiscalización</p>
         <a href="{% url 'home:semaforo_fiscal' %}" class="nav-item">
             <i data-lucide="radio" class="nav-icon"></i> Semáforo Fiscal
@@ -59,14 +59,14 @@
         <a href="{% url 'home:inspecciones' %}" class="nav-item">
             <i data-lucide="search" class="nav-icon"></i> Inspecciones
         </a>
-        <a href="{% url 'home:sanciones' %}" class="nav-item">
+        <a href="{% url 'home:sanciones' %}" class="nav-item active">
             <i data-lucide="triangle-alert" class="nav-icon"></i> Sanciones
         </a>
         <a href="{% url 'home:bitacora' %}" class="nav-item">
             <i data-lucide="history" class="nav-icon"></i> Bitácora
         </a>
     </nav>
-
+ 
     <div class="sidebar-footer">
         <button type="button" class="btn-sidebar btn-sidebar-salir" onclick="mostrarModalLogout()">
             <i data-lucide="log-out" class="nav-icon"></i> Salir
@@ -76,7 +76,72 @@
         </a>
     </div>
 </aside>
+<main class="main">
+    <header class="sanciones-header">
+        <h1> Sanciones </h1>
+    </header>
+    <section class="sanciones-stats">
+        <div class="stat-card">
+            <p class="stat-label">Total Sanciones</p>
+            <p class="stat-value stat-value-blue">250</p>
+        </div>
+        <div class="stat-card">
+            <p class="stat-label">Liberadas</p>
+            <p class="stat-value stat-value-green">50</p>
+        </div>
+        <div class="stat-card">
+            <p class="stat-label">En proceso</p>
+            <p class="stat-value stat-value-amber">100</p>
+        </div>
+        <div class="stat-card">
+            <p class="stat-label">Sancionadas</p>
+            <p class="stat-value stat-value-red">100</p>
+        </div>
+    </section>
 
+    <section class="sanciones-toolbar">
+        <div class="sanciones-search">
+            <i data-lucide="search" class="sanciones-search-icon"></i>
+            <input type="text" placeholder="Buscar sanción...">
+        </div>
+        <button type="button" class="btn-nueva-fraccion">
+            <i data-lucide="plus" class="nav-icon"></i> Nueva fracción
+        </button>
+    </section>
+
+    <section class="sanciones-tabla-wrapper">
+        <table class="sanciones-tabla">
+            <thead>
+                <tr>
+                    <th>Numero</th>
+                    <th>Fundamento</th>
+                    <th>Monto de la multa</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>1225894653</td>
+                    <td>Computadoras portátiles</td>
+                    <td>$15000</td>
+                    <td><span class="pill pill-activa">Activa</span></td>
+                </tr>
+                <tr>
+                    <td>6598741236</td>
+                    <td>Paquetes encintados</td>
+                    <td>$5700</td>
+                    <td><span class="pill pill-revision">Revisión</span></td>
+                </tr>
+                <tr>
+                    <td>9876543210</td>
+                    <td>Medicamentos diversos</td>
+                    <td>$8700</td>
+                    <td><span class="pill pill-restringida">Restringida</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+</main>
 <div class="modal-overlay" id="modalLogout">
     <div class="modal-logout-box">
         <img src="{% static 'home/img/siga_logo.png' %}" alt="SIGA" class="modal-logout-logo">
@@ -87,72 +152,19 @@
         </div>
     </div>
 </div>
-
-<main class="main">
-    <h1 class="pagos-titulo">Pagos</h1>
-
-    <div class="pagos-toolbar">
-        <input type="text" class="pagos-buscar" placeholder="Buscar pago...">
-        <button type="button" class="btn-pagos btn-pagos-filtrar">Filtrar</button>
-        <button type="button" class="btn-pagos btn-pagos-nuevo">Nuevo pago</button>
-    </div>
-
-    <div class="pagos-card">
-        <h2 class="pagos-card-titulo">Operaciones recientes</h2>
-
-        <table class="pagos-tabla">
-            <thead>
-                <tr>
-                    <th>NUMERO</th>
-                    <th>MONTO</th>
-                    <th>FECHA</th>
-                    <th>ESTADO</th>
-                    <th>PEDIMENTO</th>
-                    <th>ACCIONES</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for pago in pagos %}
-                <tr>
-                    <td>{{ pago.no_transaccion }}</td>
-                    <td>${{ pago.monto }}</td>
-                    <td>{{ pago.fecha_pago }}</td>
-                    <td>
-                        <span class="pill pill-{{ pago.estado|lower }}">{{ pago.estado }}</span>
-                    </td>
-                    <td>{{ pago.pedimento_num }}</td>
-                    <td>
-                        <a href="#" class="btn-accion btn-accion-ver">Ver</a>
-                        <a href="#" class="btn-accion btn-accion-editar">Editar</a>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="6" style="text-align:center; color:#9CA3AF; padding:24px 0;">
-                        No hay pagos registrados.
-                    </td>
-                </tr>
-                {% endfor %}
-
-            </tbody>
-        </table>
-    </div>
-</main>
-
+ 
 <script>
     lucide.createIcons();
-
+ 
     function mostrarModalLogout() {
         document.getElementById('modalLogout').classList.add('activo');
     }
-
+ 
     function cerrarModalLogout() {
         document.getElementById('modalLogout').classList.remove('activo');
     }
 </script>
+ 
 </body>
-<<<<<<< HEAD
 </html>
-=======
-</html>
->>>>>>> cano
+ 

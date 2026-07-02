@@ -1,7 +1,8 @@
-<<<<<<< HEAD
+
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import ClienteViewSet, AduanaViewSet, CategoriaViewSet
+from api.views import DashboardAPIView
 from . import views
 
 router = DefaultRouter()
@@ -27,12 +28,13 @@ urlpatterns = [
     path('categorias/', views.categorias_view, name='categorias'),
     path('bitacora/', views.bitacora_view, name='bitacora'),
     path('api/operacion/', views.api_datos_operacion,  name='api_operacion'),
+    path('api/dashboard/', DashboardAPIView.as_view(), name='dashboard'),
 ]
 
 urlpatterns += [
     path('api/', include(router.urls)),
 ]
-=======
+
 # home/ solo aloja modelos — las URLs de la API están en api/urls.py
 urlpatterns = []
->>>>>>> cano
+

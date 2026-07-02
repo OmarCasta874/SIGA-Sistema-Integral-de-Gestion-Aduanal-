@@ -23,11 +23,11 @@ urlpatterns = [
     path('facturas/', views.facturas_view, name='facturas'),
     path('permisos/', views.permisos_view, name='permisos'),
     path('usuarios/', views.usuarios_view, name='usuarios'),
-<<<<<<< HEAD
     path('perfilusuario', views.perfilusuario_view, name='perfilusuario'),
     path('pagos', views.pagos_view, name='pagos'),
     path('facturas', views.facturas_view, name='facturas'),
-=======
     path('perfilusuario/', views.perfilusuario_view, name='perfilusuario'),
->>>>>>> cano
+    path('semaforofiscal/', views.semaforofiscal_view, name='semaforo_fiscal'),
+    path('inspecciones/', views.inspecciones_view, name='inspecciones'),
+    path('sanciones/', views.sanciones_view, name='sanciones'),
 ]

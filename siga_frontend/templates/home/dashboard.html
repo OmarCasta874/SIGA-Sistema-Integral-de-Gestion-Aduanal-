@@ -52,13 +52,13 @@
         </a>
 
         <p class="nav-section-label">Fiscalización</p>
-        <a href="#" class="nav-item">
+        <a href="{% url 'home:semaforo_fiscal' %}" class="nav-item">
             <i data-lucide="radio" class="nav-icon"></i> Semáforo Fiscal
         </a>
-        <a href="#" class="nav-item">
+        <a href="{% url 'home:inspecciones' %}" class="nav-item">
             <i data-lucide="search" class="nav-icon"></i> Inspecciones
         </a>
-        <a href="#" class="nav-item">
+        <a href="{% url 'home:sanciones' %}" class="nav-item">
             <i data-lucide="triangle-alert" class="nav-icon"></i> Sanciones
         </a>
         <a href="{% url 'home:bitacora' %}" class="nav-item">
@@ -91,24 +91,28 @@
     <h1 class="page-title">Panel de control</h1>
     <div class="cards-grid">
         <div class="card">
-            <div class="card-label"><i data-lucide="check-circle-2" class="card-icon"></i> Pedimentos validados</div>
-            <div class="card-number">47</div>
-            <div class="card-trend">↑ +6 hoy</div>
+            <div class="card-label"><i data-lucide="check-circle-2" class="card-icon"></i> Total de pedimentos </div>
+            <div class="card-number">
+                {{ dashboard.total_pedimentos|default:"0" }}
+            </div>
         </div>
         <div class="card">
-            <div class="card-label"><i data-lucide="circle" class="card-icon"></i> Pedimentos pagados</div>
-            <div class="card-number">38</div>
-            <div class="card-trend">↑ +4 hoy</div>
+            <div class="card-label"><i data-lucide="circle" class="card-icon"></i> Total de pagos</div>
+            <div class="card-number">
+                {{ dashboard.total_pagos|default:"0" }}
+            </div>
         </div>
         <div class="card">
-            <div class="card-label"><i data-lucide="lock" class="card-icon"></i> Pedimentos liberados</div>
-            <div class="card-number">31</div>
-            <div class="card-trend">↑ +2 hoy</div>
+            <div class="card-label"><i data-lucide="lock" class="card-icon"></i> Total de clientes</div>
+            <div class="card-number">
+                {{ dashboard.total_clientes|default:"0" }}
+            </div>
         </div>
         <div class="card card-alert">
-            <div class="card-label"><i data-lucide="alarm-clock" class="card-icon"></i> Pendientes de pago</div>
-            <div class="card-number">9</div>
-            <div class="card-trend-down">↓ 3 con adeudo vencido</div>
+            <div class="card-label"><i data-lucide="alarm-clock" class="card-icon"></i> Total de operaciones </div>
+            <div class="card-number"> 
+                {{ dashboard.total_operaciones|default:"0" }} 
+            </div>
         </div>
     </div>
 
@@ -128,41 +132,15 @@
                 </tr>
             </thead>
             <tbody>
+                {% for pedimento in dashboard.pedimentos %}
                 <tr>
-                    <td><a href="#" class="ped-link">PED-2024-0448</a></td>
-                    <td>Grupo Bajío</td>
-                    <td>Imp. definitiva</td>
-                    <td><span class="estado-pill estado-pagado">PAGADO</span></td>
-                    <td><span class="semaforo-pill semaforo-verde">VERDE</span></td>
+                    <td>{{ pedimento.numero }}</td>
+                    <td>{{ pedimento.cliente }}</td>
+                    <td>{{ pedimento.regimen }}</td>
+                    <td>{{ pedimento.estado}}</td>
+                    <td>{{ pedimento.semaforo }}</td>
                 </tr>
-                <tr>
-                    <td><a href="#" class="ped-link ped-link-rojo">PED-2024-0441</a></td>
-                    <td>TJ Industrial</td>
-                    <td>Imp. definitiva</td>
-                    <td><span class="estado-pill estado-transmitido">Transmitido</span></td>
-                    <td><span class="semaforo-pill semaforo-rojo">Rojo</span></td>
-                </tr>
-                <tr>
-                    <td><a href="#" class="ped-link">PED-2024-0439</a></td>
-                    <td>Mex-Import LLC</td>
-                    <td>Exportación</td>
-                    <td><span class="estado-pill estado-validado">Validado</span></td>
-                    <td><span class="semaforo-pill semaforo-amarillo">Amarillo</span></td>
-                </tr>
-                <tr>
-                    <td><a href="#" class="ped-link">PED-2024-0437</a></td>
-                    <td>Electronik MX</td>
-                    <td>Imp. temporal</td>
-                    <td><span class="estado-pill estado-generado">Generado</span></td>
-                    <td><span class="semaforo-pill semaforo-na">—</span></td>
-                </tr>
-                <tr>
-                    <td><a href="#" class="ped-link">PED-2024-0435</a></td>
-                    <td>Baja Pharma SA</td>
-                    <td>Imp. definitiva</td>
-                    <td><span class="estado-pill estado-pendiente">Pendiente</span></td>
-                    <td><span class="semaforo-pill semaforo-amarillo">Amarillo</span></td>
-                </tr>
+                {% endfor %}
             </tbody>
         </table>
     </div>

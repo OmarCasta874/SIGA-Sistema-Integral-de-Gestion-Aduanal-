@@ -4,14 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pagos — SIGA</title>
+    <title>Panel de control — SIGA</title>
     <link rel="icon" type="image/x-icon" href="{% static 'home/img/siga_logo.png' %}">
     <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
-    <link rel="stylesheet" href="{% static 'home/css/pagos.css' %}">
+    <link rel="stylesheet" href="{% static 'home/css/inspecciones.css' %}">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 <body>
-
+ 
 <aside class="sidebar">
     <div class="sidebar-logo">
         <img src="{% static 'home/img/siga_logo_light.png' %}" alt="SIGA">
@@ -28,7 +28,7 @@
         <a href="{% url 'home:permisos' %}" class="nav-item">
             <i data-lucide="key-round" class="nav-icon"></i> Permisos
         </a>
-
+ 
         <p class="nav-section-label">Operaciones</p>
         <a href="{% url 'home:clientes' %}" class="nav-item">
             <i data-lucide="users" class="nav-icon"></i> Clientes
@@ -42,7 +42,7 @@
         <a href="{% url 'home:operaciones' %}" class="nav-item">
             <i data-lucide="clipboard-list" class="nav-icon"></i> Operación Aduanera
         </a>
-        <a href="{% url 'home:pagos' %}" class="nav-item active">
+        <a href="{% url 'home:pagos' %}" class="nav-item">
             <i data-lucide="circle-dollar-sign" class="nav-icon"></i> Pagos
         </a>
         <a href="{% url 'home:facturas' %}" class="nav-item">
@@ -51,12 +51,12 @@
         <a href="{% url 'home:categorias' %}" class="nav-item">
             <i data-lucide="tag" class="nav-icon"></i> Categorías
         </a>
-
+ 
         <p class="nav-section-label">Fiscalización</p>
         <a href="{% url 'home:semaforo_fiscal' %}" class="nav-item">
             <i data-lucide="radio" class="nav-icon"></i> Semáforo Fiscal
         </a>
-        <a href="{% url 'home:inspecciones' %}" class="nav-item">
+        <a href="{% url 'home:inspecciones' %}" class="nav-item active">
             <i data-lucide="search" class="nav-icon"></i> Inspecciones
         </a>
         <a href="{% url 'home:sanciones' %}" class="nav-item">
@@ -66,7 +66,7 @@
             <i data-lucide="history" class="nav-icon"></i> Bitácora
         </a>
     </nav>
-
+ 
     <div class="sidebar-footer">
         <button type="button" class="btn-sidebar btn-sidebar-salir" onclick="mostrarModalLogout()">
             <i data-lucide="log-out" class="nav-icon"></i> Salir
@@ -76,6 +76,74 @@
         </a>
     </div>
 </aside>
+
+<main class="main">
+    <header class="inspecciones-header">
+        <h1>Inspecciones</h1>
+    </header>
+
+    <section class="inspecciones-stats">
+        <div class="stat-card">
+            <p class="stat-label">Total de Inspecciones</p>
+            <p class="stat-value stat-value-blue">100</p>
+        </div>
+        <div class="stat-card">
+            <p class="stat-label">Aprobadas</p>
+            <p class="stat-value stat-value-green">50</p>
+        </div>
+        <div class="stat-card">
+            <p class="stat-label">Segunda Inspección</p>
+            <p class="stat-value stat-value-amber">20</p>
+        </div>
+        <div class="stat-card">
+            <p class="stat-label">Restringidas</p>
+            <p class="stat-value stat-value-red">30</p>
+        </div>
+    </section>
+
+    <section class="inspecciones-toolbar">
+        <div class="inspecciones-search">
+            <i data-lucide="search" class="inspecciones-search-icon"></i>
+            <input type="text" placeholder="Buscar fracción TIGIE...">
+        </div>
+        <button type="button" class="btn-nueva-inspeccion">
+            <i data-lucide="plus" class="nav-icon"></i> Nueva Inspección
+        </button>
+    </section>
+
+    <section class="inspecciones-tabla-wrapper">
+        <table class="inspecciones-tabla">
+            <thead>
+                <tr>
+                    <th>Numero</th>
+                    <th>Fecha</th>
+                    <th>Resultado</th>
+                    <th>Semáforo</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>00002255415</td>
+                    <td>01-06-2026</td>
+                    <td>Cumplido</td>
+                    <td><span class="pill pill-activa">Activa</span></td>
+                </tr>
+                <tr>
+                    <td>26565564878</td>
+                    <td>12-05-2026</td>
+                    <td>Dudoso</td>
+                    <td><span class="pill pill-revision">Revisión</span></td>
+                </tr>
+                <tr>
+                    <td>986553214456</td>
+                    <td>10-05-2026</td>
+                    <td>Anulado</td>
+                    <td><span class="pill pill-restringida">Restringida</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+</main>
 
 <div class="modal-overlay" id="modalLogout">
     <div class="modal-logout-box">
@@ -87,72 +155,18 @@
         </div>
     </div>
 </div>
-
-<main class="main">
-    <h1 class="pagos-titulo">Pagos</h1>
-
-    <div class="pagos-toolbar">
-        <input type="text" class="pagos-buscar" placeholder="Buscar pago...">
-        <button type="button" class="btn-pagos btn-pagos-filtrar">Filtrar</button>
-        <button type="button" class="btn-pagos btn-pagos-nuevo">Nuevo pago</button>
-    </div>
-
-    <div class="pagos-card">
-        <h2 class="pagos-card-titulo">Operaciones recientes</h2>
-
-        <table class="pagos-tabla">
-            <thead>
-                <tr>
-                    <th>NUMERO</th>
-                    <th>MONTO</th>
-                    <th>FECHA</th>
-                    <th>ESTADO</th>
-                    <th>PEDIMENTO</th>
-                    <th>ACCIONES</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for pago in pagos %}
-                <tr>
-                    <td>{{ pago.no_transaccion }}</td>
-                    <td>${{ pago.monto }}</td>
-                    <td>{{ pago.fecha_pago }}</td>
-                    <td>
-                        <span class="pill pill-{{ pago.estado|lower }}">{{ pago.estado }}</span>
-                    </td>
-                    <td>{{ pago.pedimento_num }}</td>
-                    <td>
-                        <a href="#" class="btn-accion btn-accion-ver">Ver</a>
-                        <a href="#" class="btn-accion btn-accion-editar">Editar</a>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="6" style="text-align:center; color:#9CA3AF; padding:24px 0;">
-                        No hay pagos registrados.
-                    </td>
-                </tr>
-                {% endfor %}
-
-            </tbody>
-        </table>
-    </div>
-</main>
-
 <script>
     lucide.createIcons();
-
+ 
     function mostrarModalLogout() {
         document.getElementById('modalLogout').classList.add('activo');
     }
-
+ 
     function cerrarModalLogout() {
         document.getElementById('modalLogout').classList.remove('activo');
     }
 </script>
+ 
 </body>
-<<<<<<< HEAD
 </html>
-=======
-</html>
->>>>>>> cano
+ 

@@ -19,11 +19,7 @@
     </div>
     <nav>
         <p class="nav-section-label">Principal</p>
-<<<<<<< HEAD
-        <a href="{% url 'home:dashboard' %}" class="nav-item active">
-=======
         <a href="{% url 'home:dashboard' %}" class="nav-item">
->>>>>>> cano
             <i data-lucide="layout-grid" class="nav-icon"></i> Dashboard
         </a>
         <a href="{% url 'home:usuarios' %}" class="nav-item">
@@ -49,11 +45,7 @@
         <a href="{% url 'home:pagos' %}" class="nav-item">
             <i data-lucide="circle-dollar-sign" class="nav-icon"></i> Pagos
         </a>
-<<<<<<< HEAD
-        <a href="{% url 'home:facturas' %}" class="nav-item">
-=======
         <a href="{% url 'home:facturas' %}" class="nav-item active">
->>>>>>> cano
             <i data-lucide="receipt" class="nav-icon"></i> Facturas
         </a>
         <a href="{% url 'home:categorias' %}" class="nav-item">
@@ -61,13 +53,13 @@
         </a>
 
         <p class="nav-section-label">Fiscalización</p>
-        <a href="#" class="nav-item">
+        <a href="{% url 'home:semaforo_fiscal' %}" class="nav-item">
             <i data-lucide="radio" class="nav-icon"></i> Semáforo Fiscal
         </a>
-        <a href="#" class="nav-item">
+        <a href="{% url 'home:inspecciones' %}" class="nav-item">
             <i data-lucide="search" class="nav-icon"></i> Inspecciones
         </a>
-        <a href="#" class="nav-item">
+        <a href="{% url 'home:sanciones' %}" class="nav-item">
             <i data-lucide="triangle-alert" class="nav-icon"></i> Sanciones
         </a>
         <a href="{% url 'home:bitacora' %}" class="nav-item">
@@ -118,14 +110,12 @@
                 </tr>
             </thead>
             <tbody>
-<<<<<<< HEAD
                 <tr>
                     <td>000100010001</td>
                     <td>000001</td>
                     <td>26-06-2026</td>
                     <td>$1000</td>
                     <td>000002</td>
-=======
                 {% for factura in facturas %}
                 <tr>
                     <td>{{ factura.codigo }}</td>
@@ -133,14 +123,11 @@
                     <td>{{ factura.fecha_factura }}</td>
                     <td>${{ factura.total }}</td>
                     <td>{{ factura.operacion_id }}</td>
->>>>>>> cano
                     <td>
                         <a href="#" class="btn-accion btn-accion-ver">Ver</a>
                         <a href="#" class="btn-accion btn-accion-editar">Editar</a>
                     </td>
                 </tr>
-<<<<<<< HEAD
-=======
                 {% empty %}
                 <tr>
                     <td colspan="6" style="text-align:center; color:#9CA3AF; padding:24px 0;">
@@ -148,15 +135,10 @@
                     </td>
                 </tr>
                 {% endfor %}
->>>>>>> cano
             </tbody>
         </table>
     </div>
 </main>
-<<<<<<< HEAD
-=======
-
->>>>>>> cano
 <script>
     lucide.createIcons();
 
@@ -169,8 +151,5 @@
     }
 </script>
 </body>
-<<<<<<< HEAD
 </html>
-=======
-</html>
->>>>>>> cano
+
