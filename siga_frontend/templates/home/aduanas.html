@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
     <link rel="stylesheet" href="{% static 'home/css/aduanas.css' %}">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="{% static 'home/js/buscador.js' %}"></script>
 </head>
 <body>
 <!-- SIDEBAR -->
@@ -104,7 +105,7 @@
     </div>
 
     <div class="toolbar-aduanas">
-        <input type="text" class="input-buscar" placeholder="Buscar aduana...">
+        <input type="text" class="input-buscar" placeholder="Buscar aduana..." data-buscador-target="tbodyAduanas" data-buscador-colspan="4">
         <select class="select-filtro">
             <option>Todas las aduanas</option>
         </select>
@@ -125,7 +126,7 @@
                     <th>Estado</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="tbodyAduanas">
                 {% for aduana in aduanas %}
                 <tr>
                     <td>{{ aduana.nombre }}</td>

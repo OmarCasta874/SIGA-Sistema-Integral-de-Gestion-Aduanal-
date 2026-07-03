@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
     <link rel="stylesheet" href="{% static 'home/css/permisos.css' %}">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="{% static 'home/js/buscador.js' %}"></script>
 </head>
 <body>
 <aside class="sidebar">
@@ -90,7 +91,8 @@
             <div class="permisos-toolbar">
                 <div class="permisos-search">
                     <input type="text" name="q" value="{{ query }}"
-                           placeholder="Buscar por folio, tipo o cliente...">
+                           placeholder="Buscar por folio, tipo o cliente..." 
+                           data-buscador-target="tbodyPermisos" data-buscador-colspan="4">
                 </div>
                 <select class="permisos-select" name="tipo">
                     <option value="">Todos los tipos</option>
@@ -128,7 +130,7 @@
                     <th>Acciones</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="tbodyPermisos">
                 {% for p in permisos %}
                     <tr>
                         <td><span class="permisos-clave">{{ p.clave_numerica }}</span></td>

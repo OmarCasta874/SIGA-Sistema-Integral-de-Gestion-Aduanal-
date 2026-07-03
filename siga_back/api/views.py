@@ -17,7 +17,7 @@ from home.models import (
     Usuario, Cliente, Aduana, OperacionAduanera, Pedimento,
     Permiso, Bitacora, CategoriaProductos, RegimenAduanero,
     SemaforoFiscal, TipoImportaciones, TipoExportaciones,
-    Paquete, Producto, EstadoPago, Pago, Factura,
+    Paquete, Producto, EstadoPago, Pago, Factura, Sancion,
 )
 from .serializers import (
     UsuarioSerializer,
@@ -29,7 +29,7 @@ from .serializers import (
     RegimenAduaneroSerializer,
     TipoImportacionesSerializer, TipoExportacionesSerializer,
     PagoSerializer, FacturaSerializer,
-    PermisoListSerializer,
+    PermisoListSerializer, SancionSerializer,
 )
 
 
@@ -437,6 +437,9 @@ class DashboardAPIView(APIView):
                 "semaforo": p.semaforo.resultado,
             })
             
+        bitacora_reciente = Bitacora.objects.order_by("-fecha", "-hora")[:5]
+        bitacora = BitacoraSerializer(bitacora_reciente, many=True).data
+            
         data = {
             "total_pedimentos": Pedimento.objects.count(),
             "total_pagos": Pago.objects.count(),
@@ -444,8 +447,18 @@ class DashboardAPIView(APIView):
             "total_operaciones": OperacionAduanera.objects.count(),
             "total_aduanas": Aduana.objects.count(),
             "pedimentos": pedimentos,
+            "bitacora": bitacora,
         }
         
-        print("PEDIMENTOS: ", pedimentos)
-        print("DATA: ", data)
         return Response(data)
+    
+# -- Sanción --------------------------------------------------------------------
+class SancionViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Sancion.objects.select_related(
+        'incidencia'
+    ).order_by('-num_sancion')
+    
+    serializer_class = SancionSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+    

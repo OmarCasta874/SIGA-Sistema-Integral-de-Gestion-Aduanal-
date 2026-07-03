@@ -544,8 +544,26 @@ def semaforofiscal_view(request):
 
 @login_required
 def sanciones_view(request):
-    return render(request, 'home/sanciones.html')
+    try:
+        resp = api.get(request, '/sanciones/')
+        sanciones = api.safe_json(resp, []) if resp.status_code == 200 else []
+    except Exception:
+        sanciones = []
+        messages.error(request, 'No fue posible obtener las sanciones.')
+        
+    paginador = Paginator(sanciones, 15)
+    return render(
+        request, 
+        'home/sanciones.html',
+        {
+            'sanciones': paginador.get_page(
+                request.GET.get('pagina', 1)
+            ),
+        }
+    )
 
 @login_required
 def inspecciones_view(request):
-    return render(request, 'home/inspecciones.html')
+    return render(
+        request, 
+        'home/inspecciones.html')

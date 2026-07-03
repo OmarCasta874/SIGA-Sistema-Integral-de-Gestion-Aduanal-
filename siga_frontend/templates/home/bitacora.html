@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
     <link rel="stylesheet" href="{% static 'home/css/bitacora.css' %}">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="{% static 'home/js/buscador.js' %}"></script>
 </head>
 <body>
 <aside class="sidebar">
@@ -108,7 +109,7 @@
     </div>
 
     <div class="bitacora-toolbar">
-        <input type="text" class="bitacora-buscar" placeholder="Buscar actividad...">
+        <input type="text" class="bitacora-buscar" placeholder="Buscar actividad..." data-buscador-target="tbodyBitacora" data-buscador-colspan="4">
         <button class="bitacora-exportar-btn">Exportar bitácora</button>
     </div>
 
@@ -123,28 +124,22 @@
                     <th>Estado</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="tbodyBitacora">
+                {% for entrada in entradas %}
                 <tr>
-                    <td>56987</td>
-                    <td>Registro de operación</td>
-                    <td>7:00 AM</td>
-                    <td>26/05/2026</td>
-                    <td><span class="bitacora-estado-pill estado-exitoso">Exitoso</span></td>
+                    <td>{{ entrada.numero }}</td>
+                    <td>{{ entrada.descripcion }}</td>
+                    <td>{{ entrada.hora|slice:":5" }}</td>
+                    <td>{{ entrada.fecha }}</td>
+                    <td><span class="bitacora-estado-pill estado-exitoso">Registrado</span></td>
                 </tr>
+                {% empty %}
                 <tr>
-                    <td>02314</td>
-                    <td>Actualización de cliente</td>
-                    <td>12:00 PM</td>
-                    <td>26/05/2026</td>
-                    <td><span class="bitacora-estado-pill estado-pendiente">Pendiente</span></td>
+                    <td colspan="5" style="text-align:center;">
+                        No hay registros en la bitácora.
+                    </td>
                 </tr>
-                <tr>
-                    <td>78632</td>
-                    <td>Error de autenticación</td>
-                    <td>15:00 PM</td>
-                    <td>26/05/2026</td>
-                    <td><span class="bitacora-estado-pill estado-error">Error</span></td>
-                </tr>
+                {% endfor %}
             </tbody>
         </table>
     </div>

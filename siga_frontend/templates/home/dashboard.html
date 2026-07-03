@@ -119,7 +119,7 @@
     <div class="panel-recientes">
         <div class="panel-header">
             <h3>Pedimentos recientes</h3>
-            <a href="#" class="ver-todos">Ver todos →</a>
+            <a href="{% url 'home:pedimentos' %}" class="ver-todos">Ver pedimentos →</a>
         </div>
         <table class="tabla-pedimentos">
             <thead>
@@ -149,44 +149,42 @@
         <div class="panel-historial">
             <div class="panel-header">
                 <h3>Historial reciente de movimientos</h3>
-                <a href="#" class="ver-todos">Ver bitácora completa →</a>
+                <a href="{% url 'home:bitacora' %}" class="ver-todos">Ver bitácora completa →</a>
             </div>
             <div class="historial-lista">
+                {% for movimiento in dashboard.bitacora %}
                 <div class="historial-item">
-                    <div class="historial-icono icono-check"><i data-lucide="check"></i></div>
-                    <div class="historial-texto">
-                        <p class="historial-titulo">PED-2024-0448 — Estado actualizado a Pagado</p>
-                        <p class="historial-detalle">Grupo Bajío Industrial S.A. · Operación OP-2024-0112 · rcm@sigad.mx</p>
+
+                    <div class="historial-icono icono-doc">
+                        <i data-lucide="history"></i>
                     </div>
-                    <span class="historial-tiempo">hace 18 min</span>
+
+                    <div class="historial-texto">
+                        <p class="historial-titulo">
+                            Movimiento #{{ movimiento.numero }}
+                        </p>
+
+                        <p class="historial-detalle">
+                            {{ movimiento.descripcion }}
+                        </p>
+                    </div>
+
+                    <span class="historial-tiempo">
+                        {{ movimiento.fecha }} {{ movimiento.hora|slice:":5" }}
+                    </span>
+
                 </div>
+
+                {% empty %}
                 <div class="historial-item">
-                    <div class="historial-icono icono-alerta"><i data-lucide="alert-circle"></i></div>
                     <div class="historial-texto">
-                        <p class="historial-titulo">PED-2024-0441 — Semáforo rojo asignado por VUCEM</p>
-                        <p class="historial-detalle">TJ Industrial S.C. · Requiere inspección física · sistema</p>
+                        <p class="historial-titulo">No hay movimientos registrados.</p>
                     </div>
-                    <span class="historial-tiempo">hace 45 min</span>
                 </div>
-                <div class="historial-item">
-                    <div class="historial-icono icono-doc"><i data-lucide="upload"></i></div>
-                    <div class="historial-texto">
-                        <p class="historial-titulo">OP-2024-0114 — Documento agregado: Bill of Lading</p>
-                        <p class="historial-detalle">Mex-Import LLC · agente.mora@sigad.mx</p>
-                    </div>
-                    <span class="historial-tiempo">hace 1h</span>
-                </div>
-                <div class="historial-item">
-                    <div class="historial-icono icono-edit"><i data-lucide="pencil"></i></div>
-                    <div class="historial-texto">
-                        <p class="historial-titulo">OP-2024-0110 — Estado: En proceso → Pendiente de pago</p>
-                        <p class="historial-detalle">Baja Pharma S.A. · rcm@sigad.mx</p>
-                    </div>
-                    <span class="historial-tiempo">hace 2h</span>
-                </div>
+                {% endfor %}
             </div>
         </div>
-
+        
         <div class="widget-semaforo">
             <h3>Semáforo fiscal</h3>
 

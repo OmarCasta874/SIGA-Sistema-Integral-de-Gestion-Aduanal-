@@ -4,11 +4,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de control — SIGA</title>
+    <title>Sanciones — SIGA</title>
     <link rel="icon" type="image/x-icon" href="{% static 'home/img/siga_logo.png' %}">
     <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
     <link rel="stylesheet" href="{% static 'home/css/sanciones.css' %}">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="{% static 'home/js/buscador.js' %}"></script>
 </head>
 <body>
  
@@ -102,10 +103,10 @@
     <section class="sanciones-toolbar">
         <div class="sanciones-search">
             <i data-lucide="search" class="sanciones-search-icon"></i>
-            <input type="text" placeholder="Buscar sanción...">
+            <input type="text" id="inputBuscarSancion" placeholder="Buscar sanción..." data-buscador-target="tbodySanciones" data-buscador-colspan="4">
         </div>
         <button type="button" class="btn-nueva-fraccion">
-            <i data-lucide="plus" class="nav-icon"></i> Nueva fracción
+            <i data-lucide="plus" class="nav-icon"></i> Nueva Sanción
         </button>
     </section>
 
@@ -116,28 +117,24 @@
                     <th>Numero</th>
                     <th>Fundamento</th>
                     <th>Monto de la multa</th>
-                    <th>Estado</th>
+                    <th>Incidencia</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="tbodySanciones">
+                {% for sancion in sanciones %}
                 <tr>
-                    <td>1225894653</td>
-                    <td>Computadoras portátiles</td>
-                    <td>$15000</td>
-                    <td><span class="pill pill-activa">Activa</span></td>
+                    <td>{{ sancion.num_sancion }}</td>
+                    <td>{{ sancion.fundamento_legal }}</td>
+                    <td>{{ sancion.monto_multa }}</td>
+                    <td>{{ sancion.incidencia }}</td>
                 </tr>
+                {% empty %}
                 <tr>
-                    <td>6598741236</td>
-                    <td>Paquetes encintados</td>
-                    <td>$5700</td>
-                    <td><span class="pill pill-revision">Revisión</span></td>
+                    <td colspan="5" style="text-align:center;">
+                        No hay más sanciones registradas.
+                    </td>
                 </tr>
-                <tr>
-                    <td>9876543210</td>
-                    <td>Medicamentos diversos</td>
-                    <td>$8700</td>
-                    <td><span class="pill pill-restringida">Restringida</span></td>
-                </tr>
+                {% endfor %}
             </tbody>
         </table>
     </section>

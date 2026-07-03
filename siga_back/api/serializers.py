@@ -5,7 +5,7 @@ from home.models import (
     Usuario, Cliente, Aduana, OperacionAduanera, Pedimento,
     Permiso, Bitacora, CategoriaProductos, RegimenAduanero,
     SemaforoFiscal, TipoImportaciones, TipoExportaciones,
-    Pago, Factura, EstadoPago,
+    Pago, Factura, EstadoPago, Sancion,
 )
 
 
@@ -227,4 +227,14 @@ class FacturaSerializer(serializers.ModelSerializer):
         fields = [
             'codigo', 'folio_fiscal', 'fecha_factura',
             'subtotal', 'IVA', 'total', 'operacion_id',
+        ]
+
+class SancionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Sancion
+        fields = [
+            'num_sancion',
+            'monto_multa',
+            'fundamento_legal',
+            'incidencia',
         ]
