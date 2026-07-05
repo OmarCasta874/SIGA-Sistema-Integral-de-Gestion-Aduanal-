@@ -13,6 +13,7 @@ urlpatterns = [
     path('operaciones/<int:pk>/pedimento/', views.operacion_pedimento_view,  name='operacion_pedimento'),
     path('pedimentos/', views.pedimentos_view, name='pedimentos'),
     path('clientes/', views.clientes_view, name='clientes'),
+    path('api/categoria/<int:pk>/productos/', views.api_categoria_productos, name='api_categoria_productos'),
     path('api/cliente/<int:pk>/', views.api_cliente_detalle, name='api_cliente_detalle'),
     path('api/cliente/<int:pk>/permiso/<str:clave>/eliminar/', views.api_permiso_eliminar, name='api_permiso_eliminar'),
     path('aduanas/', views.aduanas_view, name='aduanas'),
@@ -30,4 +31,6 @@ urlpatterns = [
     path('semaforofiscal/', views.semaforofiscal_view, name='semaforo_fiscal'),
     path('inspecciones/', views.inspecciones_view, name='inspecciones'),
     path('sanciones/', views.sanciones_view, name='sanciones'),
+    path('paquetes/', views.paquetes_view, name='paquetes'),
+    path('paquetes/<int:pk>/', views.paquete_detalle_view, name='paquete_detalle'),
 ]

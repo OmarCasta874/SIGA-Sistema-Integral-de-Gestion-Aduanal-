@@ -38,6 +38,9 @@
         <a href="{% url 'home:pedimentos' %}" class="nav-item">
             <i data-lucide="file-text" class="nav-icon"></i> Pedimentos
         </a>
+        <a href="{% url 'home:paquetes' %}" class="nav-item">
+            <i data-lucide="package" class="nav-icon"></i> Paquetes
+        </a>
         <a href="{% url 'home:operaciones' %}" class="nav-item">
             <i data-lucide="clipboard-list" class="nav-icon"></i> Operación Aduanera
         </a>
@@ -81,24 +84,14 @@
 
     <div class="usuarios-card">
         <div class="usuarios-toolbar">
-            <div class="usuarios-search">
-                <input type="text" placeholder="Buscar Usuario...">
-            </div>
-            <select class="usuarios-select">
-                <option>Todos los usuarios</option>
-            </select>
-            <select class="usuarios-select">
-                <option>Todos los tipos</option>
-            </select>
-            <button type="button" class="btn-filtrar">Filtrar</button>
-            <button type="button" class="btn-nuevo-usuario">
-                + Nuevo usuario
-            </button>
-        </div>
-
-        <div class="usuarios-tabla-header">
-            <span class="usuarios-tabla-titulo">Usuarios nuevos</span>
-            <a href="#" class="usuarios-ver-todos">Ver todos -> </a>
+            <form method="get" action="{% url 'home:usuarios' %}" style="display:contents">
+                <input type="text" name="q" value="{{ query }}" class="usuarios-search-input" placeholder="Buscar usuario...">
+                <button type="submit" class="btn-filtrar">Filtrar</button>
+                {% if query %}
+                    <a href="{% url 'home:usuarios' %}" class="btn-limpiar">✕ Limpiar</a>
+                {% endif %}
+            </form>
+            <button type="button" class="btn-nuevo-usuario" style="margin-left:auto">+ Nuevo usuario</button>
         </div>
 
         <table class="usuarios-tabla">
@@ -112,15 +105,47 @@
                 </tr>
             </thead>
             <tbody>
+                {% for usuario in usuarios %}
                 <tr>
-                    <td><a href="#" class="usuarios-id">28000001</a></td>
-                    <td>Ana Cardenas</td>
-                    <td>12-06-2026</td>
-                    <td><span class="usuarios-correo">anacardenas@gmail.com</span></td>
-                    <td><span class="pill pill-administrador">ADMINISTRADOR</span></td>
+                    <td><a href="#" class="usuarios-id">{{ usuario.ID_usuario }}</a></td>
+                    <td>{{ usuario.nombre_pila }} {{ usuario.primer_apell|default:'' }}</td>
+                    <td>{{ usuario.fecha_alta }}</td>
+                    <td><span class="usuarios-correo">{{ usuario.correo }}</span></td>
+                    <td><span class="pill pill-administrador">{{ usuario.nombre_usuario }}</span></td>
                 </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align:center; color:#9CA3AF; padding:24px 0;">
+                        No hay usuarios registrados.
+                    </td>
+                </tr>
+                {% endfor %}
             </tbody>
         </table>
+
+        <div class="tabla-paginacion">
+            {% if usuarios.has_previous %}
+                <a href="?pagina={{ usuarios.previous_page_number }}&q={{ query }}" class="pagina-btn pagina-flecha">
+                    <i data-lucide="chevron-left"></i>
+                </a>
+            {% else %}
+                <button class="pagina-btn pagina-flecha" disabled><i data-lucide="chevron-left"></i></button>
+            {% endif %}
+            {% for num in usuarios.paginator.page_range %}
+                {% if usuarios.number == num %}
+                    <button class="pagina-btn pagina-activa">{{ num }}</button>
+                {% elif num >= usuarios.number|add:"-2" and num <= usuarios.number|add:"2" %}
+                    <a href="?pagina={{ num }}&q={{ query }}" class="pagina-btn">{{ num }}</a>
+                {% endif %}
+            {% endfor %}
+            {% if usuarios.has_next %}
+                <a href="?pagina={{ usuarios.next_page_number }}&q={{ query }}" class="pagina-btn pagina-flecha">
+                    <i data-lucide="chevron-right"></i>
+                </a>
+            {% else %}
+                <button class="pagina-btn pagina-flecha" disabled><i data-lucide="chevron-right"></i></button>
+            {% endif %}
+        </div>
     </div>
 </main>
 

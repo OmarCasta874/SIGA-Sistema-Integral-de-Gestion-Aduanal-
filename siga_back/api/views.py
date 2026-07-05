@@ -15,8 +15,8 @@ from rest_framework.authtoken.models import Token
 
 from home.models import (
     Usuario, Cliente, Aduana, OperacionAduanera, Pedimento,
-    Permiso, Bitacora, CategoriaProductos, RegimenAduanero,
-    SemaforoFiscal, TipoImportaciones, TipoExportaciones,
+    Permiso, Bitacora, CategoriaProductos, CategoriasProductosRel,
+    RegimenAduanero, SemaforoFiscal, TipoImportaciones, TipoExportaciones,
     Paquete, Producto, EstadoPago, Pago, Factura, Sancion,
 )
 from .serializers import (
@@ -30,6 +30,8 @@ from .serializers import (
     TipoImportacionesSerializer, TipoExportacionesSerializer,
     PagoSerializer, FacturaSerializer,
     PermisoListSerializer, SancionSerializer,
+    PaqueteSerializer, PaqueteCreateSerializer, ProductoCreateSerializer,
+    ProductoCategoriaSerializer,
 )
 
 
@@ -296,7 +298,7 @@ class OperacionViewSet(viewsets.ModelViewSet):
         semaforo         = _generar_semaforo()
         numero_pedimento = _generar_numero_pedimento(op.aduana_id)
 
-        paquetes    = Paquete.objects.filter(ope_aduanera=op)
+        paquetes    = Paquete.objects.filter(cliente=op.cliente)
         valor_total = sum(
             float(prod.valor_unitario)
             for paq in paquetes
@@ -360,6 +362,17 @@ class CategoriaViewSet(viewsets.ReadOnlyModelViewSet):
     authentication_classes = [TokenAuthentication]
     permission_classes     = [IsAuthenticated]
 
+    @action(detail=True, methods=['get'], url_path='productos')
+    def productos(self, request, pk=None):
+        categoria = self.get_object()
+        rels = (CategoriasProductosRel.objects
+                .filter(categorias=categoria)
+                .select_related('productos'))
+        data = ProductoCategoriaSerializer(
+            [r.productos for r in rels], many=True
+        ).data
+        return Response(data)
+
 
 class RegimenViewSet(viewsets.ReadOnlyModelViewSet):
     queryset               = RegimenAduanero.objects.all()
@@ -400,7 +413,7 @@ class PermisoViewSet(viewsets.ReadOnlyModelViewSet):
 # ── Pagos ──────────────────────────────────────────────────────────────────────
 
 class PagoViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset               = Pago.objects.prefetch_related('estados').order_by('-fecha_pago')
+    queryset               = Pago.objects.select_related('estado_pago').order_by('-fecha_pago')
     serializer_class       = PagoSerializer
     authentication_classes = [TokenAuthentication]
     permission_classes     = [IsAuthenticated]
@@ -457,8 +470,29 @@ class SancionViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Sancion.objects.select_related(
         'incidencia'
     ).order_by('-num_sancion')
-    
+
     serializer_class = SancionSerializer
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
+
+
+class PaqueteViewSet(viewsets.ModelViewSet):
+    queryset               = Paquete.objects.select_related('cliente', 'pedimento').prefetch_related('productos').order_by('codigo')
+    authentication_classes = [TokenAuthentication]
+    permission_classes     = [IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.action in ('create', 'update', 'partial_update'):
+            return PaqueteCreateSerializer
+        return PaqueteSerializer
+
+    @action(detail=True, methods=['post'], url_path='productos')
+    def agregar_producto(self, request, pk=None):
+        paquete = self.get_object()
+        data    = {**request.data, 'paquete': paquete.codigo}
+        ser     = ProductoCreateSerializer(data=data)
+        if ser.is_valid():
+            ser.save()
+            return Response(ser.data, status=status.HTTP_201_CREATED)
+        return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
     

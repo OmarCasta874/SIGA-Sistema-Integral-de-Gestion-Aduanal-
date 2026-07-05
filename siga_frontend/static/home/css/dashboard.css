@@ -852,3 +852,89 @@ body {
 .empty-state p {
     font-size: 14px;
 }
+
+/* ── Paginación compartida ────────────────────────────────────────── */
+.tabla-paginacion {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    margin-top: 16px;
+    width: 100%;
+}
+
+.tabla-paginacion .pagina-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 8px;
+    background: #F3F4F6;
+    color: #374151;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.tabla-paginacion .pagina-btn:hover {
+    background: #E5E7EB;
+}
+
+.tabla-paginacion .pagina-btn[disabled],
+.tabla-paginacion .pagina-btn.pagina-disabled {
+    opacity: 0.4;
+    cursor: default;
+    pointer-events: none;
+}
+
+.tabla-paginacion .pagina-activa {
+    background: #2563EB;
+    color: #FFFFFF;
+}
+
+.tabla-paginacion .pagina-activa:hover {
+    background: #2563EB;
+}
+
+.tabla-paginacion i {
+    width: 16px;
+    height: 16px;
+}
+
+/* ── Barra de búsqueda genérica ──────────────────────────────────── */
+.tabla-search-form {
+    display: flex;
+    gap: 10px;
+    flex: 1;
+    align-items: center;
+}
+
+.tabla-search-form .input-buscar {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #D1D5DB;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+}
+
+.tabla-search-form .input-buscar:focus {
+    border-color: #2563EB;
+}
+
+.btn-limpiar {
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: #F3F4F6;
+    color: #6B7280;
+    font-size: 13px;
+    text-decoration: none;
+    border: 1px solid #D1D5DB;
+}
+
+.btn-limpiar:hover {
+    background: #E5E7EB;
+}

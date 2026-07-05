@@ -39,6 +39,9 @@
         <a href="{% url 'home:pedimentos' %}" class="nav-item">
             <i data-lucide="file-text" class="nav-icon"></i> Pedimentos
         </a>
+        <a href="{% url 'home:paquetes' %}" class="nav-item">
+            <i data-lucide="package" class="nav-icon"></i> Paquetes
+        </a>
         <a href="{% url 'home:operaciones' %}" class="nav-item">
             <i data-lucide="clipboard-list" class="nav-icon"></i> Operación Aduanera
         </a>
@@ -91,9 +94,14 @@
 <main class="main">
     <h1 class="facturas-titulo">Facturas</h1>
     <div class="facturas-toolbar">
-        <input type="text" class="facturas-buscar" placeholder="Buscar Factura...">
-        <button type="button" class="btn-facturas btn-facturas-filtrar">Filtrar</button>
-        <button type="button" class="btn-facturas btn-facturas-nuevo"> + Nueva Factura </button>
+        <form method="get" action="{% url 'home:facturas' %}" style="display:contents">
+            <input type="text" name="q" value="{{ query }}" class="facturas-buscar" placeholder="Buscar factura...">
+            <button type="submit" class="btn-facturas btn-facturas-filtrar">Filtrar</button>
+            {% if query %}
+                <a href="{% url 'home:facturas' %}" class="btn-limpiar">✕ Limpiar</a>
+            {% endif %}
+        </form>
+        <button type="button" class="btn-facturas btn-facturas-nuevo" style="margin-left:auto"> + Nueva Factura </button>
     </div>
     <div class="facturas-card">
         <h2 class="facturas-card-titulo">Operaciones Recientes</h2>
@@ -110,12 +118,6 @@
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td>000100010001</td>
-                    <td>000001</td>
-                    <td>26-06-2026</td>
-                    <td>$1000</td>
-                    <td>000002</td>
                 {% for factura in facturas %}
                 <tr>
                     <td>{{ factura.codigo }}</td>
@@ -137,6 +139,30 @@
                 {% endfor %}
             </tbody>
         </table>
+
+        <div class="tabla-paginacion">
+            {% if facturas.has_previous %}
+                <a href="?pagina={{ facturas.previous_page_number }}&q={{ query }}" class="pagina-btn pagina-flecha">
+                    <i data-lucide="chevron-left"></i>
+                </a>
+            {% else %}
+                <button class="pagina-btn pagina-flecha" disabled><i data-lucide="chevron-left"></i></button>
+            {% endif %}
+            {% for num in facturas.paginator.page_range %}
+                {% if facturas.number == num %}
+                    <button class="pagina-btn pagina-activa">{{ num }}</button>
+                {% elif num >= facturas.number|add:"-2" and num <= facturas.number|add:"2" %}
+                    <a href="?pagina={{ num }}&q={{ query }}" class="pagina-btn">{{ num }}</a>
+                {% endif %}
+            {% endfor %}
+            {% if facturas.has_next %}
+                <a href="?pagina={{ facturas.next_page_number }}&q={{ query }}" class="pagina-btn pagina-flecha">
+                    <i data-lucide="chevron-right"></i>
+                </a>
+            {% else %}
+                <button class="pagina-btn pagina-flecha" disabled><i data-lucide="chevron-right"></i></button>
+            {% endif %}
+        </div>
     </div>
 </main>
 <script>

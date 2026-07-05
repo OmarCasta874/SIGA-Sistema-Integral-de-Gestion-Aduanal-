@@ -18,6 +18,7 @@ router.register(r'permisos',          views.PermisoViewSet,         basename='pe
 router.register(r'pagos',            views.PagoViewSet,            basename='pago')
 router.register(r'facturas',         views.FacturaViewSet,         basename='factura')
 router.register(r'sanciones',        views.SancionViewSet,         basename='sancion')
+router.register(r'paquetes',         views.PaqueteViewSet,         basename='paquete')
 
 urlpatterns = [
     path('auth/login/',  views.AuthLoginView.as_view(),  name='api-auth-login'),

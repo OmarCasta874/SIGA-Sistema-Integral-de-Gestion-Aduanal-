@@ -33,19 +33,14 @@
 /* BARRA DE HERRAMIENTAS */
 .categorias-toolbar {
     display: flex;
-    justify-content: space-between;
     align-items: center;
     margin: 24px 0 16px;
-    gap: 16px;
+    gap: 12px;
 }
 
-.categorias-buscador {
+.categorias-input-buscar {
     flex: 1;
-    max-width: 320px;
-}
-
-.categorias-buscador input {
-    width: 100%;
+    min-width: 200px;
     padding: 10px 14px;
     border: 1px solid #E5E7EB;
     border-radius: 8px;
@@ -54,11 +49,11 @@
     background-color: #FFF;
 }
 
-.categorias-buscador input::placeholder {
+.categorias-input-buscar::placeholder {
     color: #9CA3AF;
 }
 
-.categorias-buscador input:focus {
+.categorias-input-buscar:focus {
     outline: none;
     border-color: #2563EB;
 }

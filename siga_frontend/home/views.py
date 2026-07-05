@@ -174,6 +174,16 @@ def clientes_view(request):
 # ── API proxy para JS del template de clientes ─────────────────────────────────
 
 @login_required
+def api_categoria_productos(request, pk):
+    try:
+        resp = api.get(request, f'/categorias/{pk}/productos/')
+        if resp.status_code == 200:
+            return JsonResponse(resp.json(), safe=False)
+    except Exception:
+        pass
+    return JsonResponse([], safe=False)
+
+
 def api_cliente_detalle(request, pk):
     resp = api.get(request, f'/clientes/{pk}/')
     if resp.status_code == 200:
@@ -378,6 +388,7 @@ def pedimentos_view(request):
 
 @login_required
 def aduanas_view(request):
+    query = request.GET.get('q', '')
     try:
         resp    = api.get(request, '/aduanas/')
         aduanas = api.safe_json(resp, []) if resp.status_code == 200 else []
@@ -385,9 +396,17 @@ def aduanas_view(request):
         aduanas = []
         messages.error(request, 'No fue posible conectar con la API.')
 
+    if query:
+        q       = query.lower()
+        aduanas = [a for a in aduanas if q in a.get('nombre', '').lower() or q in a.get('ciudad', '').lower()]
+
+    paginador        = Paginator(aduanas, 5)
+    aduanas_paginadas = paginador.get_page(request.GET.get('pagina', 1))
+
     return render(request, 'home/aduanas.html', {
-        'aduanas':       aduanas,
-        'total_aduanas': len(aduanas),
+        'aduanas':       aduanas_paginadas,
+        'total_aduanas': paginador.count,
+        'query':         query,
     })
 
 
@@ -395,23 +414,25 @@ def aduanas_view(request):
 
 @login_required
 def categorias_view(request):
+    query = request.GET.get('q', '')
     try:
-        response = api.get(request, "/categorias/")
-        response.raise_for_status()
-        categorias = response.json()
-    except requests.exceptions.RequestException:
-        categorias = []
-        messages.error(request, "No fue posible conectar con la API.")
-    
         resp       = api.get(request, '/categorias/')
         categorias = api.safe_json(resp, []) if resp.status_code == 200 else []
     except Exception:
         categorias = []
         messages.error(request, 'No fue posible obtener las categorías.')
 
+    if query:
+        q          = query.lower()
+        categorias = [c for c in categorias if q in c.get('nombre', '').lower() or q in (c.get('descripcion') or '').lower()]
+
+    paginador          = Paginator(categorias, 5)
+    categorias_paginadas = paginador.get_page(request.GET.get('pagina', 1))
+
     return render(request, 'home/categorias.html', {
-        'categorias':       categorias,
-        'total_categorias': len(categorias),
+        'categorias':       categorias_paginadas,
+        'total_categorias': paginador.count,
+        'query':            query,
     })
 
 
@@ -419,6 +440,7 @@ def categorias_view(request):
 
 @login_required
 def bitacora_view(request):
+    query = request.GET.get('q', '')
     try:
         resp     = api.get(request, '/bitacora/')
         entradas = api.safe_json(resp, []) if resp.status_code == 200 else []
@@ -426,9 +448,14 @@ def bitacora_view(request):
         entradas = []
         messages.error(request, 'No fue posible obtener la bitácora.')
 
-    paginador = Paginator(entradas, 15)
+    if query:
+        q        = query.lower()
+        entradas = [e for e in entradas if q in e.get('descripcion', '').lower()]
+
+    paginador = Paginator(entradas, 5)
     return render(request, 'home/bitacora.html', {
         'entradas': paginador.get_page(request.GET.get('pagina', 1)),
+        'query':    query,
     })
 
 
@@ -460,32 +487,87 @@ def api_datos_operacion(request):
 
 @login_required
 def usuarios_view(request):
+    query = request.GET.get('q', '')
     try:
         resp     = api.get(request, '/usuarios/')
         usuarios = api.safe_json(resp, []) if resp.status_code == 200 else []
     except Exception:
         usuarios = []
-    return render(request, 'home/usuarios.html', {'usuarios': usuarios})
+        messages.error(request, 'No fue posible obtener los usuarios.')
+
+    if query:
+        q        = query.lower()
+        usuarios = [
+            u for u in usuarios
+            if q in u.get('nombre_usuario', '').lower()
+            or q in u.get('nombre_pila', '').lower()
+            or q in (u.get('primer_apell') or '').lower()
+            or q in u.get('correo', '').lower()
+        ]
+
+    paginador         = Paginator(usuarios, 5)
+    usuarios_paginados = paginador.get_page(request.GET.get('pagina', 1))
+
+    return render(request, 'home/usuarios.html', {
+        'usuarios': usuarios_paginados,
+        'query':    query,
+    })
 
 
 @login_required
 def pagos_view(request):
+    query = request.GET.get('q', '')
     try:
         resp  = api.get(request, '/pagos/')
         pagos = api.safe_json(resp, []) if resp.status_code == 200 else []
     except Exception:
         pagos = []
-    return render(request, 'home/pagos.html', {'pagos': pagos})
+        messages.error(request, 'No fue posible obtener los pagos.')
+
+    if query:
+        q     = query.lower()
+        pagos = [
+            p for p in pagos
+            if q in p.get('no_transaccion', '').lower()
+            or q in p.get('concepto', '').lower()
+            or q in p.get('estado', '').lower()
+            or q in (p.get('pedimento_num') or '').lower()
+        ]
+
+    paginador      = Paginator(pagos, 5)
+    pagos_paginados = paginador.get_page(request.GET.get('pagina', 1))
+
+    return render(request, 'home/pagos.html', {
+        'pagos':  pagos_paginados,
+        'query':  query,
+    })
 
 
 @login_required
 def facturas_view(request):
+    query = request.GET.get('q', '')
     try:
         resp     = api.get(request, '/facturas/')
         facturas = api.safe_json(resp, []) if resp.status_code == 200 else []
     except Exception:
         facturas = []
-    return render(request, 'home/facturas.html', {'facturas': facturas})
+        messages.error(request, 'No fue posible obtener las facturas.')
+
+    if query:
+        q        = query.lower()
+        facturas = [
+            f for f in facturas
+            if q in f.get('folio_fiscal', '').lower()
+            or q in f.get('fecha_factura', '').lower()
+        ]
+
+    paginador         = Paginator(facturas, 5)
+    facturas_paginadas = paginador.get_page(request.GET.get('pagina', 1))
+
+    return render(request, 'home/facturas.html', {
+        'facturas': facturas_paginadas,
+        'query':    query,
+    })
 
 
 @login_required
@@ -530,40 +612,144 @@ def permisos_view(request):
 def perfilusuario_view(request):
     return render(request, 'home/perfil_usuario.html')
 
-#@login_required
-#def pagos_view(request):
-#    return render(request, 'home/pagos.html')
-
-@login_required
-def facturas_view(request):
-    return render(request, 'home/facturas.html')
-
 @login_required
 def semaforofiscal_view(request):
     return render(request, 'home/semaforo_fiscal.html')
 
 @login_required
 def sanciones_view(request):
+    query = request.GET.get('q', '')
     try:
-        resp = api.get(request, '/sanciones/')
+        resp      = api.get(request, '/sanciones/')
         sanciones = api.safe_json(resp, []) if resp.status_code == 200 else []
     except Exception:
         sanciones = []
         messages.error(request, 'No fue posible obtener las sanciones.')
-        
-    paginador = Paginator(sanciones, 15)
-    return render(
-        request, 
-        'home/sanciones.html',
-        {
-            'sanciones': paginador.get_page(
-                request.GET.get('pagina', 1)
-            ),
-        }
-    )
+
+    if query:
+        q         = query.lower()
+        sanciones = [s for s in sanciones if q in s.get('fundamento_legal', '').lower()]
+
+    paginador          = Paginator(sanciones, 5)
+    sanciones_paginadas = paginador.get_page(request.GET.get('pagina', 1))
+
+    return render(request, 'home/sanciones.html', {
+        'sanciones': sanciones_paginadas,
+        'query':     query,
+    })
+
+@login_required
+def paquetes_view(request):
+    if request.method == 'POST':
+        resp = api.post(request, '/paquetes/', {
+            'tipo_embalaje': request.POST.get('tipo_embalaje', '').strip(),
+            'peso':          request.POST.get('peso', '').strip(),
+            'dimensions':    request.POST.get('dimensions', '').strip(),
+            'cliente':       request.POST.get('cliente_id', '').strip(),
+        })
+        if resp.status_code == 201:
+            messages.success(request, 'Paquete registrado correctamente.')
+        else:
+            messages.error(request, 'Error al registrar el paquete.')
+        return redirect('home:paquetes')
+
+    try:
+        resp     = api.get(request, '/paquetes/')
+        paquetes = api.safe_json(resp, []) if resp.status_code == 200 else []
+    except Exception:
+        paquetes = []
+        messages.error(request, 'No fue posible obtener los paquetes.')
+
+    try:
+        resp_c   = api.get(request, '/clientes/')
+        clientes = api.safe_json(resp_c, []) if resp_c.status_code == 200 else []
+    except Exception:
+        clientes = []
+
+    query = request.GET.get('q', '')
+    if query:
+        q        = query.lower()
+        paquetes = [
+            p for p in paquetes
+            if q in p.get('cliente_nombre', '').lower()
+            or q in p.get('tipo_embalaje', '').lower()
+            or q in p.get('numero', '').lower()
+        ]
+
+    total         = len(paquetes)
+    con_pedimento = sum(1 for p in paquetes if p.get('pedimento_num') not in ('—', None, ''))
+    sin_pedimento = total - con_pedimento
+
+    paginador         = Paginator(paquetes, 5)
+    paquetes_paginados = paginador.get_page(request.GET.get('pagina', 1))
+
+    return render(request, 'home/paquetes.html', {
+        'paquetes':       paquetes_paginados,
+        'clientes':       clientes,
+        'total':          total,
+        'con_pedimento':  con_pedimento,
+        'sin_pedimento':  sin_pedimento,
+        'query':          query,
+    })
+
+
+@login_required
+def paquete_detalle_view(request, pk):
+    if request.method == 'POST':
+        resp = api.post(request, f'/paquetes/{pk}/productos/', {
+            'nombre':          request.POST.get('nombre', '').strip(),
+            'descripcion':     request.POST.get('descripcion', '').strip(),
+            'peso':            request.POST.get('peso', '').strip(),
+            'valor_unitario':  request.POST.get('valor_unitario', '').strip(),
+            'paquete':         pk,
+        })
+        if resp.status_code == 201:
+            messages.success(request, 'Producto agregado correctamente.')
+        else:
+            messages.error(request, 'Error al agregar el producto.')
+        return redirect('home:paquete_detalle', pk=pk)
+
+    resp = api.get(request, f'/paquetes/{pk}/')
+    if resp.status_code != 200:
+        messages.error(request, 'Paquete no encontrado.')
+        return redirect('home:paquetes')
+
+    paquete = api.safe_json(resp, {})
+
+    # Categorías con su permiso requerido
+    try:
+        r_cat = api.get(request, '/categorias/')
+        categorias = api.safe_json(r_cat, []) if r_cat.status_code == 200 else []
+    except Exception:
+        categorias = []
+
+    # Tipos de permiso vigentes del cliente dueño del paquete
+    permisos_cliente = set()
+    cliente_id = paquete.get('cliente')
+    if cliente_id:
+        try:
+            r_perm = api.get(request, '/permisos/')
+            todos = api.safe_json(r_perm, []) if r_perm.status_code == 200 else []
+            from datetime import date
+            hoy = date.today().isoformat()
+            permisos_cliente = {
+                p['tipo_permiso']
+                for p in todos
+                if str(p.get('cliente_numero')) == str(cliente_id)
+                and p.get('vigencia', '0000-00-00') >= hoy
+            }
+        except Exception:
+            pass
+
+    return render(request, 'home/paquete_detalle.html', {
+        'paquete':          paquete,
+        'categorias':       categorias,
+        'permisos_cliente': list(permisos_cliente),
+    })
+
 
 @login_required
 def inspecciones_view(request):
     return render(
-        request, 
+        request,
         'home/inspecciones.html')

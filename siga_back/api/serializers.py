@@ -1,11 +1,12 @@
 from rest_framework import serializers
 from datetime import date
+from django.db.models import Sum
 
 from home.models import (
     Usuario, Cliente, Aduana, OperacionAduanera, Pedimento,
-    Permiso, Bitacora, CategoriaProductos, RegimenAduanero,
-    SemaforoFiscal, TipoImportaciones, TipoExportaciones,
-    Pago, Factura, EstadoPago, Sancion,
+    Permiso, Bitacora, CategoriaProductos, CategoriasProductosRel,
+    RegimenAduanero, SemaforoFiscal, TipoImportaciones, TipoExportaciones,
+    Pago, Factura, EstadoPago, Sancion, Paquete, Producto,
 )
 
 
@@ -131,7 +132,13 @@ class BitacoraSerializer(serializers.ModelSerializer):
 class CategoriaProductosSerializer(serializers.ModelSerializer):
     class Meta:
         model = CategoriaProductos
-        fields = ['numero', 'nombre', 'descripcion']
+        fields = ['numero', 'nombre', 'descripcion', 'tipo_permiso_requerido']
+
+
+class ProductoCategoriaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Producto
+        fields = ['codigo', 'nombre', 'descripcion', 'peso', 'valor_unitario']
 
 
 class PedimentoSerializer(serializers.ModelSerializer):
@@ -160,10 +167,10 @@ class OperacionListSerializer(serializers.ModelSerializer):
         ]
 
     def get_paso(self, obj):
-        from home.models import Pedimento, EstadoPago
+        from home.models import Pedimento, Pago
         if not Pedimento.objects.filter(ope_aduanera=obj).exists():
             return 1
-        if not EstadoPago.objects.filter(pago__isnull=False).exists():
+        if not Pago.objects.filter(pedimento__ope_aduanera=obj).exists():
             return 2
         return 3
 
@@ -182,10 +189,10 @@ class OperacionDetalleSerializer(serializers.ModelSerializer):
         ]
 
     def get_paso(self, obj):
-        from home.models import Pedimento, EstadoPago
+        from home.models import Pedimento, Pago
         if not Pedimento.objects.filter(ope_aduanera=obj).exists():
             return 1
-        if not EstadoPago.objects.filter(pago__isnull=False).exists():
+        if not Pago.objects.filter(pedimento__ope_aduanera=obj).exists():
             return 2
         return 3
 
@@ -212,8 +219,7 @@ class PagoSerializer(serializers.ModelSerializer):
         ]
 
     def get_estado(self, obj):
-        ep = obj.estados.first()
-        return ep.concepto if ep else 'Sin estado'
+        return obj.estado_pago.concepto if obj.estado_pago_id else 'Sin estado'
 
     def get_pedimento_num(self, obj):
         return obj.pedimento_id or '—'
@@ -238,3 +244,50 @@ class SancionSerializer(serializers.ModelSerializer):
             'fundamento_legal',
             'incidencia',
         ]
+
+
+class ProductoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Producto
+        fields = ['codigo', 'nombre', 'descripcion', 'peso', 'valor_unitario']
+
+
+class ProductoCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Producto
+        fields = ['nombre', 'descripcion', 'peso', 'valor_unitario', 'paquete']
+
+
+class PaqueteSerializer(serializers.ModelSerializer):
+    numero         = serializers.SerializerMethodField()
+    cliente_nombre = serializers.SerializerMethodField()
+    pedimento_num  = serializers.SerializerMethodField()
+    subtotal       = serializers.SerializerMethodField()
+    productos      = ProductoSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Paquete
+        fields = [
+            'codigo', 'numero', 'peso', 'tipo_embalaje', 'dimensions',
+            'cliente', 'cliente_nombre', 'pedimento_num', 'subtotal', 'productos',
+        ]
+
+    def get_numero(self, obj):
+        return f'PQ-{obj.codigo:05d}'
+
+    def get_cliente_nombre(self, obj):
+        c = obj.cliente
+        return f'{c.nombre} {c.primer_apell or ""}'.strip()
+
+    def get_pedimento_num(self, obj):
+        return obj.pedimento_id or '—'
+
+    def get_subtotal(self, obj):
+        total = obj.productos.aggregate(total=Sum('valor_unitario'))['total']
+        return float(total) if total else 0.0
+
+
+class PaqueteCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Paquete
+        fields = ['tipo_embalaje', 'peso', 'dimensions', 'cliente']

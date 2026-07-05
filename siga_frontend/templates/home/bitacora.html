@@ -39,6 +39,9 @@
         <a href="{% url 'home:pedimentos' %}" class="nav-item">
             <i data-lucide="file-text" class="nav-icon"></i> Pedimentos
         </a>
+        <a href="{% url 'home:paquetes' %}" class="nav-item">
+            <i data-lucide="package" class="nav-icon"></i> Paquetes
+        </a>
         <a href="{% url 'home:operaciones' %}" class="nav-item">
             <i data-lucide="clipboard-list" class="nav-icon"></i> Operación Aduanera
         </a>
@@ -109,8 +112,13 @@
     </div>
 
     <div class="bitacora-toolbar">
-        <input type="text" class="bitacora-buscar" placeholder="Buscar actividad..." data-buscador-target="tbodyBitacora" data-buscador-colspan="4">
-        <button class="bitacora-exportar-btn">Exportar bitácora</button>
+        <form method="get" action="{% url 'home:bitacora' %}" class="tabla-search-form">
+            <input type="text" name="q" value="{{ query }}" class="bitacora-buscar" placeholder="Buscar actividad...">
+            <button type="submit" class="bitacora-exportar-btn">Filtrar</button>
+            {% if query %}
+                <a href="{% url 'home:bitacora' %}" class="btn-limpiar">✕ Limpiar</a>
+            {% endif %}
+        </form>
     </div>
 
     <div class="bitacora-panel">
@@ -124,7 +132,7 @@
                     <th>Estado</th>
                 </tr>
             </thead>
-            <tbody id="tbodyBitacora">
+            <tbody>
                 {% for entrada in entradas %}
                 <tr>
                     <td>{{ entrada.numero }}</td>
@@ -142,6 +150,30 @@
                 {% endfor %}
             </tbody>
         </table>
+
+        <div class="tabla-paginacion">
+            {% if entradas.has_previous %}
+                <a href="?pagina={{ entradas.previous_page_number }}&q={{ query }}" class="pagina-btn pagina-flecha">
+                    <i data-lucide="chevron-left"></i>
+                </a>
+            {% else %}
+                <button class="pagina-btn pagina-flecha" disabled><i data-lucide="chevron-left"></i></button>
+            {% endif %}
+            {% for num in entradas.paginator.page_range %}
+                {% if entradas.number == num %}
+                    <button class="pagina-btn pagina-activa">{{ num }}</button>
+                {% elif num >= entradas.number|add:"-2" and num <= entradas.number|add:"2" %}
+                    <a href="?pagina={{ num }}&q={{ query }}" class="pagina-btn">{{ num }}</a>
+                {% endif %}
+            {% endfor %}
+            {% if entradas.has_next %}
+                <a href="?pagina={{ entradas.next_page_number }}&q={{ query }}" class="pagina-btn pagina-flecha">
+                    <i data-lucide="chevron-right"></i>
+                </a>
+            {% else %}
+                <button class="pagina-btn pagina-flecha" disabled><i data-lucide="chevron-right"></i></button>
+            {% endif %}
+        </div>
     </div>
 </main>
 

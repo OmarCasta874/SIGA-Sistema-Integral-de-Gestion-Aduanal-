@@ -40,6 +40,9 @@
         <a href="{% url 'home:pedimentos' %}" class="nav-item">
             <i data-lucide="file-text" class="nav-icon"></i> Pedimentos
         </a>
+        <a href="{% url 'home:paquetes' %}" class="nav-item">
+            <i data-lucide="package" class="nav-icon"></i> Paquetes
+        </a>
         <a href="{% url 'home:operaciones' %}" class="nav-item">
             <i data-lucide="clipboard-list" class="nav-icon"></i> Operación Aduanera
         </a>
@@ -101,10 +104,16 @@
     </section>
 
     <section class="sanciones-toolbar">
-        <div class="sanciones-search">
-            <i data-lucide="search" class="sanciones-search-icon"></i>
-            <input type="text" id="inputBuscarSancion" placeholder="Buscar sanción..." data-buscador-target="tbodySanciones" data-buscador-colspan="4">
-        </div>
+        <form method="get" action="{% url 'home:sanciones' %}" class="tabla-search-form">
+            <div class="sanciones-search">
+                <i data-lucide="search" class="sanciones-search-icon"></i>
+                <input type="text" name="q" value="{{ query }}" placeholder="Buscar sanción...">
+            </div>
+            <button type="submit" class="btn-filtrar">Filtrar</button>
+            {% if query %}
+                <a href="{% url 'home:sanciones' %}" class="btn-limpiar">✕ Limpiar</a>
+            {% endif %}
+        </form>
         <button type="button" class="btn-nueva-fraccion">
             <i data-lucide="plus" class="nav-icon"></i> Nueva Sanción
         </button>
@@ -120,7 +129,7 @@
                     <th>Incidencia</th>
                 </tr>
             </thead>
-            <tbody id="tbodySanciones">
+            <tbody>
                 {% for sancion in sanciones %}
                 <tr>
                     <td>{{ sancion.num_sancion }}</td>
@@ -130,13 +139,37 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="5" style="text-align:center;">
+                    <td colspan="4" style="text-align:center;">
                         No hay más sanciones registradas.
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
+
+        <div class="tabla-paginacion">
+            {% if sanciones.has_previous %}
+                <a href="?pagina={{ sanciones.previous_page_number }}&q={{ query }}" class="pagina-btn pagina-flecha">
+                    <i data-lucide="chevron-left"></i>
+                </a>
+            {% else %}
+                <button class="pagina-btn pagina-flecha" disabled><i data-lucide="chevron-left"></i></button>
+            {% endif %}
+            {% for num in sanciones.paginator.page_range %}
+                {% if sanciones.number == num %}
+                    <button class="pagina-btn pagina-activa">{{ num }}</button>
+                {% elif num >= sanciones.number|add:"-2" and num <= sanciones.number|add:"2" %}
+                    <a href="?pagina={{ num }}&q={{ query }}" class="pagina-btn">{{ num }}</a>
+                {% endif %}
+            {% endfor %}
+            {% if sanciones.has_next %}
+                <a href="?pagina={{ sanciones.next_page_number }}&q={{ query }}" class="pagina-btn pagina-flecha">
+                    <i data-lucide="chevron-right"></i>
+                </a>
+            {% else %}
+                <button class="pagina-btn pagina-flecha" disabled><i data-lucide="chevron-right"></i></button>
+            {% endif %}
+        </div>
     </section>
 </main>
 <div class="modal-overlay" id="modalLogout">

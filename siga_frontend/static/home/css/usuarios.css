@@ -15,12 +15,9 @@
     margin-bottom: 24px;
 }
 
-.usuarios-search {
+.usuarios-search-input {
     flex: 1;
-}
-
-.usuarios-search input {
-    width: 100%;
+    min-width: 200px;
     height: 40px;
     padding: 0 14px;
     border: 1px solid #d1d5db;
@@ -30,11 +27,11 @@
     background: #ffffff;
 }
 
-.usuarios-search input::placeholder {
+.usuarios-search-input::placeholder {
     color: #9ca3af;
 }
 
-.usuarios-search input:focus {
+.usuarios-search-input:focus {
     outline: none;
     border-color: #2563eb;
 }

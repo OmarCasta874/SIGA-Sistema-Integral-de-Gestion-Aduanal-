@@ -39,6 +39,9 @@
         <a href="{% url 'home:pedimentos' %}" class="nav-item">
             <i data-lucide="file-text" class="nav-icon"></i> Pedimentos
         </a>
+        <a href="{% url 'home:paquetes' %}" class="nav-item">
+            <i data-lucide="package" class="nav-icon"></i> Paquetes
+        </a>
         <a href="{% url 'home:operaciones' %}" class="nav-item">
             <i data-lucide="clipboard-list" class="nav-icon"></i> Operación Aduanera
         </a>
@@ -92,9 +95,14 @@
     <h1 class="pagos-titulo">Pagos</h1>
 
     <div class="pagos-toolbar">
-        <input type="text" class="pagos-buscar" placeholder="Buscar pago...">
-        <button type="button" class="btn-pagos btn-pagos-filtrar">Filtrar</button>
-        <button type="button" class="btn-pagos btn-pagos-nuevo">Nuevo pago</button>
+        <form method="get" action="{% url 'home:pagos' %}" style="display:contents">
+            <input type="text" name="q" value="{{ query }}" class="pagos-buscar" placeholder="Buscar pago...">
+            <button type="submit" class="btn-pagos btn-pagos-filtrar">Filtrar</button>
+            {% if query %}
+                <a href="{% url 'home:pagos' %}" class="btn-limpiar">✕ Limpiar</a>
+            {% endif %}
+        </form>
+        <button type="button" class="btn-pagos btn-pagos-nuevo" style="margin-left:auto">Nuevo pago</button>
     </div>
 
     <div class="pagos-card">
@@ -133,9 +141,32 @@
                     </td>
                 </tr>
                 {% endfor %}
-
             </tbody>
         </table>
+
+        <div class="tabla-paginacion">
+            {% if pagos.has_previous %}
+                <a href="?pagina={{ pagos.previous_page_number }}&q={{ query }}" class="pagina-btn pagina-flecha">
+                    <i data-lucide="chevron-left"></i>
+                </a>
+            {% else %}
+                <button class="pagina-btn pagina-flecha" disabled><i data-lucide="chevron-left"></i></button>
+            {% endif %}
+            {% for num in pagos.paginator.page_range %}
+                {% if pagos.number == num %}
+                    <button class="pagina-btn pagina-activa">{{ num }}</button>
+                {% elif num >= pagos.number|add:"-2" and num <= pagos.number|add:"2" %}
+                    <a href="?pagina={{ num }}&q={{ query }}" class="pagina-btn">{{ num }}</a>
+                {% endif %}
+            {% endfor %}
+            {% if pagos.has_next %}
+                <a href="?pagina={{ pagos.next_page_number }}&q={{ query }}" class="pagina-btn pagina-flecha">
+                    <i data-lucide="chevron-right"></i>
+                </a>
+            {% else %}
+                <button class="pagina-btn pagina-flecha" disabled><i data-lucide="chevron-right"></i></button>
+            {% endif %}
+        </div>
     </div>
 </main>
 
@@ -151,8 +182,4 @@
     }
 </script>
 </body>
-<<<<<<< HEAD
 </html>
-=======
-</html>
->>>>>>> cano

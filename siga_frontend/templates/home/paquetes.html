@@ -1,0 +1,387 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paquetes — SIGA</title>
+    <link rel="icon" type="image/x-icon" href="{% static 'home/img/siga_logo.png' %}">
+    <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'home/css/paquetes.css' %}">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body>
+
+<aside class="sidebar">
+    <div class="sidebar-logo">
+        <img src="{% static 'home/img/siga_logo_light.png' %}" alt="SIGA">
+        <button class="sidebar-toggle"><i data-lucide="panel-left"></i></button>
+    </div>
+    <nav>
+        <p class="nav-section-label">Principal</p>
+        <a href="{% url 'home:dashboard' %}" class="nav-item">
+            <i data-lucide="layout-grid" class="nav-icon"></i> Dashboard
+        </a>
+        <a href="{% url 'home:usuarios' %}" class="nav-item">
+            <i data-lucide="user" class="nav-icon"></i> Usuarios
+        </a>
+        <a href="{% url 'home:permisos' %}" class="nav-item">
+            <i data-lucide="key-round" class="nav-icon"></i> Permisos
+        </a>
+
+        <p class="nav-section-label">Operaciones</p>
+        <a href="{% url 'home:clientes' %}" class="nav-item">
+            <i data-lucide="users" class="nav-icon"></i> Clientes
+        </a>
+        <a href="{% url 'home:aduanas' %}" class="nav-item">
+            <i data-lucide="home" class="nav-icon"></i> Aduanas
+        </a>
+        <a href="{% url 'home:pedimentos' %}" class="nav-item">
+            <i data-lucide="file-text" class="nav-icon"></i> Pedimentos
+        </a>
+        <a href="{% url 'home:paquetes' %}" class="nav-item active">
+            <i data-lucide="package" class="nav-icon"></i> Paquetes
+        </a>
+        <a href="{% url 'home:operaciones' %}" class="nav-item">
+            <i data-lucide="clipboard-list" class="nav-icon"></i> Operación Aduanera
+        </a>
+        <a href="{% url 'home:pagos' %}" class="nav-item">
+            <i data-lucide="circle-dollar-sign" class="nav-icon"></i> Pagos
+        </a>
+        <a href="{% url 'home:facturas' %}" class="nav-item">
+            <i data-lucide="receipt" class="nav-icon"></i> Facturas
+        </a>
+        <a href="{% url 'home:categorias' %}" class="nav-item">
+            <i data-lucide="tag" class="nav-icon"></i> Categorías
+        </a>
+
+        <p class="nav-section-label">Fiscalización</p>
+        <a href="{% url 'home:semaforo_fiscal' %}" class="nav-item">
+            <i data-lucide="radio" class="nav-icon"></i> Semáforo Fiscal
+        </a>
+        <a href="{% url 'home:inspecciones' %}" class="nav-item">
+            <i data-lucide="search" class="nav-icon"></i> Inspecciones
+        </a>
+        <a href="{% url 'home:sanciones' %}" class="nav-item">
+            <i data-lucide="triangle-alert" class="nav-icon"></i> Sanciones
+        </a>
+        <a href="{% url 'home:bitacora' %}" class="nav-item">
+            <i data-lucide="history" class="nav-icon"></i> Bitácora
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <button type="button" class="btn-sidebar btn-sidebar-salir" onclick="mostrarModalLogout()">
+            <i data-lucide="log-out" class="nav-icon"></i> Salir
+        </button>
+        <a href="{% url 'home:perfilusuario' %}" class="btn-sidebar btn-sidebar-usuario">
+            <i data-lucide="user" class="nav-icon"></i> Usuario
+        </a>
+    </div>
+</aside>
+
+<!-- Modal logout -->
+<div class="modal-overlay" id="modalLogout">
+    <div class="modal-logout-box">
+        <img src="{% static 'home/img/siga_logo.png' %}" alt="SIGA" class="modal-logout-logo">
+        <p class="modal-logout-texto">¿Estás seguro de cerrar sesión?</p>
+        <div class="modal-logout-acciones">
+            <a href="{% url 'home:logout' %}" class="modal-logout-si">Sí</a>
+            <button type="button" class="modal-logout-cancelar" onclick="cerrarModalLogout()">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal nuevo paquete -->
+<div class="modal-overlay" id="modalNuevoPaquete">
+    <div class="paq-modal-box">
+        <div class="paq-modal-header">
+            <h2>Registrar paquete</h2>
+            <button type="button" class="paq-modal-cerrar" onclick="cerrarModalPaquete()">
+                <i data-lucide="x"></i>
+            </button>
+        </div>
+        <form method="post" action="{% url 'home:paquetes' %}">
+            {% csrf_token %}
+            <div class="paq-modal-body">
+                <div class="paq-campo">
+                    <label>Cliente</label>
+                    <select name="cliente_id" required>
+                        <option value="">— Seleccionar cliente —</option>
+                        {% for cliente in clientes %}
+                        <option value="{{ cliente.numero }}">
+                            {{ cliente.nombre }} {{ cliente.primer_apell|default:'' }} ({{ cliente.RFC }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="paq-campo">
+                    <label>Tipo de embalaje</label>
+                    <select name="tipo_embalaje" id="select-embalaje" required>
+                        <option value="">— Seleccionar —</option>
+                        <option value="Caja">Caja</option>
+                        <option value="Sobre">Sobre</option>
+                        <option value="Paleta">Paleta</option>
+                        <option value="Tambor">Tambor</option>
+                        <option value="Contenedor">Contenedor</option>
+                    </select>
+                </div>
+                <div class="paq-campo">
+                    <label>Dimensiones</label>
+                    <select name="dimensions" id="select-dimensiones" disabled>
+                        <option value="">— Selecciona embalaje primero —</option>
+                    </select>
+                </div>
+                <div class="paq-campo">
+                    <label>Peso (Kg)</label>
+                    <input type="number" name="peso" id="input-peso" step="0.01" min="0"
+                           placeholder="Selecciona dimensión primero" disabled required>
+                    <span id="hint-peso" class="paq-campo-hint"></span>
+                </div>
+            </div>
+            <div class="paq-modal-footer">
+                <button type="button" class="btn-paq-cancelar" onclick="cerrarModalPaquete()">Cancelar</button>
+                <button type="submit" class="btn-paq-guardar">Registrar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<main class="main">
+    <h1 class="paq-titulo">Paquetes</h1>
+
+    {% if messages %}
+        {% for m in messages %}
+            <div class="alerta alerta-{{ m.tags }}">{{ m }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="paq-stats">
+        <div class="paq-stat-card">
+            <span class="paq-stat-label">Total registrados</span>
+            <span class="paq-stat-valor paq-stat-azul">{{ total }}</span>
+        </div>
+        <div class="paq-stat-card">
+            <span class="paq-stat-label">Con pedimento</span>
+            <span class="paq-stat-valor paq-stat-verde">{{ con_pedimento }}</span>
+        </div>
+        <div class="paq-stat-card">
+            <span class="paq-stat-label">Sin pedimento</span>
+            <span class="paq-stat-valor paq-stat-naranja">{{ sin_pedimento }}</span>
+        </div>
+        <div class="paq-stat-card">
+            <span class="paq-stat-label">Pendientes de revisión</span>
+            <span class="paq-stat-valor paq-stat-rojo">{{ sin_pedimento }}</span>
+        </div>
+    </div>
+
+    <div class="paq-toolbar">
+        <form method="get" action="{% url 'home:paquetes' %}" style="display:contents">
+            <input type="text" name="q" value="{{ query }}" class="paq-buscar" placeholder="Buscar paquete...">
+            <button type="submit" class="btn-paq btn-paq-filtrar">Filtrar</button>
+            {% if query %}
+                <a href="{% url 'home:paquetes' %}" class="btn-limpiar">✕ Limpiar</a>
+            {% endif %}
+        </form>
+        <button type="button" class="btn-paq btn-paq-nuevo" onclick="abrirModalPaquete()" style="margin-left:auto">
+            <i data-lucide="plus" style="width:15px;height:15px;"></i> Nuevo paquete
+        </button>
+    </div>
+
+    <div class="paq-card">
+        <table class="paq-tabla">
+            <thead>
+                <tr>
+                    <th>Número</th>
+                    <th>Cliente</th>
+                    <th>Tipo embalaje</th>
+                    <th>Peso</th>
+                    <th>Dimensiones</th>
+                    <th>Pedimento</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for paquete in paquetes %}
+                <tr class="paq-fila">
+                    <td class="paq-numero">{{ paquete.numero }}</td>
+                    <td>{{ paquete.cliente_nombre }}</td>
+                    <td>{{ paquete.tipo_embalaje }}</td>
+                    <td>{{ paquete.peso }} Kg</td>
+                    <td>{{ paquete.dimensions|default:'—' }}</td>
+                    <td>
+                        {% if paquete.pedimento_num == '—' %}
+                            <span class="pill pill-sin-pedimento">Sin asignar</span>
+                        {% else %}
+                            <span class="pill pill-con-pedimento">{{ paquete.pedimento_num }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'home:paquete_detalle' paquete.codigo %}" class="btn-accion btn-accion-ver">
+                            Ver detalle
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="paq-vacio">
+                        No hay paquetes registrados. Haz clic en "Nuevo paquete" para agregar uno.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="tabla-paginacion">
+            {% if paquetes.has_previous %}
+                <a href="?pagina={{ paquetes.previous_page_number }}&q={{ query }}" class="pagina-btn pagina-flecha">
+                    <i data-lucide="chevron-left"></i>
+                </a>
+            {% else %}
+                <button class="pagina-btn pagina-flecha" disabled><i data-lucide="chevron-left"></i></button>
+            {% endif %}
+            {% for num in paquetes.paginator.page_range %}
+                {% if paquetes.number == num %}
+                    <button class="pagina-btn pagina-activa">{{ num }}</button>
+                {% elif num >= paquetes.number|add:"-2" and num <= paquetes.number|add:"2" %}
+                    <a href="?pagina={{ num }}&q={{ query }}" class="pagina-btn">{{ num }}</a>
+                {% endif %}
+            {% endfor %}
+            {% if paquetes.has_next %}
+                <a href="?pagina={{ paquetes.next_page_number }}&q={{ query }}" class="pagina-btn pagina-flecha">
+                    <i data-lucide="chevron-right"></i>
+                </a>
+            {% else %}
+                <button class="pagina-btn pagina-flecha" disabled><i data-lucide="chevron-right"></i></button>
+            {% endif %}
+        </div>
+    </div>
+</main>
+
+<script>
+    lucide.createIcons();
+
+    function mostrarModalLogout() { document.getElementById('modalLogout').classList.add('activo'); }
+    function cerrarModalLogout()  { document.getElementById('modalLogout').classList.remove('activo'); }
+
+    function abrirModalPaquete() {
+        document.getElementById('select-embalaje').value = '';
+        const selDim = document.getElementById('select-dimensiones');
+        selDim.innerHTML = '<option value="">— Selecciona embalaje primero —</option>';
+        selDim.disabled = true;
+        resetPeso();
+        document.getElementById('modalNuevoPaquete').classList.add('activo');
+    }
+    function cerrarModalPaquete() {
+        document.getElementById('modalNuevoPaquete').classList.remove('activo');
+    }
+
+    /*
+     * Dimensiones por tipo de embalaje.
+     * Cada entrada: [valor_a_guardar, etiqueta_visible, peso_max_kg]
+     */
+    const DIMENSIONES = {
+        'Caja': [
+            ['20×15×10 cm',  'XS   — 20×15×10 cm',   5],
+            ['30×20×15 cm',  'S    — 30×20×15 cm',   10],
+            ['40×30×20 cm',  'M    — 40×30×20 cm',   20],
+            ['60×40×30 cm',  'L    — 60×40×30 cm',   35],
+            ['80×60×40 cm',  'XL   — 80×60×40 cm',   50],
+            ['100×80×60 cm', 'XXL  — 100×80×60 cm',  70],
+            ['120×80×80 cm', 'XXXL — 120×80×80 cm', 100],
+        ],
+        'Sobre': [
+            ['22×16×1 cm', 'A5        — 22×16×1 cm', 0.5],
+            ['30×22×1 cm', 'A4        — 30×22×1 cm', 1],
+            ['25×35×2 cm', 'Burbuja M — 25×35×2 cm', 2],
+            ['33×48×3 cm', 'Burbuja L — 33×48×3 cm', 3],
+        ],
+        'Paleta': [
+            ['120×80×15 cm',  'Europea   — 120×80×15 cm',  1500],
+            ['120×100×15 cm', 'Americana — 120×100×15 cm', 1500],
+            ['110×110×15 cm', 'ISO       — 110×110×15 cm', 1500],
+        ],
+        'Tambor': [
+            ['60L (37×58 cm)',  '60 L  — ø37×58 cm',  80],
+            ['120L (47×75 cm)', '120 L — ø47×75 cm', 150],
+            ['200L (57×87 cm)', '200 L — ø57×87 cm', 250],
+        ],
+        'Contenedor': [
+            ['589×235×239 cm',  "20'    — 589×235×239 cm",  28000],
+            ['1203×235×239 cm', "40'    — 1203×235×239 cm", 28000],
+            ['1203×235×269 cm', "40' HC — 1203×235×269 cm", 26500],
+        ],
+    };
+
+    function resetPeso() {
+        const inp  = document.getElementById('input-peso');
+        const hint = document.getElementById('hint-peso');
+        inp.value       = '';
+        inp.disabled    = true;
+        inp.removeAttribute('max');
+        inp.placeholder = 'Selecciona dimensión primero';
+        hint.textContent = '';
+    }
+
+    /* Al cambiar el tipo de embalaje: repoblar el select de dimensiones */
+    document.getElementById('select-embalaje').addEventListener('change', function () {
+        const tipo  = this.value;
+        const selDim = document.getElementById('select-dimensiones');
+
+        /* Limpiar dimensiones y peso */
+        selDim.innerHTML = '<option value="">— Seleccionar dimensión —</option>';
+        resetPeso();
+
+        if (!tipo) {
+            selDim.disabled = true;
+            return;
+        }
+
+        const opciones = DIMENSIONES[tipo] || [];
+        opciones.forEach(([val, label, pesoMax]) => {
+            const opt = document.createElement('option');
+            opt.value             = val;
+            opt.textContent       = label;
+            opt.dataset.pesoMax   = pesoMax;
+            selDim.appendChild(opt);
+        });
+
+        selDim.disabled = false;
+        selDim.focus();
+    });
+
+    /* Al cambiar la dimensión: habilitar peso con el límite correcto */
+    document.getElementById('select-dimensiones').addEventListener('change', function () {
+        const selected = this.options[this.selectedIndex];
+        const inp      = document.getElementById('input-peso');
+        const hint     = document.getElementById('hint-peso');
+
+        if (!this.value) {
+            resetPeso();
+            return;
+        }
+
+        const pesoMax = parseFloat(selected.dataset.pesoMax);
+        inp.disabled    = false;
+        inp.max         = pesoMax;
+        inp.placeholder = `0.01 – ${pesoMax} kg`;
+        inp.value       = '';
+        hint.textContent = `Máximo permitido: ${pesoMax} kg`;
+        inp.focus();
+    });
+
+    /* Validación extra al enviar: mensaje claro si supera el límite */
+    document.querySelector('#modalNuevoPaquete form').addEventListener('submit', function (e) {
+        const inp    = document.getElementById('input-peso');
+        const pesoMax = parseFloat(inp.max);
+        const peso    = parseFloat(inp.value);
+        if (pesoMax && peso > pesoMax) {
+            e.preventDefault();
+            const hint = document.getElementById('hint-peso');
+            hint.textContent = `⚠ El peso ${peso} kg supera el máximo de ${pesoMax} kg para esta dimensión.`;
+            hint.style.color = '#DC2626';
+            inp.focus();
+        }
+    });
+</script>
+</body>
+</html>

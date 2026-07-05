@@ -40,6 +40,9 @@
         <a href="{% url 'home:pedimentos' %}" class="nav-item">
             <i data-lucide="file-text" class="nav-icon"></i> Pedimentos
         </a>
+        <a href="{% url 'home:paquetes' %}" class="nav-item">
+            <i data-lucide="package" class="nav-icon"></i> Paquetes
+        </a>
         <a href="{% url 'home:operaciones' %}" class="nav-item">
             <i data-lucide="clipboard-list" class="nav-icon"></i> Operación Aduanera
         </a>
@@ -105,15 +108,14 @@
     </div>
 
     <div class="toolbar-aduanas">
-        <input type="text" class="input-buscar" placeholder="Buscar aduana..." data-buscador-target="tbodyAduanas" data-buscador-colspan="4">
-        <select class="select-filtro">
-            <option>Todas las aduanas</option>
-        </select>
-        <select class="select-filtro">
-            <option>Todos los tipos</option>
-        </select>
-        <button class="btn-filtrar">Filtrar</button>
-        <button class="btn-nueva-aduana">Nueva aduana</button>
+        <form method="get" action="{% url 'home:aduanas' %}" style="display:contents">
+            <input type="text" name="q" value="{{ query }}" class="input-buscar" placeholder="Buscar aduana...">
+            <button type="submit" class="btn-filtrar">Filtrar</button>
+            {% if query %}
+                <a href="{% url 'home:aduanas' %}" class="btn-limpiar">✕ Limpiar</a>
+            {% endif %}
+        </form>
+        <button class="btn-nueva-aduana" style="margin-left:auto">Nueva aduana</button>
     </div>
     <section class="tabla-aduanas">
         <h3> Lista de Aduanas </h3>
@@ -126,7 +128,7 @@
                     <th>Estado</th>
                 </tr>
             </thead>
-            <tbody id="tbodyAduanas">
+            <tbody>
                 {% for aduana in aduanas %}
                 <tr>
                     <td>{{ aduana.nombre }}</td>
@@ -136,13 +138,39 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="4">
+                    <td colspan="4" style="text-align:center;">
                         No hay aduanas registradas.
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
+
+        <div class="tabla-paginacion">
+            {% if aduanas.has_previous %}
+                <a href="?pagina={{ aduanas.previous_page_number }}&q={{ query }}" class="pagina-btn pagina-flecha">
+                    <i data-lucide="chevron-left"></i>
+                </a>
+            {% else %}
+                <button class="pagina-btn pagina-flecha" disabled><i data-lucide="chevron-left"></i></button>
+            {% endif %}
+
+            {% for num in aduanas.paginator.page_range %}
+                {% if aduanas.number == num %}
+                    <button class="pagina-btn pagina-activa">{{ num }}</button>
+                {% elif num >= aduanas.number|add:"-2" and num <= aduanas.number|add:"2" %}
+                    <a href="?pagina={{ num }}&q={{ query }}" class="pagina-btn">{{ num }}</a>
+                {% endif %}
+            {% endfor %}
+
+            {% if aduanas.has_next %}
+                <a href="?pagina={{ aduanas.next_page_number }}&q={{ query }}" class="pagina-btn pagina-flecha">
+                    <i data-lucide="chevron-right"></i>
+                </a>
+            {% else %}
+                <button class="pagina-btn pagina-flecha" disabled><i data-lucide="chevron-right"></i></button>
+            {% endif %}
+        </div>
     </section>
 </main>
 <script>

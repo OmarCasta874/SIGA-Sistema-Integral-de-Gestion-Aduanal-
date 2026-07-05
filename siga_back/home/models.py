@@ -420,6 +420,10 @@ class Pago(models.Model):
         db_column='pedimento', related_name='pagos',
         blank=True, null=True,
     )
+    estado_pago = models.ForeignKey(
+        'EstadoPago', on_delete=models.PROTECT,
+        db_column='estado_pago', related_name='pagos',
+    )
 
     class Meta:
         managed = False
@@ -580,10 +584,6 @@ class EstadoPago(models.Model):
     codigo = models.AutoField(primary_key=True, db_column='codigo')
     concepto = models.CharField(max_length=100, db_column='concepto')
     descripcion = models.CharField(max_length=200, blank=True, null=True, db_column='descripcion')
-    pago = models.ForeignKey(
-        Pago, on_delete=models.CASCADE,
-        db_column='pago', related_name='estados'
-    )
 
     class Meta:
         managed = False
@@ -592,7 +592,7 @@ class EstadoPago(models.Model):
         verbose_name_plural = 'Estados de pago'
 
     def __str__(self):
-        return f'{self.concepto} ({self.pago_id})'
+        return self.concepto
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -649,14 +649,15 @@ class Paquete(models.Model):
     codigo = models.AutoField(primary_key=True, db_column='codigo')
     peso = models.DecimalField(max_digits=10, decimal_places=2, db_column='peso')
     tipo_embalaje = models.CharField(max_length=30, db_column='tipo_embalaje')
-    dimensions = models.CharField(max_length=50, blank=True, null=True, db_column='dimensions')
-    ope_aduanera = models.ForeignKey(
-        OperacionAduanera, on_delete=models.CASCADE,
-        db_column='ope_aduanera', related_name='paquetes'
+    dimensions = models.CharField(max_length=50, blank=True, null=True, db_column='dimensiones')
+    cliente = models.ForeignKey(
+        Cliente, on_delete=models.CASCADE,
+        db_column='cliente', related_name='paquetes'
     )
     pedimento = models.ForeignKey(
-        Pedimento, on_delete=models.CASCADE,
-        db_column='pedimento', related_name='paquetes'
+        Pedimento, on_delete=models.SET_NULL,
+        db_column='pedimento', related_name='paquetes',
+        blank=True, null=True,
     )
 
     class Meta:
@@ -679,6 +680,10 @@ class CategoriaProductos(models.Model):
     arancel = models.ForeignKey(
         Arancel, on_delete=models.CASCADE,
         db_column='arancel', related_name='categorias'
+    )
+    tipo_permiso_requerido = models.CharField(
+        max_length=50, blank=True, null=True,
+        db_column='tipo_permiso_requerido',
     )
 
     class Meta:
