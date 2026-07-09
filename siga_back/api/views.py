@@ -18,6 +18,7 @@ from home.models import (
     Permiso, Bitacora, CategoriaProductos, CategoriasProductosRel,
     RegimenAduanero, SemaforoFiscal, TipoImportaciones, TipoExportaciones,
     Paquete, Producto, EstadoPago, Pago, Factura, Sancion,
+    EstadoOpeAduanera,
 )
 from .serializers import (
     UsuarioSerializer,
@@ -31,7 +32,7 @@ from .serializers import (
     PagoSerializer, FacturaSerializer,
     PermisoListSerializer, SancionSerializer,
     PaqueteSerializer, PaqueteCreateSerializer, ProductoCreateSerializer,
-    ProductoCategoriaSerializer,
+    ProductoCategoriaSerializer, SemaforoFiscalSerializer,
 )
 
 
@@ -257,6 +258,7 @@ class OperacionViewSet(viewsets.ModelViewSet):
 
         cliente = get_object_or_404(Cliente, numero=cliente_id)
         aduana  = get_object_or_404(Aduana, codigo=aduana_id)
+        estado  = get_object_or_404(EstadoOpeAduanera, codigo=1)  # "En proceso"
 
         bitacora = Bitacora.objects.create(
             descripcion=f'Apertura de operación aduanera | Tipo: {tipo_operacion} | Cliente: {cliente}',
@@ -270,6 +272,7 @@ class OperacionViewSet(viewsets.ModelViewSet):
             usuario=request.user,
             bitacora=bitacora,
             fecha_inicio=date.today(),
+            estado_ope_aduanera=estado,
         )
         return Response(
             OperacionDetalleSerializer(op).data,
@@ -367,11 +370,15 @@ class CategoriaViewSet(viewsets.ReadOnlyModelViewSet):
         categoria = self.get_object()
         rels = (CategoriasProductosRel.objects
                 .filter(categorias=categoria)
-                .select_related('productos'))
-        data = ProductoCategoriaSerializer(
-            [r.productos for r in rels], many=True
-        ).data
-        return Response(data)
+                .select_related('productos')
+                .order_by('productos__codigo'))
+        seen, unique = set(), []
+        for rel in rels:
+            p = rel.productos
+            if p.nombre not in seen:
+                seen.add(p.nombre)
+                unique.append(p)
+        return Response(ProductoCategoriaSerializer(unique, many=True).data)
 
 
 class RegimenViewSet(viewsets.ReadOnlyModelViewSet):
@@ -492,7 +499,20 @@ class PaqueteViewSet(viewsets.ModelViewSet):
         data    = {**request.data, 'paquete': paquete.codigo}
         ser     = ProductoCreateSerializer(data=data)
         if ser.is_valid():
-            ser.save()
+            producto     = ser.save()
+            categoria_id = request.data.get('categoria')
+            if categoria_id:
+                try:
+                    cat = CategoriaProductos.objects.get(pk=categoria_id)
+                    CategoriasProductosRel.objects.create(categorias=cat, productos=producto)
+                except CategoriaProductos.DoesNotExist:
+                    pass
             return Response(ser.data, status=status.HTTP_201_CREATED)
         return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
+
+class SemaforoFiscalViewSet(viewsets.ModelViewSet):
+    queryset               = SemaforoFiscal.objects.all().order_by('ID')
+    serializer_class       = SemaforoFiscalSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes     = [IsAuthenticated]

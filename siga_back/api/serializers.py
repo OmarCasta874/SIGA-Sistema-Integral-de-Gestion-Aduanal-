@@ -10,6 +10,7 @@ from home.models import (
 )
 
 
+
 class UsuarioSerializer(serializers.ModelSerializer):
     nombre_completo = serializers.SerializerMethodField()
 
@@ -249,27 +250,29 @@ class SancionSerializer(serializers.ModelSerializer):
 class ProductoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Producto
-        fields = ['codigo', 'nombre', 'descripcion', 'peso', 'valor_unitario']
+        fields = ['codigo', 'nombre', 'descripcion', 'peso', 'valor_unitario', 'cantidad']
 
 
 class ProductoCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Producto
-        fields = ['nombre', 'descripcion', 'peso', 'valor_unitario', 'paquete']
+        fields = ['nombre', 'descripcion', 'peso', 'valor_unitario', 'cantidad', 'paquete']
 
 
 class PaqueteSerializer(serializers.ModelSerializer):
-    numero         = serializers.SerializerMethodField()
-    cliente_nombre = serializers.SerializerMethodField()
-    pedimento_num  = serializers.SerializerMethodField()
-    subtotal       = serializers.SerializerMethodField()
-    productos      = ProductoSerializer(many=True, read_only=True)
+    numero              = serializers.SerializerMethodField()
+    cliente_nombre      = serializers.SerializerMethodField()
+    pedimento_num       = serializers.SerializerMethodField()
+    subtotal            = serializers.SerializerMethodField()
+    productos           = ProductoSerializer(many=True, read_only=True)
+    categoria_bloqueada = serializers.SerializerMethodField()
 
     class Meta:
         model = Paquete
         fields = [
             'codigo', 'numero', 'peso', 'tipo_embalaje', 'dimensions',
-            'cliente', 'cliente_nombre', 'pedimento_num', 'subtotal', 'productos',
+            'cliente', 'cliente_nombre', 'pedimento_num', 'subtotal',
+            'productos', 'categoria_bloqueada',
         ]
 
     def get_numero(self, obj):
@@ -285,6 +288,21 @@ class PaqueteSerializer(serializers.ModelSerializer):
     def get_subtotal(self, obj):
         total = obj.productos.aggregate(total=Sum('valor_unitario'))['total']
         return float(total) if total else 0.0
+
+    def get_categoria_bloqueada(self, obj):
+        primer = obj.productos.first()
+        if not primer:
+            return None
+        # .order_by() explícito porque la tabla tiene PK compuesto sin columna 'id'
+        # y .first() sin orden genera ORDER BY id → error de columna inexistente
+        rel = (CategoriasProductosRel.objects
+               .select_related('categorias')
+               .filter(productos=primer)
+               .order_by('categorias')
+               .first())
+        if not rel:
+            return None
+        return {'numero': rel.categorias.numero, 'nombre': rel.categorias.nombre}
 
 
 class PaqueteCreateSerializer(serializers.ModelSerializer):

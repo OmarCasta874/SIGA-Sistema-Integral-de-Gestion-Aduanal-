@@ -110,11 +110,17 @@
     </div>
 
     <div class="categorias-toolbar">
-        <form method="get" action="{% url 'home:categorias' %}" style="display:contents">
+        <form method="get" 
+              action="{% url 'home:categorias' %}" 
+              class="categorias-form">
             <input type="text" name="q" value="{{ query }}" class="categorias-input-buscar" placeholder="Buscar categoría...">
-            <button type="submit" class="btn-filtrar">Filtrar</button>
+            <button type="submit" class="btn-filtrar">
+                Filtrar
+            </button>
             {% if query %}
-                <a href="{% url 'home:categorias' %}" class="btn-limpiar">✕ Limpiar</a>
+                <a href="{% url 'home:categorias' %}" class="btn-limpiar">
+                    ✕ Limpiar
+                </a>
             {% endif %}
         </form>
         <button class="btn-nueva-categoria" style="margin-left:auto">

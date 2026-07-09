@@ -103,9 +103,9 @@
 
         <div class="paq-modal-body">
 
-            <!-- Paso 1: Categoría -->
+            <!-- Categoría (bloqueada si el paquete ya tiene productos) -->
             <div class="paq-campo">
-                <label>Categoría del producto</label>
+                <label id="label-categoria">Categoría del producto</label>
                 <select id="prod-select-categoria">
                     <option value="">— Seleccionar categoría —</option>
                     {% for cat in categorias %}
@@ -116,12 +116,17 @@
                     </option>
                     {% endfor %}
                 </select>
+                <!-- Aviso de categoría bloqueada -->
+                <div id="aviso-cat-bloqueada" class="prod-aviso prod-aviso--ok" style="display:none">
+                    <i data-lucide="lock" style="width:15px;height:15px;vertical-align:middle;margin-right:6px;"></i>
+                    Este paquete ya tiene productos de la categoría <strong id="nombre-cat-bloqueada"></strong>. Solo puedes agregar productos de esa categoría.
+                </div>
             </div>
 
             <!-- Aviso de permiso -->
             <div id="prod-aviso-permiso" class="prod-aviso" style="display:none"></div>
 
-            <!-- Paso 2: Producto de esa categoría (se habilita si tiene permiso) -->
+            <!-- Selector de producto de la categoría -->
             <div class="paq-campo" id="campo-select-producto" style="display:none">
                 <label>Producto</label>
                 <select id="prod-select-producto" disabled>
@@ -129,23 +134,28 @@
                 </select>
             </div>
 
-            <!-- Paso 3: Datos del producto (se llenan solos, editables) -->
+            <!-- Datos del producto (solo lectura, vienen del catálogo) -->
             <div id="prod-campos-detalle" style="display:none">
                 <div class="paq-campo">
                     <label>Descripción</label>
                     <textarea id="prod-descripcion" name="descripcion" rows="2"
-                              placeholder="Descripción del producto..."></textarea>
+                              placeholder="Descripción del producto..." readonly></textarea>
                 </div>
                 <div class="paq-campos-row">
                     <div class="paq-campo">
                         <label>Peso (Kg)</label>
                         <input type="number" id="prod-peso" name="peso"
-                               step="0.01" min="0" placeholder="0.00" required>
+                               step="0.01" min="0" placeholder="0.00" required readonly>
                     </div>
                     <div class="paq-campo">
                         <label>Valor unitario ($)</label>
                         <input type="number" id="prod-valor" name="valor_unitario"
-                               step="0.01" min="0" placeholder="0.00" required>
+                               step="0.01" min="0" placeholder="0.00" required readonly>
+                    </div>
+                    <div class="paq-campo">
+                        <label>Cantidad</label>
+                        <input type="number" id="prod-cantidad" name="cantidad"
+                               min="1" value="1" placeholder="1" required>
                     </div>
                 </div>
             </div>
@@ -228,6 +238,12 @@
                     {% endif %}
                 </span>
             </div>
+            {% if categoria_bloqueada %}
+            <div class="detalle-row">
+                <span class="detalle-label">Categoría</span>
+                <span>{{ categoria_bloqueada.nombre }}</span>
+            </div>
+            {% endif %}
         </div>
 
         <!-- Productos -->
@@ -241,7 +257,7 @@
                             <th>Nombre</th>
                             <th>Descripción</th>
                             <th>Peso</th>
-                            <th>Valor unitario</th>
+                            <th>Cantidad</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -250,15 +266,15 @@
                             <td style="font-weight:500; color:#111827;">{{ prod.nombre }}</td>
                             <td style="color:#6B7280;">{{ prod.descripcion|default:'—' }}</td>
                             <td>{{ prod.peso }} Kg</td>
-                            <td>${{ prod.valor_unitario }}</td>
+                            <td>{{ prod.cantidad }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
 
                 <div class="paq-subtotal">
-                    <span>Subtotal estimado</span>
-                    <span class="paq-subtotal-valor">${{ paquete.subtotal|floatformat:2 }}</span>
+                    <span>Total de registros</span>
+                    <span class="paq-subtotal-valor">{{ paquete.productos|length }}</span>
                 </div>
 
             {% else %}
@@ -279,10 +295,12 @@
 <script>
     lucide.createIcons();
 
-    const CSRF           = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
-    const URL_PRODUCTOS  = "{% url 'home:paquete_detalle' paquete.codigo %}";
-    /* Tipos de permiso vigentes del cliente (inyectados desde Django) */
+    const CSRF            = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+    const URL_PRODUCTOS   = "{% url 'home:paquete_detalle' paquete.codigo %}";
     const PERMISOS_CLIENTE = new Set({{ permisos_cliente|safe }});
+
+    /* Categoría bloqueada para este paquete (null si aún no tiene productos) */
+    const CAT_BLOQUEADA = {{ categoria_bloqueada|default:'null'|safe }};
 
     /* ── Modal logout ────────────────────────────────────────────────── */
     function mostrarModalLogout() { document.getElementById('modalLogout').classList.add('activo'); }
@@ -290,12 +308,32 @@
 
     /* ── Modal agregar producto ──────────────────────────────────────── */
     function abrirModalProducto() {
-        /* Resetear todo al abrir */
-        document.getElementById('prod-select-categoria').value = '';
-        document.getElementById('prod-aviso-permiso').style.display = 'none';
+        const selCat = document.getElementById('prod-select-categoria');
+
+        /* Resetear secciones inferiores */
+        document.getElementById('prod-aviso-permiso').style.display  = 'none';
         document.getElementById('campo-select-producto').style.display = 'none';
-        document.getElementById('prod-campos-detalle').style.display = 'none';
-        document.getElementById('btn-guardar-producto').disabled = true;
+        document.getElementById('prod-campos-detalle').style.display  = 'none';
+        document.getElementById('btn-guardar-producto').disabled       = true;
+        document.getElementById('prod-cantidad').value                 = 1;
+
+        if (CAT_BLOQUEADA) {
+            /* Paquete ya tiene productos: bloquear categoría */
+            selCat.value    = CAT_BLOQUEADA.numero;
+            selCat.disabled = true;
+
+            document.getElementById('aviso-cat-bloqueada').style.display = 'block';
+            document.getElementById('nombre-cat-bloqueada').textContent  = CAT_BLOQUEADA.nombre;
+
+            /* Disparar el evento change para cargar productos automáticamente */
+            selCat.dispatchEvent(new Event('change'));
+        } else {
+            /* Paquete vacío: categoría libre */
+            selCat.value    = '';
+            selCat.disabled = false;
+            document.getElementById('aviso-cat-bloqueada').style.display = 'none';
+        }
+
         document.getElementById('modalProducto').classList.add('activo');
         lucide.createIcons();
     }
@@ -306,18 +344,17 @@
 
     /* ── Paso 1: cambio de categoría ────────────────────────────────── */
     document.getElementById('prod-select-categoria').addEventListener('change', async function () {
-        const opt          = this.options[this.selectedIndex];
-        const categoriaId  = this.value;
-        const permisoReq   = opt.dataset.permiso;   /* '' si la categoría es libre */
-        const nombreCat    = opt.dataset.nombre || '';
-        const aviso        = document.getElementById('prod-aviso-permiso');
-        const campoSel     = document.getElementById('campo-select-producto');
-        const detalle      = document.getElementById('prod-campos-detalle');
-        const btnGuardar   = document.getElementById('btn-guardar-producto');
-        const selProd      = document.getElementById('prod-select-producto');
+        const opt         = this.options[this.selectedIndex];
+        const categoriaId = this.value;
+        const permisoReq  = opt.dataset.permiso || '';
+        const nombreCat   = opt.dataset.nombre   || '';
+        const aviso       = document.getElementById('prod-aviso-permiso');
+        const campoSel    = document.getElementById('campo-select-producto');
+        const detalle     = document.getElementById('prod-campos-detalle');
+        const btnGuardar  = document.getElementById('btn-guardar-producto');
+        const selProd     = document.getElementById('prod-select-producto');
 
-        /* Ocultar secciones inferiores al cambiar */
-        aviso.style.display   = 'none';
+        aviso.style.display    = 'none';
         campoSel.style.display = 'none';
         detalle.style.display  = 'none';
         btnGuardar.disabled    = true;
@@ -326,30 +363,29 @@
 
         /* ── Verificar permiso ── */
         if (permisoReq && !PERMISOS_CLIENTE.has(permisoReq)) {
-            aviso.className      = 'prod-aviso prod-aviso--error';
-            aviso.innerHTML      = `<i data-lucide="shield-x" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i>
-                El cliente <strong>no cuenta con el permiso ${permisoReq}</strong> requerido para registrar productos de la categoría <strong>${nombreCat}</strong>.
-                No es posible continuar con esta categoría.`;
-            aviso.style.display  = 'block';
+            aviso.className     = 'prod-aviso prod-aviso--error';
+            aviso.innerHTML     = `<i data-lucide="shield-x" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i>
+                El cliente <strong>no cuenta con el permiso "${permisoReq}"</strong> requerido para la categoría <strong>${nombreCat}</strong>.`;
+            aviso.style.display = 'block';
             lucide.createIcons();
             return;
         }
 
-        if (permisoReq && PERMISOS_CLIENTE.has(permisoReq)) {
+        if (permisoReq) {
             aviso.className     = 'prod-aviso prod-aviso--ok';
             aviso.innerHTML     = `<i data-lucide="shield-check" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i>
-                El cliente cuenta con el permiso <strong>${permisoReq}</strong>. Puede registrar productos de <strong>${nombreCat}</strong>.`;
+                El cliente cuenta con el permiso <strong>${permisoReq}</strong>.`;
             aviso.style.display = 'block';
             lucide.createIcons();
         }
 
-        /* ── Cargar productos de la categoría ── */
-        campoSel.style.display  = 'block';
-        selProd.disabled         = true;
-        selProd.innerHTML        = '<option value="">Cargando...</option>';
+        /* ── Cargar productos del catálogo para esta categoría ── */
+        campoSel.style.display = 'block';
+        selProd.disabled       = true;
+        selProd.innerHTML      = '<option value="">Cargando...</option>';
 
         try {
-            const resp = await fetch(`{% url 'home:api_categoria_productos' 0 %}`.replace('/0/', `/${categoriaId}/`));
+            const resp     = await fetch(`{% url 'home:api_categoria_productos' 0 %}`.replace('/0/', `/${categoriaId}/`));
             const productos = await resp.json();
 
             selProd.innerHTML = '<option value="">— Seleccionar producto —</option>';
@@ -357,13 +393,13 @@
                 selProd.innerHTML = '<option value="">Sin productos registrados en esta categoría</option>';
             } else {
                 productos.forEach(p => {
-                    const opt = document.createElement('option');
-                    opt.value              = p.codigo;
-                    opt.textContent        = p.nombre;
-                    opt.dataset.descripcion = p.descripcion || '';
-                    opt.dataset.peso        = p.peso;
-                    opt.dataset.valor       = p.valor_unitario;
-                    selProd.appendChild(opt);
+                    const o = document.createElement('option');
+                    o.value               = p.codigo;
+                    o.textContent         = p.nombre;
+                    o.dataset.descripcion = p.descripcion || '';
+                    o.dataset.peso        = p.peso;
+                    o.dataset.valor       = p.valor_unitario;
+                    selProd.appendChild(o);
                 });
                 selProd.disabled = false;
             }
@@ -372,15 +408,15 @@
         }
     });
 
-    /* ── Paso 2: cambio de producto → llenar campos ─────────────────── */
+    /* ── Paso 2: cambio de producto → llenar campos (solo lectura) ─── */
     document.getElementById('prod-select-producto').addEventListener('change', function () {
-        const opt      = this.options[this.selectedIndex];
-        const detalle  = document.getElementById('prod-campos-detalle');
-        const btnGuard = document.getElementById('btn-guardar-producto');
+        const opt     = this.options[this.selectedIndex];
+        const detalle = document.getElementById('prod-campos-detalle');
+        const btn     = document.getElementById('btn-guardar-producto');
 
         if (!this.value) {
             detalle.style.display = 'none';
-            btnGuard.disabled = true;
+            btn.disabled          = true;
             return;
         }
 
@@ -389,31 +425,40 @@
         document.getElementById('prod-valor').value       = opt.dataset.valor;
 
         detalle.style.display = 'block';
-        btnGuard.disabled = false;
+        btn.disabled          = false;
         lucide.createIcons();
     });
 
     /* ── Guardar producto ────────────────────────────────────────────── */
     async function guardarProducto() {
+        const selCat  = document.getElementById('prod-select-categoria');
         const selProd = document.getElementById('prod-select-producto');
         const nombre  = selProd.options[selProd.selectedIndex]?.textContent?.trim() || '';
         const desc    = document.getElementById('prod-descripcion').value.trim();
         const peso    = document.getElementById('prod-peso').value.trim();
         const valor   = document.getElementById('prod-valor').value.trim();
+        const cantidad = parseInt(document.getElementById('prod-cantidad').value, 10) || 1;
 
         if (!nombre || !peso || !valor) {
-            alert('Completa todos los campos obligatorios.');
+            alert('Selecciona un producto válido antes de guardar.');
+            return;
+        }
+        if (cantidad < 1) {
+            alert('La cantidad debe ser al menos 1.');
             return;
         }
 
-        document.getElementById('prod-progreso').style.display = 'block';
-        document.getElementById('prod-progreso-texto').textContent = 'Guardando...';
+        document.getElementById('prod-progreso').style.display      = 'block';
+        document.getElementById('prod-progreso-texto').textContent   = 'Guardando...';
+        document.getElementById('btn-guardar-producto').disabled     = true;
 
         const form = new FormData();
         form.append('nombre',              nombre);
         form.append('descripcion',         desc);
         form.append('peso',                peso);
         form.append('valor_unitario',      valor);
+        form.append('cantidad',            cantidad);
+        form.append('categoria',           selCat.value);
         form.append('csrfmiddlewaretoken', CSRF);
 
         try {
@@ -422,11 +467,13 @@
                 window.location.reload();
             } else {
                 alert('Error al guardar el producto. Intenta de nuevo.');
-                document.getElementById('prod-progreso').style.display = 'none';
+                document.getElementById('prod-progreso').style.display    = 'none';
+                document.getElementById('btn-guardar-producto').disabled  = false;
             }
         } catch {
             alert('Error de red al guardar el producto.');
-            document.getElementById('prod-progreso').style.display = 'none';
+            document.getElementById('prod-progreso').style.display    = 'none';
+            document.getElementById('btn-guardar-producto').disabled  = false;
         }
     }
 </script>

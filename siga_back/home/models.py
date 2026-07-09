@@ -373,11 +373,27 @@ class Incidencia(models.Model):
 # ──────────────────────────────────────────────────────────────────
 # Modelo OPERACION_ADUANERA
 # ──────────────────────────────────────────────────────────────────
+class EstadoOpeAduanera(models.Model):
+    codigo      = models.AutoField(primary_key=True, db_column='codigo')
+    descripcion = models.CharField(max_length=100, db_column='descripcion')
+
+    class Meta:
+        managed  = False
+        db_table = 'estado_opeaduanera'
+
+    def __str__(self):
+        return self.descripcion
+
+
 class OperacionAduanera(models.Model):
-    ID_operacion = models.AutoField(primary_key=True, db_column='ID_operacion')
-    fecha_inicio = models.DateField(db_column='fecha_inicio')
-    fecha_final = models.DateField(blank=True, null=True, db_column='fecha_final')
-    tipo_operacion = models.CharField(max_length=20, db_column='tipo_operacion')
+    ID_operacion        = models.AutoField(primary_key=True, db_column='ID_operacion')
+    fecha_inicio        = models.DateField(db_column='fecha_inicio')
+    fecha_final         = models.DateField(blank=True, null=True, db_column='fecha_final')
+    tipo_operacion      = models.CharField(max_length=20, db_column='tipo_operacion')
+    estado_ope_aduanera = models.ForeignKey(
+        EstadoOpeAduanera, on_delete=models.PROTECT,
+        db_column='estado_ope_aduanera', related_name='operaciones'
+    )
     cliente = models.ForeignKey(
         Cliente, on_delete=models.CASCADE,
         db_column='cliente', related_name='operaciones'
@@ -705,6 +721,7 @@ class Producto(models.Model):
     descripcion = models.CharField(max_length=200, blank=True, null=True, db_column='descripcion')
     peso = models.DecimalField(max_digits=10, decimal_places=2, db_column='peso')
     valor_unitario = models.DecimalField(max_digits=12, decimal_places=2, db_column='valor_unitario')
+    cantidad = models.IntegerField(default=1, db_column='cantidad')
     paquete = models.ForeignKey(
         Paquete, on_delete=models.CASCADE,
         db_column='paquete', related_name='productos'

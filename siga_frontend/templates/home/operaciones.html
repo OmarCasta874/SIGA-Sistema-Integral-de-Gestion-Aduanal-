@@ -117,12 +117,16 @@
         </div>
     </div>
 
-    <div class="toolbar-operaciones">
-        <input type="text" class="input-buscar-op" placeholder="Buscar operación...">
-        <button class="btn-filtrar-op">Filtrar</button>
-    </div>
+    <form method="get" action="" class="toolbar-operaciones">
+        <input type="text" name="q" value="{{ query }}"
+               class="input-buscar-op" placeholder="Buscar operación...">
+        <button type="submit" class="btn-filtrar-op">Filtrar</button>
+        {% if query %}
+        <a href="?" style="font-size:13px;color:#6b7280;margin-left:8px;">Limpiar</a>
+        {% endif %}
+    </form>
     <section class="tabla-operaciones">
-        <h3> Operaciones Recientes </h3>
+        <h3>Operaciones Recientes</h3>
         <table>
             <thead>
                 <tr>
@@ -130,6 +134,7 @@
                     <th>Cliente asociado</th>
                     <th>Aduana</th>
                     <th>Fecha de apertura</th>
+                    <th>Paso</th>
                     <th>Acciones</th>
                 </tr>
             </thead>
@@ -137,33 +142,52 @@
             {% for operacion in operaciones %}
             <tr>
                 <td>{{ operacion.op.tipo_operacion }}</td>
-
-            <td>
-                {{ operacion.op.cliente.nombre }}
-                {{ operacion.op.cliente.primer_apell|default:'' }}
-            </td>
-
-            <td>{{ operacion.op.aduana}}</td>
-
-            <td>{{ operacion.op.fecha_inicio|date:"d/m/Y" }}</td>
-
-            <td>
-                <a href="{% url 'home:operacion_detalle' operacion.op.pk %}">
-                    <button class="btn-ver">Ver</button>
-                </a>
-
-                <button class="btn-editar">Editar</button>
-            </td>
-        </tr>
-        {% empty %}
-        <tr>
-            <td colspan="5" style="text-align:center;">
-                No hay operaciones registradas.
-            </td>
-        </tr>
-        {% endfor %}
-        </tbody>
+                <td>
+                    {{ operacion.op.cliente.nombre }}
+                    {{ operacion.op.cliente.primer_apell|default:'' }}
+                </td>
+                <td>{{ operacion.op.aduana }}</td>
+                <td>{{ operacion.op.fecha_inicio|date:"d/m/Y" }}</td>
+                <td>
+                    {% if operacion.paso == 1 %}
+                        <span style="color:#d97706;font-weight:600;">Pedimento pendiente</span>
+                    {% elif operacion.paso == 2 %}
+                        <span style="color:#2563eb;font-weight:600;">Pendiente de pago</span>
+                    {% else %}
+                        <span style="color:#16a34a;font-weight:600;">Completada</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{% url 'home:operacion_detalle' operacion.op.pk %}">
+                        <button class="btn-ver">Ver</button>
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align:center;padding:20px;color:#6b7280;">
+                    No hay operaciones registradas.
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
         </table>
+
+        {% if operaciones.has_other_pages %}
+        <div class="paginacion" style="display:flex;gap:6px;justify-content:center;padding:16px 0;">
+            {% if operaciones.has_previous %}
+            <a href="?pagina={{ operaciones.previous_page_number }}{% if query %}&q={{ query }}{% endif %}"
+               class="btn-pag">&laquo; Anterior</a>
+            {% endif %}
+            <span style="padding:6px 12px;font-size:13px;color:#6b7280;">
+                Página {{ operaciones.number }} de {{ operaciones.paginator.num_pages }}
+            </span>
+            {% if operaciones.has_next %}
+            <a href="?pagina={{ operaciones.next_page_number }}{% if query %}&q={{ query }}{% endif %}"
+               class="btn-pag">Siguiente &raquo;</a>
+            {% endif %}
+        </div>
+        {% endif %}
     </section>
 </main>
 <!-- ── Modal Nueva Operación: 3 pasos ── -->
@@ -227,17 +251,17 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label>Aduana</label>
-                        <input type="text" id="op-aduana-texto" class="form-input"
-                               value="{{ request.user.nombre_pila }} — Aduana de Tijuana"
-                               readonly>
-                        <input type="hidden" id="op-aduana" value="400">
-                        
+                        <select id="op-aduana" class="form-input" required>
+                            <option value="">— Seleccionar aduana —</option>
+                            {% for aduana in aduanas %}
+                            <option value="{{ aduana.codigo }}">{{ aduana.nombre }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
                     <div class="form-group">
                         <label>Fecha de apertura</label>
                         <input type="text" id="op-fecha" class="form-input"
                                value="{{ hoy|date:'d/m/Y' }}" readonly>
-                        
                     </div>
                 </div>
             </div>
@@ -467,6 +491,10 @@
             alert('Selecciona un cliente.');
             return;
         }
+        if (!aduana) {
+            alert('Selecciona una aduana.');
+            return;
+        }
 
         tipoOperacionActual = tipo;
         const nombreCliente = cliente.options[cliente.selectedIndex].text;
@@ -519,7 +547,8 @@
         const cliente = document.getElementById('op-cliente');
         document.getElementById('resumen-tipo').textContent    = tipoOperacionActual;
         document.getElementById('resumen-cliente').textContent = cliente.options[cliente.selectedIndex].text;
-        document.getElementById('resumen-aduana').textContent  = document.getElementById('op-aduana-texto').value;
+        const selAduana = document.getElementById('op-aduana');
+        document.getElementById('resumen-aduana').textContent  = selAduana.options[selAduana.selectedIndex]?.text || '';
         document.getElementById('resumen-fecha').textContent   = document.getElementById('op-fecha').value;
 
         document.getElementById('paso-3').style.display = '';
