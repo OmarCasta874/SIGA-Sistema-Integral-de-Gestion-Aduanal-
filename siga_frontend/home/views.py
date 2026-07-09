@@ -614,7 +614,31 @@ def perfilusuario_view(request):
 
 @login_required
 def semaforofiscal_view(request):
-    return render(request, 'home/semaforo_fiscal.html')
+    try:
+        response = api.get(request, "/semaforos/")
+        response.raise_for_status()
+        semaforos = response.json()
+        
+        for semaforo in semaforos: 
+            resultado = semaforo["resultado"].lower()
+            
+            if resultado.startswith("verde"):
+                semaforo["clase_css"] = "pill-aprobada"
+            elif resultado.startswith("amarillo"):
+                semaforo["clase_css"] = "pill-revision"
+            elif resultado.startswith("rojo"):
+                semaforo["clase_css"] = "pill-restringida"
+            else:
+                semaforo["clase_css"] = ""
+    except Exception as e:
+        print(f"Error al obtener semáforos: {e}")
+        semaforos = []
+        
+    context = {
+        "semaforos": semaforos,
+        "total_semaforos": len(semaforos),
+    }
+    return render(request, 'home/semaforo_fiscal.html', context)
 
 @login_required
 def sanciones_view(request):
