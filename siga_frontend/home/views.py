@@ -772,13 +772,10 @@ def paquete_detalle_view(request, pk):
         except Exception:
             pass
 
-    categoria_bloqueada = paquete.get('categoria_bloqueada')
-
     return render(request, 'home/paquete_detalle.html', {
-        'paquete':            paquete,
-        'categorias':         categorias,
-        'permisos_cliente':   list(permisos_cliente),
-        'categoria_bloqueada': categoria_bloqueada,
+        'paquete':          paquete,
+        'categorias':       categorias,
+        'permisos_cliente': list(permisos_cliente),
     })
 
 

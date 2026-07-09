@@ -245,6 +245,19 @@ CREATE TABLE pedimento (
     CONSTRAINT fk_ped_tipo_imp  FOREIGN KEY (tipo_importacion) REFERENCES tipo_importaciones(tipo_importacion)
 ) ENGINE=InnoDB;
 
+CREATE TABLE categoria_productos (
+    numero                 INT          NOT NULL AUTO_INCREMENT,
+    nombre                 VARCHAR(50)  NOT NULL,
+    descripcion            VARCHAR(200) NULL,
+    IGI                    DECIMAL(5,2) NOT NULL DEFAULT 0
+        COMMENT 'Tasa del Impuesto General de Importación aplicable a esta categoría.',
+    tipo_arancel           INT          NOT NULL,
+    tipo_permiso_requerido VARCHAR(50)  NULL DEFAULT NULL
+        COMMENT 'Tipo de permiso requerido para comercializar esta categoría. NULL = categoría libre.',
+    PRIMARY KEY (numero),
+    CONSTRAINT fk_categoria_tipo_arancel FOREIGN KEY (tipo_arancel) REFERENCES tipo_arancel(numero)
+) ENGINE=InnoDB;
+
 CREATE TABLE arancel (
     numero       INT           NOT NULL AUTO_INCREMENT,
     subtotal     DECIMAL(12,2) NOT NULL,
@@ -253,20 +266,11 @@ CREATE TABLE arancel (
     tasa_interes DECIMAL(5,2)  NOT NULL,
     Tipo_Arancel INT           NOT NULL,
     pedimento    VARCHAR(30)   NOT NULL,
+    categoria    INT           NOT NULL,
     PRIMARY KEY (numero),
-    CONSTRAINT fk_arancel_tipo     FOREIGN KEY (Tipo_Arancel) REFERENCES tipo_arancel(numero),
-    CONSTRAINT fk_arancel_pedimento FOREIGN KEY (pedimento)   REFERENCES pedimento(numero_pedimento)
-) ENGINE=InnoDB;
-
-CREATE TABLE categoria_productos (
-    numero                   INT          NOT NULL AUTO_INCREMENT,
-    nombre                   VARCHAR(50)  NOT NULL,
-    descripcion              VARCHAR(200) NULL,
-    arancel                  INT          NOT NULL,
-    tipo_permiso_requerido   VARCHAR(50)  NULL DEFAULT NULL
-        COMMENT 'Tipo de permiso requerido para comercializar esta categoría. NULL = categoría libre.',
-    PRIMARY KEY (numero),
-    CONSTRAINT fk_categoria_arancel FOREIGN KEY (arancel) REFERENCES arancel(numero)
+    CONSTRAINT fk_arancel_tipo      FOREIGN KEY (Tipo_Arancel) REFERENCES tipo_arancel(numero),
+    CONSTRAINT fk_arancel_pedimento FOREIGN KEY (pedimento)    REFERENCES pedimento(numero_pedimento),
+    CONSTRAINT fk_arancel_categoria FOREIGN KEY (categoria)    REFERENCES categoria_productos(numero)
 ) ENGINE=InnoDB;
 
 CREATE TABLE paquete (
@@ -672,50 +676,52 @@ INSERT INTO pedimento (numero_pedimento, clave_pedimento, fecha_registro, valor_
 INSERT INTO pedimento (numero_pedimento, clave_pedimento, fecha_registro, valor_total, semaforo, regimen_adu, permiso, ope_aduanera, tipo_exportacion, tipo_importacion) VALUES ('24 09 3991 4 000009', 'V1', '2024-02-05', 55000, 9, 2, 'PERM-SE-2024-003', 9, 1, NULL);
 INSERT INTO pedimento (numero_pedimento, clave_pedimento, fecha_registro, valor_total, semaforo, regimen_adu, permiso, ope_aduanera, tipo_exportacion, tipo_importacion) VALUES ('24 10 3991 4 000010', 'A1', '2024-02-08', 740000, 10, 1, 'PERM-SADER-2024-002', 10, NULL, 7);
 
--- arancel
-INSERT INTO arancel (numero, subtotal, descripcion, IGI, tasa_interes, Tipo_Arancel, pedimento) VALUES (1, 18750, 'Arancel Ad Valorem aplicado a electrodomésticos importados.', 15, 0, 1, '24 01 3991 4 000001');
-INSERT INTO arancel (numero, subtotal, descripcion, IGI, tasa_interes, Tipo_Arancel, pedimento) VALUES (2, 13125.08, 'Arancel mixto para textiles con cuota compensatoria.', 10, 2.5, 3, '24 02 3991 4 000002');
-INSERT INTO arancel (numero, subtotal, descripcion, IGI, tasa_interes, Tipo_Arancel, pedimento) VALUES (3, 34000, 'Arancel preferencial TLC para insumos de manufactura.', 5, 0, 7, '24 03 3991 4 000003');
-INSERT INTO arancel (numero, subtotal, descripcion, IGI, tasa_interes, Tipo_Arancel, pedimento) VALUES (4, 21000.75, 'Arancel Ad Valorem para calzado importado.', 25, 0, 1, '24 04 3991 4 000004');
-INSERT INTO arancel (numero, subtotal, descripcion, IGI, tasa_interes, Tipo_Arancel, pedimento) VALUES (5, 9500, 'Arancel cero para maquinaria sin similar nacional.', 0, 0, 8, '24 05 3991 4 000005');
-INSERT INTO arancel (numero, subtotal, descripcion, IGI, tasa_interes, Tipo_Arancel, pedimento) VALUES (6, 46000, 'Arancel IMMEX para componentes electrónicos.', 3, 0, 4, '24 06 3991 4 000006');
-INSERT INTO arancel (numero, subtotal, descripcion, IGI, tasa_interes, Tipo_Arancel, pedimento) VALUES (7, 17800.25, 'Arancel específico para bebidas alcohólicas importadas.', 20, 1.5, 2, '24 07 3991 4 000007');
-INSERT INTO arancel (numero, subtotal, descripcion, IGI, tasa_interes, Tipo_Arancel, pedimento) VALUES (8, 32000, 'Cuota compensatoria para acero importado de China.', 25, 0, 6, '24 08 3991 4 000008');
-INSERT INTO arancel (numero, subtotal, descripcion, IGI, tasa_interes, Tipo_Arancel, pedimento) VALUES (9, 5500, 'Arancel estacional para frutas de temporada.', 8, 0, 5, '24 09 3991 4 000009');
-INSERT INTO arancel (numero, subtotal, descripcion, IGI, tasa_interes, Tipo_Arancel, pedimento) VALUES (10, 74000, 'Arancel Ad Valorem para vehículos importados.', 20, 0, 1, '24 10 3991 4 000010');
-
 -- categoria_productos
+-- IGI: tasa del Impuesto General de Importación propia de cada categoría
+-- tipo_arancel: metodología arancelaria (1=Ad Valorem, 2=Específico, 3=Mixto, 4=Arancel-Cupo, 5=Estacional, 6=Cuota Compensatoria, 7=Preferencial TLC, 8=Arancel Cero)
 -- tipo_permiso_requerido: NULL = categoría libre, valor = tipo de permiso obligatorio (COFEPRIS, SADER, SEDENA, SE)
-INSERT INTO categoria_productos (numero, nombre, descripcion, arancel, tipo_permiso_requerido) VALUES (1,  'Electrodomésticos',      'Aparatos eléctricos de uso doméstico importados.',               1,  NULL);
-INSERT INTO categoria_productos (numero, nombre, descripcion, arancel, tipo_permiso_requerido) VALUES (2,  'Textiles',               'Telas, hilos y prendas de vestir para comercialización.',        2,  'SE');
-INSERT INTO categoria_productos (numero, nombre, descripcion, arancel, tipo_permiso_requerido) VALUES (3,  'Insumos Industriales',   'Materias primas para procesos de manufactura.',                  3,  NULL);
-INSERT INTO categoria_productos (numero, nombre, descripcion, arancel, tipo_permiso_requerido) VALUES (4,  'Calzado',                'Zapatos, botas y accesorios de calzado.',                        4,  NULL);
-INSERT INTO categoria_productos (numero, nombre, descripcion, arancel, tipo_permiso_requerido) VALUES (5,  'Maquinaria',             'Equipos industriales y herramientas de producción.',             5,  'SE');
-INSERT INTO categoria_productos (numero, nombre, descripcion, arancel, tipo_permiso_requerido) VALUES (6,  'Componentes Electrónicos','Circuitos, microprocesadores y partes electrónicas.',           6,  NULL);
-INSERT INTO categoria_productos (numero, nombre, descripcion, arancel, tipo_permiso_requerido) VALUES (7,  'Bebidas Alcohólicas',    'Vinos, licores y cervezas de importación.',                      7,  'COFEPRIS');
-INSERT INTO categoria_productos (numero, nombre, descripcion, arancel, tipo_permiso_requerido) VALUES (8,  'Acero y Metales',        'Láminas, varillas y productos siderúrgicos.',                    8,  'SE');
-INSERT INTO categoria_productos (numero, nombre, descripcion, arancel, tipo_permiso_requerido) VALUES (9,  'Productos Agropecuarios','Frutas, verduras y alimentos del campo.',                        9,  'SADER');
-INSERT INTO categoria_productos (numero, nombre, descripcion, arancel, tipo_permiso_requerido) VALUES (10, 'Vehículos',              'Automóviles, camiones y vehículos de carga.',                   10,  'SE');
-INSERT INTO categoria_productos (numero, nombre, descripcion, arancel, tipo_permiso_requerido) VALUES (11, 'Productos Farmacéuticos','Medicamentos, vacunas y productos de uso médico controlado.',    3,  'COFEPRIS');
-INSERT INTO categoria_productos (numero, nombre, descripcion, arancel, tipo_permiso_requerido) VALUES (12, 'Alimentos Procesados',   'Conservas, enlatados y alimentos con procesamiento industrial.', 1,  'COFEPRIS');
-INSERT INTO categoria_productos (numero, nombre, descripcion, arancel, tipo_permiso_requerido) VALUES (13, 'Químicos Industriales',  'Solventes, ácidos y compuestos químicos para uso industrial.',  6,  'SEDENA');
-INSERT INTO categoria_productos (numero, nombre, descripcion, arancel, tipo_permiso_requerido) VALUES (14, 'Material Eléctrico',     'Cables, transformadores y equipos de distribución eléctrica.',  5,  NULL);
-INSERT INTO categoria_productos (numero, nombre, descripcion, arancel, tipo_permiso_requerido) VALUES (15, 'Plásticos y Hules',      'Polímeros, resinas y materiales elastoméricos para manufactura.',3,  NULL);
-INSERT INTO categoria_productos (numero, nombre, descripcion, arancel, tipo_permiso_requerido) VALUES (16, 'Cosméticos y Perfumería',        'Productos de belleza, fragancias y cuidado personal.',                             1,  'COFEPRIS');
-INSERT INTO categoria_productos (numero, nombre, descripcion, arancel, tipo_permiso_requerido) VALUES (17, 'Suplementos Alimenticios',       'Vitaminas, proteínas y complementos nutricionales.',                               1,  'COFEPRIS');
-INSERT INTO categoria_productos (numero, nombre, descripcion, arancel, tipo_permiso_requerido) VALUES (18, 'Equipos Médicos',                'Dispositivos, instrumental y equipos para uso clínico.',                           6,  'COFEPRIS');
-INSERT INTO categoria_productos (numero, nombre, descripcion, arancel, tipo_permiso_requerido) VALUES (19, 'Material Bélico',                'Armamento, munición y equipo de uso exclusivo militar.',                           3,  'SEDENA');
-INSERT INTO categoria_productos (numero, nombre, descripcion, arancel, tipo_permiso_requerido) VALUES (20, 'Equipo Óptico y de Visión',      'Lentes, binoculares, miras y equipo óptico especializado.',                        6,  'SEDENA');
-INSERT INTO categoria_productos (numero, nombre, descripcion, arancel, tipo_permiso_requerido) VALUES (21, 'Animales Vivos',                 'Importación y exportación de animales con control zoosanitario.',                  9,  'SADER');
-INSERT INTO categoria_productos (numero, nombre, descripcion, arancel, tipo_permiso_requerido) VALUES (22, 'Semillas y Granos',              'Semillas agrícolas, cereales y granos con control fitosanitario.',                 9,  'SADER');
-INSERT INTO categoria_productos (numero, nombre, descripcion, arancel, tipo_permiso_requerido) VALUES (23, 'Juguetes y Artículos Infantiles','Juguetes, juegos didácticos y artículos de entretenimiento infantil.',             4,  'SE');
-INSERT INTO categoria_productos (numero, nombre, descripcion, arancel, tipo_permiso_requerido) VALUES (24, 'Textiles Técnicos',              'Telas de alto rendimiento para uso industrial, médico o militar.',                 2,  'SE');
-INSERT INTO categoria_productos (numero, nombre, descripcion, arancel, tipo_permiso_requerido) VALUES (25, 'Fertilizantes y Agroquímicos',   'Pesticidas, herbicidas y fertilizantes de uso agrícola controlado.',               6,  'SADER');
-INSERT INTO categoria_productos (numero, nombre, descripcion, arancel, tipo_permiso_requerido) VALUES (26, 'Combustibles y Lubricantes',     'Derivados del petróleo, aceites industriales y lubricantes.',                      8,  NULL);
-INSERT INTO categoria_productos (numero, nombre, descripcion, arancel, tipo_permiso_requerido) VALUES (27, 'Madera y Productos Forestales',  'Troncos, tablones y derivados de madera certificada.',                             9,  'SADER');
-INSERT INTO categoria_productos (numero, nombre, descripcion, arancel, tipo_permiso_requerido) VALUES (28, 'Papel y Cartón',                 'Rollos, hojas y empaques de papel para uso comercial e industrial.',               4,  NULL);
-INSERT INTO categoria_productos (numero, nombre, descripcion, arancel, tipo_permiso_requerido) VALUES (29, 'Instrumentos Musicales',         'Instrumentos de cuerda, viento, percusión y sus accesorios.',                      4,  NULL);
-INSERT INTO categoria_productos (numero, nombre, descripcion, arancel, tipo_permiso_requerido) VALUES (30, 'Artículos Deportivos',           'Equipos, ropa y accesorios para práctica deportiva.',                              4,  NULL);
+INSERT INTO categoria_productos (numero, nombre, descripcion, IGI, tipo_arancel, tipo_permiso_requerido) VALUES (1,  'Electrodomésticos',            'Aparatos eléctricos de uso doméstico importados.',                                15,   1, NULL);
+INSERT INTO categoria_productos (numero, nombre, descripcion, IGI, tipo_arancel, tipo_permiso_requerido) VALUES (2,  'Textiles',                     'Telas, hilos y prendas de vestir para comercialización.',                         10,   3, 'SE');
+INSERT INTO categoria_productos (numero, nombre, descripcion, IGI, tipo_arancel, tipo_permiso_requerido) VALUES (3,  'Insumos Industriales',         'Materias primas para procesos de manufactura.',                                    5,   7, NULL);
+INSERT INTO categoria_productos (numero, nombre, descripcion, IGI, tipo_arancel, tipo_permiso_requerido) VALUES (4,  'Calzado',                      'Zapatos, botas y accesorios de calzado.',                                         25,   1, NULL);
+INSERT INTO categoria_productos (numero, nombre, descripcion, IGI, tipo_arancel, tipo_permiso_requerido) VALUES (5,  'Maquinaria',                   'Equipos industriales y herramientas de producción.',                               0,   8, 'SE');
+INSERT INTO categoria_productos (numero, nombre, descripcion, IGI, tipo_arancel, tipo_permiso_requerido) VALUES (6,  'Componentes Electrónicos',     'Circuitos, microprocesadores y partes electrónicas.',                              3,   4, NULL);
+INSERT INTO categoria_productos (numero, nombre, descripcion, IGI, tipo_arancel, tipo_permiso_requerido) VALUES (7,  'Bebidas Alcohólicas',          'Vinos, licores y cervezas de importación.',                                       20,   2, 'COFEPRIS');
+INSERT INTO categoria_productos (numero, nombre, descripcion, IGI, tipo_arancel, tipo_permiso_requerido) VALUES (8,  'Acero y Metales',              'Láminas, varillas y productos siderúrgicos.',                                     25,   6, 'SE');
+INSERT INTO categoria_productos (numero, nombre, descripcion, IGI, tipo_arancel, tipo_permiso_requerido) VALUES (9,  'Productos Agropecuarios',      'Frutas, verduras y alimentos del campo.',                                          8,   5, 'SADER');
+INSERT INTO categoria_productos (numero, nombre, descripcion, IGI, tipo_arancel, tipo_permiso_requerido) VALUES (10, 'Vehículos',                    'Automóviles, camiones y vehículos de carga.',                                     20,   1, 'SE');
+INSERT INTO categoria_productos (numero, nombre, descripcion, IGI, tipo_arancel, tipo_permiso_requerido) VALUES (11, 'Productos Farmacéuticos',      'Medicamentos, vacunas y productos de uso médico controlado.',                      5,   7, 'COFEPRIS');
+INSERT INTO categoria_productos (numero, nombre, descripcion, IGI, tipo_arancel, tipo_permiso_requerido) VALUES (12, 'Alimentos Procesados',         'Conservas, enlatados y alimentos con procesamiento industrial.',                  15,   1, 'COFEPRIS');
+INSERT INTO categoria_productos (numero, nombre, descripcion, IGI, tipo_arancel, tipo_permiso_requerido) VALUES (13, 'Químicos Industriales',        'Solventes, ácidos y compuestos químicos para uso industrial.',                     3,   4, 'SEDENA');
+INSERT INTO categoria_productos (numero, nombre, descripcion, IGI, tipo_arancel, tipo_permiso_requerido) VALUES (14, 'Material Eléctrico',           'Cables, transformadores y equipos de distribución eléctrica.',                     0,   8, NULL);
+INSERT INTO categoria_productos (numero, nombre, descripcion, IGI, tipo_arancel, tipo_permiso_requerido) VALUES (15, 'Plásticos y Hules',            'Polímeros, resinas y materiales elastoméricos para manufactura.',                  5,   7, NULL);
+INSERT INTO categoria_productos (numero, nombre, descripcion, IGI, tipo_arancel, tipo_permiso_requerido) VALUES (16, 'Cosméticos y Perfumería',      'Productos de belleza, fragancias y cuidado personal.',                            15,   1, 'COFEPRIS');
+INSERT INTO categoria_productos (numero, nombre, descripcion, IGI, tipo_arancel, tipo_permiso_requerido) VALUES (17, 'Suplementos Alimenticios',     'Vitaminas, proteínas y complementos nutricionales.',                              15,   1, 'COFEPRIS');
+INSERT INTO categoria_productos (numero, nombre, descripcion, IGI, tipo_arancel, tipo_permiso_requerido) VALUES (18, 'Equipos Médicos',              'Dispositivos, instrumental y equipos para uso clínico.',                           3,   4, 'COFEPRIS');
+INSERT INTO categoria_productos (numero, nombre, descripcion, IGI, tipo_arancel, tipo_permiso_requerido) VALUES (19, 'Material Bélico',              'Armamento, munición y equipo de uso exclusivo militar.',                           5,   7, 'SEDENA');
+INSERT INTO categoria_productos (numero, nombre, descripcion, IGI, tipo_arancel, tipo_permiso_requerido) VALUES (20, 'Equipo Óptico y de Visión',    'Lentes, binoculares, miras y equipo óptico especializado.',                        3,   4, 'SEDENA');
+INSERT INTO categoria_productos (numero, nombre, descripcion, IGI, tipo_arancel, tipo_permiso_requerido) VALUES (21, 'Animales Vivos',               'Importación y exportación de animales con control zoosanitario.',                  8,   5, 'SADER');
+INSERT INTO categoria_productos (numero, nombre, descripcion, IGI, tipo_arancel, tipo_permiso_requerido) VALUES (22, 'Semillas y Granos',            'Semillas agrícolas, cereales y granos con control fitosanitario.',                 8,   5, 'SADER');
+INSERT INTO categoria_productos (numero, nombre, descripcion, IGI, tipo_arancel, tipo_permiso_requerido) VALUES (23, 'Juguetes y Artículos Infantiles','Juguetes, juegos didácticos y artículos de entretenimiento infantil.',           25,   1, 'SE');
+INSERT INTO categoria_productos (numero, nombre, descripcion, IGI, tipo_arancel, tipo_permiso_requerido) VALUES (24, 'Textiles Técnicos',            'Telas de alto rendimiento para uso industrial, médico o militar.',                10,   3, 'SE');
+INSERT INTO categoria_productos (numero, nombre, descripcion, IGI, tipo_arancel, tipo_permiso_requerido) VALUES (25, 'Fertilizantes y Agroquímicos', 'Pesticidas, herbicidas y fertilizantes de uso agrícola controlado.',               3,   4, 'SADER');
+INSERT INTO categoria_productos (numero, nombre, descripcion, IGI, tipo_arancel, tipo_permiso_requerido) VALUES (26, 'Combustibles y Lubricantes',   'Derivados del petróleo, aceites industriales y lubricantes.',                     25,   6, NULL);
+INSERT INTO categoria_productos (numero, nombre, descripcion, IGI, tipo_arancel, tipo_permiso_requerido) VALUES (27, 'Madera y Productos Forestales','Troncos, tablones y derivados de madera certificada.',                             8,   5, 'SADER');
+INSERT INTO categoria_productos (numero, nombre, descripcion, IGI, tipo_arancel, tipo_permiso_requerido) VALUES (28, 'Papel y Cartón',               'Rollos, hojas y empaques de papel para uso comercial e industrial.',              25,   1, NULL);
+INSERT INTO categoria_productos (numero, nombre, descripcion, IGI, tipo_arancel, tipo_permiso_requerido) VALUES (29, 'Instrumentos Musicales',       'Instrumentos de cuerda, viento, percusión y sus accesorios.',                     25,   1, NULL);
+INSERT INTO categoria_productos (numero, nombre, descripcion, IGI, tipo_arancel, tipo_permiso_requerido) VALUES (30, 'Artículos Deportivos',         'Equipos, ropa y accesorios para práctica deportiva.',                             25,   1, NULL);
+
+-- arancel (un registro por pedimento+categoría; IGI es fotografía de la tasa vigente al momento del despacho)
+INSERT INTO arancel (numero, subtotal, descripcion, IGI, tasa_interes, Tipo_Arancel, pedimento, categoria) VALUES (1,  18750,    'Arancel Ad Valorem aplicado a electrodomésticos importados.',    15,   0,   1, '24 01 3991 4 000001', 1);
+INSERT INTO arancel (numero, subtotal, descripcion, IGI, tasa_interes, Tipo_Arancel, pedimento, categoria) VALUES (2,  13125.08, 'Arancel mixto para textiles con cuota compensatoria.',           10,   2.5, 3, '24 02 3991 4 000002', 2);
+INSERT INTO arancel (numero, subtotal, descripcion, IGI, tasa_interes, Tipo_Arancel, pedimento, categoria) VALUES (3,  34000,    'Arancel preferencial TLC para insumos de manufactura.',           5,   0,   7, '24 03 3991 4 000003', 3);
+INSERT INTO arancel (numero, subtotal, descripcion, IGI, tasa_interes, Tipo_Arancel, pedimento, categoria) VALUES (4,  21000.75, 'Arancel Ad Valorem para calzado importado.',                    25,   0,   1, '24 04 3991 4 000004', 4);
+INSERT INTO arancel (numero, subtotal, descripcion, IGI, tasa_interes, Tipo_Arancel, pedimento, categoria) VALUES (5,  9500,     'Arancel cero para maquinaria sin similar nacional.',              0,   0,   8, '24 05 3991 4 000005', 5);
+INSERT INTO arancel (numero, subtotal, descripcion, IGI, tasa_interes, Tipo_Arancel, pedimento, categoria) VALUES (6,  46000,    'Arancel IMMEX para componentes electrónicos.',                    3,   0,   4, '24 06 3991 4 000006', 6);
+INSERT INTO arancel (numero, subtotal, descripcion, IGI, tasa_interes, Tipo_Arancel, pedimento, categoria) VALUES (7,  17800.25, 'Arancel específico para bebidas alcohólicas importadas.',        20,   1.5, 2, '24 07 3991 4 000007', 7);
+INSERT INTO arancel (numero, subtotal, descripcion, IGI, tasa_interes, Tipo_Arancel, pedimento, categoria) VALUES (8,  32000,    'Cuota compensatoria para acero importado de China.',             25,   0,   6, '24 08 3991 4 000008', 8);
+INSERT INTO arancel (numero, subtotal, descripcion, IGI, tasa_interes, Tipo_Arancel, pedimento, categoria) VALUES (9,  5500,     'Arancel estacional para frutas de temporada.',                    8,   0,   5, '24 09 3991 4 000009', 9);
+INSERT INTO arancel (numero, subtotal, descripcion, IGI, tasa_interes, Tipo_Arancel, pedimento, categoria) VALUES (10, 74000,    'Arancel Ad Valorem para vehículos importados.',                  20,   0,   1, '24 10 3991 4 000010', 10);
 
 -- paquete
 INSERT INTO paquete (codigo, peso, tipo_embalaje, dimensiones, cliente, pedimento) VALUES (1, 250.5, 'Contenedor marítimo 20''', '589x235x239 cm', 1, '24 01 3991 4 000001');

@@ -647,6 +647,10 @@ class Arancel(models.Model):
         Pedimento, on_delete=models.CASCADE,
         db_column='pedimento', related_name='aranceles'
     )
+    categoria = models.ForeignKey(
+        'CategoriaProductos', on_delete=models.PROTECT,
+        db_column='categoria', related_name='aranceles'
+    )
 
     class Meta:
         managed = False
@@ -693,9 +697,10 @@ class CategoriaProductos(models.Model):
     numero = models.AutoField(primary_key=True, db_column='numero')
     nombre = models.CharField(max_length=50, db_column='nombre')
     descripcion = models.CharField(max_length=200, blank=True, null=True, db_column='descripcion')
-    arancel = models.ForeignKey(
-        Arancel, on_delete=models.CASCADE,
-        db_column='arancel', related_name='categorias'
+    IGI = models.DecimalField(max_digits=5, decimal_places=2, default=0, db_column='IGI')
+    tipo_arancel = models.ForeignKey(
+        TipoArancel, on_delete=models.PROTECT,
+        db_column='tipo_arancel', related_name='categorias'
     )
     tipo_permiso_requerido = models.CharField(
         max_length=50, blank=True, null=True,

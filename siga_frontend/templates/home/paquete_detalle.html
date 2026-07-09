@@ -103,9 +103,9 @@
 
         <div class="paq-modal-body">
 
-            <!-- Categoría (bloqueada si el paquete ya tiene productos) -->
+            <!-- Categoría -->
             <div class="paq-campo">
-                <label id="label-categoria">Categoría del producto</label>
+                <label>Categoría del producto</label>
                 <select id="prod-select-categoria">
                     <option value="">— Seleccionar categoría —</option>
                     {% for cat in categorias %}
@@ -116,11 +116,6 @@
                     </option>
                     {% endfor %}
                 </select>
-                <!-- Aviso de categoría bloqueada -->
-                <div id="aviso-cat-bloqueada" class="prod-aviso prod-aviso--ok" style="display:none">
-                    <i data-lucide="lock" style="width:15px;height:15px;vertical-align:middle;margin-right:6px;"></i>
-                    Este paquete ya tiene productos de la categoría <strong id="nombre-cat-bloqueada"></strong>. Solo puedes agregar productos de esa categoría.
-                </div>
             </div>
 
             <!-- Aviso de permiso -->
@@ -238,12 +233,6 @@
                     {% endif %}
                 </span>
             </div>
-            {% if categoria_bloqueada %}
-            <div class="detalle-row">
-                <span class="detalle-label">Categoría</span>
-                <span>{{ categoria_bloqueada.nombre }}</span>
-            </div>
-            {% endif %}
         </div>
 
         <!-- Productos -->
@@ -295,12 +284,9 @@
 <script>
     lucide.createIcons();
 
-    const CSRF            = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
-    const URL_PRODUCTOS   = "{% url 'home:paquete_detalle' paquete.codigo %}";
+    const CSRF             = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+    const URL_PRODUCTOS    = "{% url 'home:paquete_detalle' paquete.codigo %}";
     const PERMISOS_CLIENTE = new Set({{ permisos_cliente|safe }});
-
-    /* Categoría bloqueada para este paquete (null si aún no tiene productos) */
-    const CAT_BLOQUEADA = {{ categoria_bloqueada|default:'null'|safe }};
 
     /* ── Modal logout ────────────────────────────────────────────────── */
     function mostrarModalLogout() { document.getElementById('modalLogout').classList.add('activo'); }
@@ -310,29 +296,13 @@
     function abrirModalProducto() {
         const selCat = document.getElementById('prod-select-categoria');
 
-        /* Resetear secciones inferiores */
-        document.getElementById('prod-aviso-permiso').style.display  = 'none';
+        selCat.value    = '';
+        selCat.disabled = false;
+        document.getElementById('prod-aviso-permiso').style.display   = 'none';
         document.getElementById('campo-select-producto').style.display = 'none';
-        document.getElementById('prod-campos-detalle').style.display  = 'none';
-        document.getElementById('btn-guardar-producto').disabled       = true;
-        document.getElementById('prod-cantidad').value                 = 1;
-
-        if (CAT_BLOQUEADA) {
-            /* Paquete ya tiene productos: bloquear categoría */
-            selCat.value    = CAT_BLOQUEADA.numero;
-            selCat.disabled = true;
-
-            document.getElementById('aviso-cat-bloqueada').style.display = 'block';
-            document.getElementById('nombre-cat-bloqueada').textContent  = CAT_BLOQUEADA.nombre;
-
-            /* Disparar el evento change para cargar productos automáticamente */
-            selCat.dispatchEvent(new Event('change'));
-        } else {
-            /* Paquete vacío: categoría libre */
-            selCat.value    = '';
-            selCat.disabled = false;
-            document.getElementById('aviso-cat-bloqueada').style.display = 'none';
-        }
+        document.getElementById('prod-campos-detalle').style.display   = 'none';
+        document.getElementById('btn-guardar-producto').disabled        = true;
+        document.getElementById('prod-cantidad').value                  = 1;
 
         document.getElementById('modalProducto').classList.add('activo');
         lucide.createIcons();
