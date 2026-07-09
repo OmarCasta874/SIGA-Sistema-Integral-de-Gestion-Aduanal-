@@ -726,11 +726,13 @@ def paquetes_view(request):
 def paquete_detalle_view(request, pk):
     if request.method == 'POST':
         resp = api.post(request, f'/paquetes/{pk}/productos/', {
-            'nombre':          request.POST.get('nombre', '').strip(),
-            'descripcion':     request.POST.get('descripcion', '').strip(),
-            'peso':            request.POST.get('peso', '').strip(),
-            'valor_unitario':  request.POST.get('valor_unitario', '').strip(),
-            'paquete':         pk,
+            'nombre':         request.POST.get('nombre', '').strip(),
+            'descripcion':    request.POST.get('descripcion', '').strip(),
+            'peso':           request.POST.get('peso', '').strip(),
+            'valor_unitario': request.POST.get('valor_unitario', '').strip(),
+            'cantidad':       request.POST.get('cantidad', 1),
+            'categoria':      request.POST.get('categoria', '').strip(),
+            'paquete':        pk,
         })
         if resp.status_code == 201:
             messages.success(request, 'Producto agregado correctamente.')

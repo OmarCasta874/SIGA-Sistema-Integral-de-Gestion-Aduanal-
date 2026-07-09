@@ -497,7 +497,7 @@ class PaqueteViewSet(viewsets.ModelViewSet):
                 try:
                     cat = CategoriaProductos.objects.get(pk=categoria_id)
                     CategoriasProductosRel.objects.create(categorias=cat, productos=producto)
-                except CategoriaProductos.DoesNotExist:
+                except Exception:
                     pass
             return Response(ser.data, status=status.HTTP_201_CREATED)
         return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
