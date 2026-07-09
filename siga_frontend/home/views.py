@@ -151,12 +151,13 @@ def clientes_view(request):
         messages.error(request, 'No fue posible obtener la lista de clientes.')
 
     if query:
-        q        = query.lower()
+        q = query.lower()
         clientes = [
             c for c in clientes
             if q in c.get('nombre', '').lower()
             or q in (c.get('primer_apell') or '').lower()
             or q in c.get('RFC', '').lower()
+            or q in f"{c.get('nombre', '')} {c.get('primer_apell') or ''}".lower()
         ]
 
     paginador          = Paginator(clientes, 5)
@@ -249,11 +250,17 @@ def operaciones_view(request):
     except Exception:
         tipos_importacion = tipos_exportacion = regimenes = []
 
+    try:
+        aduanas = api.safe_json(api.get(request, '/aduanas/'), [])
+    except Exception:
+        aduanas = []
+
     return render(request, 'home/operaciones.html', {
         'operaciones':       paginador.get_page(request.GET.get('pagina', 1)),
         'total_operaciones': len(ops_raw),
         'query':             query,
         'clientes':          clientes,
+        'aduanas':           aduanas,
         'tipos_importacion': tipos_importacion,
         'tipos_exportacion': tipos_exportacion,
         'regimenes':         regimenes,
@@ -618,8 +625,8 @@ def semaforofiscal_view(request):
         response = api.get(request, "/semaforos/")
         response.raise_for_status()
         semaforos = response.json()
-        
-        for semaforo in semaforos: 
+
+        for semaforo in semaforos:
             resultado = semaforo["resultado"].lower()
             
             if resultado.startswith("verde"):
@@ -638,6 +645,7 @@ def semaforofiscal_view(request):
         "semaforos": semaforos,
         "total_semaforos": len(semaforos),
     }
+
     return render(request, 'home/semaforo_fiscal.html', context)
 
 @login_required
@@ -721,11 +729,13 @@ def paquetes_view(request):
 def paquete_detalle_view(request, pk):
     if request.method == 'POST':
         resp = api.post(request, f'/paquetes/{pk}/productos/', {
-            'nombre':          request.POST.get('nombre', '').strip(),
-            'descripcion':     request.POST.get('descripcion', '').strip(),
-            'peso':            request.POST.get('peso', '').strip(),
-            'valor_unitario':  request.POST.get('valor_unitario', '').strip(),
-            'paquete':         pk,
+            'nombre':         request.POST.get('nombre', '').strip(),
+            'descripcion':    request.POST.get('descripcion', '').strip(),
+            'peso':           request.POST.get('peso', '').strip(),
+            'valor_unitario': request.POST.get('valor_unitario', '').strip(),
+            'cantidad':       request.POST.get('cantidad', 1),
+            'categoria':      request.POST.get('categoria', '').strip(),
+            'paquete':        pk,
         })
         if resp.status_code == 201:
             messages.success(request, 'Producto agregado correctamente.')
@@ -765,10 +775,13 @@ def paquete_detalle_view(request, pk):
         except Exception:
             pass
 
+    categoria_bloqueada = paquete.get('categoria_bloqueada')
+
     return render(request, 'home/paquete_detalle.html', {
-        'paquete':          paquete,
-        'categorias':       categorias,
-        'permisos_cliente': list(permisos_cliente),
+        'paquete':            paquete,
+        'categorias':         categorias,
+        'permisos_cliente':   list(permisos_cliente),
+        'categoria_bloqueada': categoria_bloqueada,
     })
 
 

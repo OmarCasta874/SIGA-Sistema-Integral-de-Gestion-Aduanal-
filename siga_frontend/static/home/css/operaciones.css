@@ -255,6 +255,23 @@ td {
     background: #FBE7AD;
 }
 
+.btn-pag {
+    display: inline-block;
+    padding: 6px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background: #fff;
+    color: #374151;
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: background 0.15s;
+}
+
+.btn-pag:hover {
+    background: #f3f4f6;
+}
+
 /* RESPONSIVIDAD */
 @media (max-width: 900px) {
     .content {
