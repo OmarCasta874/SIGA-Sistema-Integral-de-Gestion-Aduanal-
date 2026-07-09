@@ -628,6 +628,7 @@ def semaforofiscal_view(request):
 
         for semaforo in semaforos:
             resultado = semaforo["resultado"].lower()
+            
             if resultado.startswith("verde"):
                 semaforo["clase_css"] = "pill-aprobada"
             elif resultado.startswith("amarillo"):
@@ -639,11 +640,13 @@ def semaforofiscal_view(request):
     except Exception as e:
         print(f"Error al obtener semáforos: {e}")
         semaforos = []
+        
+    context = {
+        "semaforos": semaforos,
+        "total_semaforos": len(semaforos),
+    }
 
-    return render(request, 'home/semaforo_fiscal.html', {
-        "semaforos":        semaforos,
-        "total_semaforos":  len(semaforos),
-    })
+    return render(request, 'home/semaforo_fiscal.html', context)
 
 @login_required
 def sanciones_view(request):

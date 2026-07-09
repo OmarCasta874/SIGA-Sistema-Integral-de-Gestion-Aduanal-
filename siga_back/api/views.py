@@ -501,10 +501,10 @@ class PaqueteViewSet(viewsets.ModelViewSet):
                     pass
             return Response(ser.data, status=status.HTTP_201_CREATED)
         return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
+    
 class SemaforoFiscalViewSet(viewsets.ModelViewSet):
     queryset               = SemaforoFiscal.objects.all().order_by('ID')
     serializer_class       = SemaforoFiscalSerializer
     authentication_classes = [TokenAuthentication]
     permission_classes     = [IsAuthenticated]
+
