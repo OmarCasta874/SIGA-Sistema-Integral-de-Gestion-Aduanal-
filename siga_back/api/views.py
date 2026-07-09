@@ -17,7 +17,7 @@ from home.models import (
     Usuario, Cliente, Aduana, OperacionAduanera, Pedimento,
     Permiso, Bitacora, CategoriaProductos, CategoriasProductosRel,
     RegimenAduanero, SemaforoFiscal, TipoImportaciones, TipoExportaciones,
-    Paquete, Producto, EstadoPago, Pago, Factura, Sancion,
+    Paquete, Producto, Pago, Factura, Sancion,
     EstadoOpeAduanera,
 )
 from .serializers import (
@@ -37,14 +37,6 @@ from .serializers import (
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
-
-def _estado_operacion(op):
-    if not Pedimento.objects.filter(ope_aduanera=op).exists():
-        return 1
-    if not EstadoPago.objects.filter(pago__isnull=False).exists():
-        return 2
-    return 3
-
 
 def _generar_semaforo():
     resultado = random.choices(
