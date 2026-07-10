@@ -787,6 +787,18 @@ def paquete_detalle_view(request, pk):
 
 @login_required
 def inspecciones_view(request):
+    try:
+        response = api.get(request, "/inspecciones/")
+        inspecciones = response.json()
+    except Exception as e:
+        print(e)
+        inspecciones = []
+        
     return render(
         request,
-        'home/inspecciones.html')
+        'home/inspecciones.html',
+        {
+            "inspecciones": inspecciones,
+            "total_inspecciones": len(inspecciones)
+        }
+    )
