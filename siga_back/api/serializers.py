@@ -7,7 +7,6 @@ from home.models import (
     Permiso, Bitacora, CategoriaProductos,
     RegimenAduanero, SemaforoFiscal, TipoImportaciones, TipoExportaciones,
     Pago, Factura, Sancion, Paquete, Producto, EstadoPago, Inspeccion,
-
 )
 
 
@@ -137,10 +136,6 @@ class CategoriaProductosSerializer(serializers.ModelSerializer):
     class Meta:
         model = CategoriaProductos
         fields = ['numero', 'nombre', 'descripcion', 'IGI', 'tipo_arancel', 'tipo_arancel_nombre', 'tipo_permiso_requerido']
-    
-    class Meta:
-        model = CategoriaProductos
-        fields = ['numero', 'nombre', 'descripcion', 'arancel', 'tipo_permiso_requerido']
 
 class ProductoCategoriaSerializer(serializers.ModelSerializer):
     class Meta:
