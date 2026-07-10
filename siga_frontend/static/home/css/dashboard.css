@@ -938,3 +938,58 @@ body {
 .btn-limpiar:hover {
     background: #E5E7EB;
 }
+
+/* SIDEBAR COLAPSADO (modo mini) */
+
+.sidebar {
+    transition: width 0.25s ease;
+}
+
+.main {
+    transition: margin-left 0.25s ease, width 0.25s ease;
+}
+
+.nav-label {
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+body.sidebar-colapsado .sidebar {
+    width: 72px;
+}
+
+body.sidebar-colapsado .main {
+    margin-left: 72px;
+    width: calc(100% - 72px);
+}
+
+body.sidebar-colapsado .sidebar-logo {
+    justify-content: center;
+    padding: 16px 0;
+}
+
+body.sidebar-colapsado .sidebar-logo img {
+    display: none;
+}
+
+body.sidebar-colapsado .sidebar-toggle {
+    margin-left: 0;
+}
+
+body.sidebar-colapsado .nav-section-label {
+    display: none;
+}
+
+body.sidebar-colapsado .nav-item,
+body.sidebar-colapsado .btn-sidebar {
+    justify-content: center;
+    padding: 10px;
+}
+
+body.sidebar-colapsado .nav-label {
+    display: none;
+}
+
+body.sidebar-colapsado .nav-item .badge {
+    display: none;
+}

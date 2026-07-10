@@ -18,7 +18,7 @@ from home.models import (
     Permiso, Bitacora, CategoriaProductos, CategoriasProductosRel,
     RegimenAduanero, SemaforoFiscal, TipoImportaciones, TipoExportaciones,
     Paquete, Producto, Pago, Factura, Sancion,
-    EstadoOpeAduanera,
+    EstadoOpeAduanera, Inspeccion,
 )
 from .serializers import (
     UsuarioSerializer,
@@ -32,7 +32,7 @@ from .serializers import (
     PagoSerializer, FacturaSerializer,
     PermisoListSerializer, SancionSerializer,
     PaqueteSerializer, PaqueteCreateSerializer, ProductoCreateSerializer,
-    ProductoCategoriaSerializer, SemaforoFiscalSerializer,
+    ProductoCategoriaSerializer, SemaforoFiscalSerializer, InspeccionSerializer,
 )
 
 
@@ -451,6 +451,24 @@ class DashboardAPIView(APIView):
             
         bitacora_reciente = Bitacora.objects.order_by("-fecha", "-hora")[:5]
         bitacora = BitacoraSerializer(bitacora_reciente, many=True).data
+        
+        total_verde = SemaforoFiscal.objects.filter(
+            resultado__icontains="Verde"
+        ).count()
+        
+        total_amarillo = SemaforoFiscal.objects.filter(
+            resultado__icontains="Amarillo"
+        ).count()
+        
+        total_rojo = SemaforoFiscal.objects.filter(
+            resultado__icontains="Rojo"
+        ).count()
+        
+        total_semaforos = total_verde + total_amarillo + total_rojo
+        
+        porcentaje_verde = round((total_verde / total_semaforos) * 100) if total_semaforos else 0
+        porcentaje_amarillo = round((total_amarillo / total_semaforos) * 100) if total_semaforos else 0
+        porcentaje_rojo = round((total_rojo / total_semaforos) * 100) if total_semaforos else 0
             
         data = {
             "total_pedimentos": Pedimento.objects.count(),
@@ -460,6 +478,15 @@ class DashboardAPIView(APIView):
             "total_aduanas": Aduana.objects.count(),
             "pedimentos": pedimentos,
             "bitacora": bitacora,
+            "semaforo": {
+                "total": total_semaforos,
+                "verde": total_verde,
+                "amarillo": total_amarillo,
+                "rojo": total_rojo,
+                "porcentaje_verde": porcentaje_verde,
+                "porcentaje_amarillo": porcentaje_amarillo,
+                "porcentaje_rojo": porcentaje_rojo,
+            },
         }
         
         return Response(data)
@@ -508,3 +535,8 @@ class SemaforoFiscalViewSet(viewsets.ModelViewSet):
     authentication_classes = [TokenAuthentication]
     permission_classes     = [IsAuthenticated]
 
+class InspeccionViewSet(viewsets.ModelViewSet):
+    queryset               = Inspeccion.objects.all().order_by('numero')
+    serializer_class       = InspeccionSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes     = [IsAuthenticated]

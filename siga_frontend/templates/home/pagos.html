@@ -9,77 +9,77 @@
     <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
     <link rel="stylesheet" href="{% static 'home/css/pagos.css' %}">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="{% static 'home/js/buscador.js' %}"></script>
+    <script defer src="{% static 'home/js/sidebar.js' %}"></script>
 </head>
 <body>
-
 <aside class="sidebar">
     <div class="sidebar-logo">
         <img src="{% static 'home/img/siga_logo_light.png' %}" alt="SIGA">
-        <button class="sidebar-toggle"><i data-lucide="panel-left"></i></button>
+        <button class="sidebar-toggle" title="Colapsar menú"><i data-lucide="panel-left"></i></button>
     </div>
     <nav>
         <p class="nav-section-label">Principal</p>
-        <a href="{% url 'home:dashboard' %}" class="nav-item">
-            <i data-lucide="layout-grid" class="nav-icon"></i> Dashboard
+        <a href="{% url 'home:dashboard' %}" class="nav-item" title="Dashboard">
+            <i data-lucide="layout-grid" class="nav-icon"></i> <span class="nav-label">Dashboard</span> 
         </a>
-        <a href="{% url 'home:usuarios' %}" class="nav-item">
-            <i data-lucide="user" class="nav-icon"></i> Usuarios
+        <a href="{% url 'home:usuarios' %}" class="nav-item" title="Usuarios">
+            <i data-lucide="user" class="nav-icon"></i> <span class="nav-label">Usuarios</span>
         </a>
-        <a href="{% url 'home:permisos' %}" class="nav-item">
-            <i data-lucide="key-round" class="nav-icon"></i> Permisos
+        <a href="{% url 'home:permisos' %}" class="nav-item" title="Permisos">
+            <i data-lucide="key-round" class="nav-icon"></i> <span class="nav-label">Permisos</span>
         </a>
 
         <p class="nav-section-label">Operaciones</p>
-        <a href="{% url 'home:clientes' %}" class="nav-item">
-            <i data-lucide="users" class="nav-icon"></i> Clientes
+        <a href="{% url 'home:clientes' %}" class="nav-item" title="Clientes">
+            <i data-lucide="users" class="nav-icon"></i> <span class="nav-label">Clientes</span>
         </a>
-        <a href="{% url 'home:aduanas' %}" class="nav-item">
-            <i data-lucide="home" class="nav-icon"></i> Aduanas
+        <a href="{% url 'home:aduanas' %}" class="nav-item" title="Aduanas">
+            <i data-lucide="home" class="nav-icon"></i> <span class="nav-label">Aduanas</span>
         </a>
-        <a href="{% url 'home:pedimentos' %}" class="nav-item">
-            <i data-lucide="file-text" class="nav-icon"></i> Pedimentos
+        <a href="{% url 'home:pedimentos' %}" class="nav-item" title="Pedimentos">
+            <i data-lucide="file-text" class="nav-icon"></i> <span class="nav-label">Pedimentos</span>
         </a>
-        <a href="{% url 'home:paquetes' %}" class="nav-item">
-            <i data-lucide="package" class="nav-icon"></i> Paquetes
+        <a href="{% url 'home:paquetes' %}" class="nav-item" title="Paquetes">
+            <i data-lucide="package" class="nav-icon"></i> <span class="nav-label">Paquetes</span>
         </a>
-        <a href="{% url 'home:operaciones' %}" class="nav-item">
-            <i data-lucide="clipboard-list" class="nav-icon"></i> Operación Aduanera
+        <a href="{% url 'home:operaciones' %}" class="nav-item" title="Operación Aduanera">
+            <i data-lucide="clipboard-list" class="nav-icon"></i> <span class="nav-label">Operación Aduanera</span>
         </a>
-        <a href="{% url 'home:pagos' %}" class="nav-item active">
-            <i data-lucide="circle-dollar-sign" class="nav-icon"></i> Pagos
+        <a href="{% url 'home:pagos' %}" class="nav-item active" title="Pagos">
+            <i data-lucide="circle-dollar-sign" class="nav-icon"></i> <span class="nav-label">Pagos</span>
         </a>
-        <a href="{% url 'home:facturas' %}" class="nav-item">
-            <i data-lucide="receipt" class="nav-icon"></i> Facturas
+        <a href="{% url 'home:facturas' %}" class="nav-item" title="Facturas">
+            <i data-lucide="receipt" class="nav-icon"></i> <span class="nav-label">Facturas</span>
         </a>
-        <a href="{% url 'home:categorias' %}" class="nav-item">
-            <i data-lucide="tag" class="nav-icon"></i> Categorías
+        <a href="{% url 'home:categorias' %}" class="nav-item" title="Categorías">
+            <i data-lucide="tag" class="nav-icon"></i> <span class="nav-label">Categorías</span>
         </a>
 
         <p class="nav-section-label">Fiscalización</p>
-        <a href="{% url 'home:semaforo_fiscal' %}" class="nav-item">
-            <i data-lucide="radio" class="nav-icon"></i> Semáforo Fiscal
+        <a href="{% url 'home:semaforo_fiscal' %}" class="nav-item" title="Semáforo Fiscal">
+            <i data-lucide="radio" class="nav-icon"></i> <span class="nav-label">Semáforo Fiscal</span>
         </a>
-        <a href="{% url 'home:inspecciones' %}" class="nav-item">
-            <i data-lucide="search" class="nav-icon"></i> Inspecciones
+        <a href="{% url 'home:inspecciones' %}" class="nav-item" title="Inspecciones">
+            <i data-lucide="search" class="nav-icon"></i> <span class="nav-label">Inspecciones</span>
         </a>
-        <a href="{% url 'home:sanciones' %}" class="nav-item">
-            <i data-lucide="triangle-alert" class="nav-icon"></i> Sanciones
+        <a href="{% url 'home:sanciones' %}" class="nav-item" title="Sanciones">
+            <i data-lucide="triangle-alert" class="nav-icon"></i> <span class="nav-label">Sanciones</span>
         </a>
-        <a href="{% url 'home:bitacora' %}" class="nav-item">
-            <i data-lucide="history" class="nav-icon"></i> Bitácora
+        <a href="{% url 'home:bitacora' %}" class="nav-item" title="Bitácora">
+            <i data-lucide="history" class="nav-icon"></i> <span class="nav-label">Bitácora</span>
         </a>
     </nav>
 
     <div class="sidebar-footer">
-        <button type="button" class="btn-sidebar btn-sidebar-salir" onclick="mostrarModalLogout()">
-            <i data-lucide="log-out" class="nav-icon"></i> Salir
+        <button type="button" class="btn-sidebar btn-sidebar-salir" onclick="mostrarModalLogout()" title="Salir">
+            <i data-lucide="log-out" class="nav-icon"></i> <span class="nav-label">Salir</span>
         </button>
-        <a href="{% url 'home:perfilusuario' %}" class="btn-sidebar btn-sidebar-usuario">
-            <i data-lucide="user" class="nav-icon"></i> Usuario
+        <a href="{% url 'home:perfilusuario' %}" class="btn-sidebar btn-sidebar-usuario" title="Usuario">
+            <i data-lucide="user" class="nav-icon"></i> <span class="nav-label">Usuario</span>
         </a>
     </div>
 </aside>
-
 <div class="modal-overlay" id="modalLogout">
     <div class="modal-logout-box">
         <img src="{% static 'home/img/siga_logo.png' %}" alt="SIGA" class="modal-logout-logo">
@@ -96,7 +96,8 @@
 
     <div class="pagos-toolbar">
         <form method="get" action="{% url 'home:pagos' %}" style="display:contents">
-            <input type="text" name="q" value="{{ query }}" class="pagos-buscar" placeholder="Buscar pago...">
+            <input type="text" name="q" value="{{ query }}" class="pagos-buscar" placeholder="Buscar pago..."
+            data-buscador-target="tbodyPagos" data-buscador-colspan="4">
             <button type="submit" class="btn-pagos btn-pagos-filtrar">Filtrar</button>
             {% if query %}
                 <a href="{% url 'home:pagos' %}" class="btn-limpiar">✕ Limpiar</a>
@@ -119,7 +120,7 @@
                     <th>ACCIONES</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="tbodyPagos">
                 {% for pago in pagos %}
                 <tr>
                     <td>{{ pago.no_transaccion }}</td>
