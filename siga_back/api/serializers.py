@@ -6,11 +6,8 @@ from home.models import (
     Usuario, Cliente, Aduana, OperacionAduanera, Pedimento,
     Permiso, Bitacora, CategoriaProductos,
     RegimenAduanero, SemaforoFiscal, TipoImportaciones, TipoExportaciones,
-<<<<<<< HEAD
-    Pago, Factura, Sancion, Paquete, Producto,
-=======
-    Pago, Factura, EstadoPago, Sancion, Paquete, Producto, Inspeccion,
->>>>>>> main
+    Pago, Factura, Sancion, Paquete, Producto, EstadoPago, Inspeccion,
+
 )
 
 
@@ -135,23 +132,15 @@ class BitacoraSerializer(serializers.ModelSerializer):
 
 
 class CategoriaProductosSerializer(serializers.ModelSerializer):
-<<<<<<< HEAD
     tipo_arancel_nombre = serializers.CharField(source='tipo_arancel.nombre', read_only=True)
 
     class Meta:
         model = CategoriaProductos
         fields = ['numero', 'nombre', 'descripcion', 'IGI', 'tipo_arancel', 'tipo_arancel_nombre', 'tipo_permiso_requerido']
-=======
-    arancel = serializers.CharField(
-        source='arancel.Tipo_Arancel.nombre', 
-        read_only=True
-    )
     
     class Meta:
         model = CategoriaProductos
         fields = ['numero', 'nombre', 'descripcion', 'arancel', 'tipo_permiso_requerido']
->>>>>>> main
-
 
 class ProductoCategoriaSerializer(serializers.ModelSerializer):
     class Meta:
