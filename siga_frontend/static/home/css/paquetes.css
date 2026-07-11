@@ -163,12 +163,12 @@
 
 /* BOTÓN NUEVO */
 .btn-paq-nuevo {
-    background: #1E3A8A;
+    background: #2563EB;
     color: #FFFFFF;
 }
 
 .btn-paq-nuevo:hover {
-    background: #1E2F6F;
+    background: #1D4FD1;
 }
 
 /* MODAL */

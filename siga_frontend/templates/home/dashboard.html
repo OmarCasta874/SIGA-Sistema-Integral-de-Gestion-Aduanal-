@@ -190,8 +190,10 @@
         </div>
         
         <div class="widget-semaforo">
-            <h3>Semáforo fiscal</h3>
-
+            <div class="panel-header">
+                <h3>Semáforo fiscal</h3>
+                <a href="{% url 'home:semaforo_fiscal' %}" class="ver-todos">Ver semáforo →</a>
+            </div>
             <div class="semaforo-cuerpo">
                 <div class="semaforo-grafica">
                     <div class="semaforo-row">
@@ -232,15 +234,15 @@
             <div class="semaforo-canales">
                 <div class="canal-item">
                     <div class="canal-num" style="color:#16a34a;">{{ dashboard.semaforo.verde }}</div>
-                    <div class="canal-label">Canal verde</div>
+                    <div class="canal-label">Vía Libre</div>
                 </div>
                 <div class="canal-item">
                     <div class="canal-num" style="color:#d97706;">{{ dashboard.semaforo.amarillo }}</div>
-                    <div class="canal-label">Canal amarillo</div>
+                    <div class="canal-label">Pendientes</div>
                 </div>
                 <div class="canal-item">
                     <div class="canal-num" style="color:#dc2626;">{{ dashboard.semaforo.rojo }}</div>
-                    <div class="canal-label">Canal rojo</div>
+                    <div class="canal-label">En Revisión</div>
                 </div>
             </div>
         </div>

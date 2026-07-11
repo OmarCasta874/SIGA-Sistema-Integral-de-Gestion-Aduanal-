@@ -95,10 +95,6 @@
 <main class="main">
     <div class="header-operaciones">
         <h1> Operaciones </h1>
-
-        <button class="btn-filtrar-op" onclick="abrirModal('modalNuevaOperacion')">
-            <i data-lucide="plus"></i>Nueva operación
-        </button>
     </div>
     <div class="estadisticas">
         <div class="card card-azul">
@@ -119,15 +115,22 @@
         </div>
     </div>
 
-    <form method="get" action="" class="toolbar-operaciones">
-        <input type="text" name="q" value="{{ query }}"
-               class="input-buscar-op" placeholder="Buscar operación..."
-               data-buscador-target="tbodyOperaciones" data-buscador-colspan="4">
-        <button type="submit" class="btn-filtrar-op">Filtrar</button>
-        {% if query %}
-        <a href="?" style="font-size:13px;color:#6b7280;margin-left:8px;">Limpiar</a>
-        {% endif %}
-    </form>
+    <div class="toolbar-operaciones">
+        <form method="get" action="" class="form-buscar-op">
+            <input type="text" name="q" value="{{ query }}"
+                class="input-buscar-op" placeholder="Buscar operación..."
+                data-buscador-target="tbodyOperaciones" data-buscador-colspan="4">
+            <button type="submit" class="btn-filtrar-op">Filtrar</button>
+            {% if query %}
+            <a href="?" style="font-size:13px;color:#6b7280;margin-left:8px;">Limpiar</a>
+            {% endif %}
+        </form>
+
+        <button type="button" class="btn-nueva_operacion-op" onclick="abrirModal('modalNuevaOperacion')">
+            <i data-lucide="plus"></i>Nueva operación
+        </button>
+    </div>
+
     <section class="tabla-operaciones">
         <h3>Operaciones Recientes</h3>
         <table>

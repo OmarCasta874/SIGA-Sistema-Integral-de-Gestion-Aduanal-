@@ -48,7 +48,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    background: #1D4ED8;
+    background: #2563EB;
     color: #FFFFFF;
     border: none;
     border-radius: 8px;
@@ -65,7 +65,7 @@
 }
 
 .btn-filtrar:hover {
-    background: #1739AD;
+    background: #1D4FD1;
 }
 
 /* TABLA */
@@ -250,7 +250,7 @@
 
 .btn-nuevo {
     padding: 10px 18px;
-    background: var(--azul-marino, #0d2c6b);
+    background: #2563EB;
     color: #fff;
     border: none;
     border-radius: 6px;
@@ -263,7 +263,7 @@
 }
 
 .btn-nuevo:hover {
-    background: #0a2354;
+    background: #1D4FD1;
 }
 
 .form-hint {

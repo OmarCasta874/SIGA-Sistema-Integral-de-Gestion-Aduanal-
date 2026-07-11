@@ -97,7 +97,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    background: #1E3A8A;
+    background: #2563EB;
     color: #FFFFFF;
     border: none;
     border-radius: 8px;
@@ -109,7 +109,7 @@
 }
 
 .btn-nueva-inspeccion:hover {
-    background: #16306E;
+    background: #1D4FD1;
 }
 
 .btn-nueva-inspeccion .nav-icon {

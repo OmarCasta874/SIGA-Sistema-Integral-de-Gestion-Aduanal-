@@ -39,13 +39,13 @@
     font-size: 14px;
     font-weight: 600;
     color: #FFFFFF;
-    background: #1E3A8A;
+    background: #2563EB;
     cursor: pointer;
     white-space: nowrap;
 }
 
 .btn-facturas:hover {
-    background: #1E2F6F;
+    background: #1D4FD1;
 }
 
 .facturas-card {
