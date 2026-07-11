@@ -273,16 +273,26 @@ CREATE TABLE arancel (
     CONSTRAINT fk_arancel_categoria FOREIGN KEY (categoria)    REFERENCES categoria_productos(numero)
 ) ENGINE=InnoDB;
 
+CREATE TABLE tipo_embalaje (
+    id          INT           NOT NULL AUTO_INCREMENT,
+    nombre      VARCHAR(50)   NOT NULL,
+    peso_maximo DECIMAL(10,2) NOT NULL COMMENT 'Peso máximo permitido en kg',
+    descripcion VARCHAR(200)  NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_tipo_embalaje_nombre (nombre)
+) ENGINE=InnoDB;
+
 CREATE TABLE paquete (
-    codigo        INT           NOT NULL AUTO_INCREMENT,
-    peso          DECIMAL(10,2) NOT NULL,
-    tipo_embalaje VARCHAR(30)   NOT NULL,
-    dimensiones   VARCHAR(50)   NULL,
-    cliente       INT           NOT NULL,
-    pedimento     VARCHAR(30)   NULL,
+    codigo           INT           NOT NULL AUTO_INCREMENT,
+    peso             DECIMAL(10,2) NOT NULL,
+    tipo_embalaje_id INT           NOT NULL,
+    dimensiones      VARCHAR(50)   NULL,
+    cliente          INT           NOT NULL,
+    pedimento        VARCHAR(30)   NULL,
     PRIMARY KEY (codigo),
-    CONSTRAINT fk_paquete_cliente   FOREIGN KEY (cliente)   REFERENCES cliente(numero),
-    CONSTRAINT fk_paquete_pedimento FOREIGN KEY (pedimento) REFERENCES pedimento(numero_pedimento)
+    CONSTRAINT fk_paquete_cliente   FOREIGN KEY (cliente)          REFERENCES cliente(numero),
+    CONSTRAINT fk_paquete_pedimento FOREIGN KEY (pedimento)        REFERENCES pedimento(numero_pedimento),
+    CONSTRAINT fk_paquete_embalaje  FOREIGN KEY (tipo_embalaje_id) REFERENCES tipo_embalaje(id)
 ) ENGINE=InnoDB;
 
 CREATE TABLE producto (
@@ -305,6 +315,16 @@ CREATE TABLE categorias_productos_rel (
     UNIQUE KEY uk_cat_prod (categorias, productos),
     CONSTRAINT fk_cpr_categoria FOREIGN KEY (categorias) REFERENCES categoria_productos(numero),
     CONSTRAINT fk_cpr_producto  FOREIGN KEY (productos)  REFERENCES producto(codigo)
+) ENGINE=InnoDB;
+
+CREATE TABLE categoria_embalaje (
+    id               INT NOT NULL AUTO_INCREMENT,
+    categoria_id     INT NOT NULL,
+    tipo_embalaje_id INT NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_cat_emb (categoria_id, tipo_embalaje_id),
+    CONSTRAINT fk_catemb_categoria  FOREIGN KEY (categoria_id)     REFERENCES categoria_productos(numero),
+    CONSTRAINT fk_catemb_embalaje   FOREIGN KEY (tipo_embalaje_id) REFERENCES tipo_embalaje(id)
 ) ENGINE=InnoDB;
 
 CREATE TABLE factura (
@@ -337,11 +357,68 @@ CREATE TABLE pago (
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ================================================================
--- Complemento: columna de inspección en paquete (de SIGA_productos_complemento.sql)
+-- Complemento: columna de inspección en paquete
 -- ================================================================
 ALTER TABLE paquete
 ADD COLUMN IF NOT EXISTS inspeccion INT NULL,
 ADD CONSTRAINT fk_paquete_inspeccion FOREIGN KEY (inspeccion) REFERENCES inspeccion(numero);
+
+-- ================================================================
+-- Complemento: atributos faltantes en pedimento
+-- Justificación: el pedimento aduanal real exige declarar el medio
+-- de transporte, país de origen/destino, término de comercio e
+-- tipo de cambio vigente al momento del despacho.
+-- ================================================================
+ALTER TABLE pedimento
+  ADD COLUMN IF NOT EXISTS medio_transporte      VARCHAR(20)    NULL COMMENT 'Aéreo, Marítimo, Terrestre, Ferroviario',
+  ADD COLUMN IF NOT EXISTS pais_origen_mercancia VARCHAR(60)    NULL COMMENT 'País de procedencia de las mercancías',
+  ADD COLUMN IF NOT EXISTS pais_destino          VARCHAR(60)    NULL COMMENT 'País de destino (aplica en exportaciones)',
+  ADD COLUMN IF NOT EXISTS incoterm              VARCHAR(10)    NULL COMMENT 'Término de comercio: FOB, CIF, EXW, DDP, etc.',
+  ADD COLUMN IF NOT EXISTS tipo_cambio           DECIMAL(10,4)  NULL COMMENT 'Tipo de cambio USD/MXN vigente al despacho';
+
+-- ================================================================
+-- Complemento: fracción arancelaria TIGIE en categoría de productos
+-- Justificación (problemática del proyecto): la clasificación
+-- arancelaria errónea es uno de los tres problemas centrales de SIGA.
+-- Cada categoría de productos debe estar identificada con su código
+-- TIGIE de 10 dígitos (8 fracción arancelaria + 2 NICO) para
+-- determinar aranceles, regulaciones y restricciones correctamente.
+-- ================================================================
+ALTER TABLE categoria_productos
+  ADD COLUMN IF NOT EXISTS fraccion_arancelaria CHAR(10) NULL
+    COMMENT 'Código TIGIE: 8 dígitos fracción arancelaria + 2 NICO. Ej: 8516500100';
+
+-- Fracciones TIGIE por categoría (Sistema Armonizado + LIGIE + NICO)
+UPDATE categoria_productos SET fraccion_arancelaria = '8516500100' WHERE numero = 1;  -- Electrodomésticos      (aparatos electrotérmicos)
+UPDATE categoria_productos SET fraccion_arancelaria = '5208110100' WHERE numero = 2;  -- Textiles               (telas de algodón)
+UPDATE categoria_productos SET fraccion_arancelaria = '3901100100' WHERE numero = 3;  -- Insumos Industriales   (polietileno gránulo)
+UPDATE categoria_productos SET fraccion_arancelaria = '6401100100' WHERE numero = 4;  -- Calzado                (calzado impermeable)
+UPDATE categoria_productos SET fraccion_arancelaria = '8457100100' WHERE numero = 5;  -- Maquinaria             (centros de mecanizado)
+UPDATE categoria_productos SET fraccion_arancelaria = '8542310100' WHERE numero = 6;  -- Componentes Elect.     (circuitos integrados)
+UPDATE categoria_productos SET fraccion_arancelaria = '2208300100' WHERE numero = 7;  -- Bebidas Alcohólicas    (whisky)
+UPDATE categoria_productos SET fraccion_arancelaria = '7301200100' WHERE numero = 8;  -- Acero y Metales        (perfiles de acero)
+UPDATE categoria_productos SET fraccion_arancelaria = '0709990100' WHERE numero = 9;  -- Productos Agropecuarios(hortalizas frescas)
+UPDATE categoria_productos SET fraccion_arancelaria = '8703230100' WHERE numero = 10; -- Vehículos              (automóviles gasolina)
+UPDATE categoria_productos SET fraccion_arancelaria = '3004900100' WHERE numero = 11; -- Productos Farmacéuticos(medicamentos)
+UPDATE categoria_productos SET fraccion_arancelaria = '1602500100' WHERE numero = 12; -- Alimentos Procesados   (conservas de carne)
+UPDATE categoria_productos SET fraccion_arancelaria = '2901100100' WHERE numero = 13; -- Químicos Industriales  (hidrocarburos acíclicos)
+UPDATE categoria_productos SET fraccion_arancelaria = '8544420100' WHERE numero = 14; -- Material Eléctrico     (cables conductores)
+UPDATE categoria_productos SET fraccion_arancelaria = '3920100100' WHERE numero = 15; -- Plásticos y Hules      (placas de polímeros)
+UPDATE categoria_productos SET fraccion_arancelaria = '3303000100' WHERE numero = 16; -- Cosméticos y Perfumería(perfumes)
+UPDATE categoria_productos SET fraccion_arancelaria = '2106900100' WHERE numero = 17; -- Suplementos Aliment.   (preparaciones alimenticias)
+UPDATE categoria_productos SET fraccion_arancelaria = '9018190100' WHERE numero = 18; -- Equipos Médicos        (instrumentos médicos)
+UPDATE categoria_productos SET fraccion_arancelaria = '9301900100' WHERE numero = 19; -- Material Bélico        (armas militares)
+UPDATE categoria_productos SET fraccion_arancelaria = '9005800100' WHERE numero = 20; -- Equipo Óptico y Visión (binoculares)
+UPDATE categoria_productos SET fraccion_arancelaria = '0101290100' WHERE numero = 21; -- Animales Vivos         (animales vivos)
+UPDATE categoria_productos SET fraccion_arancelaria = '1001190100' WHERE numero = 22; -- Semillas y Granos      (trigo)
+UPDATE categoria_productos SET fraccion_arancelaria = '9503000100' WHERE numero = 23; -- Juguetes y Art. Infant.(juguetes)
+UPDATE categoria_productos SET fraccion_arancelaria = '5911900100' WHERE numero = 24; -- Textiles Técnicos      (textiles para uso técnico)
+UPDATE categoria_productos SET fraccion_arancelaria = '3105200100' WHERE numero = 25; -- Fertilizantes/Agroquím.(fertilizantes minerales)
+UPDATE categoria_productos SET fraccion_arancelaria = '2710120100' WHERE numero = 26; -- Combustibles y Lubric. (aceites de petróleo)
+UPDATE categoria_productos SET fraccion_arancelaria = '4407100100' WHERE numero = 27; -- Madera y Prod. Forestales(madera aserrada)
+UPDATE categoria_productos SET fraccion_arancelaria = '4804110100' WHERE numero = 28; -- Papel y Cartón         (papel kraft)
+UPDATE categoria_productos SET fraccion_arancelaria = '9202900100' WHERE numero = 29; -- Instrumentos Musicales (instrumentos de cuerda)
+UPDATE categoria_productos SET fraccion_arancelaria = '9506990100' WHERE numero = 30; -- Artículos Deportivos   (artículos deportivos)
 
 -- cliente
 INSERT INTO cliente (numero, nombre, primer_apell, seg_apell, tipo_persona, RFC) VALUES (1, 'Carlos', 'Martínez', 'López', 'Física', 'MALC850312HBC');
@@ -723,18 +800,59 @@ INSERT INTO arancel (numero, subtotal, descripcion, IGI, tasa_interes, Tipo_Aran
 INSERT INTO arancel (numero, subtotal, descripcion, IGI, tasa_interes, Tipo_Arancel, pedimento, categoria) VALUES (9,  5500,     'Arancel estacional para frutas de temporada.',                    8,   0,   5, '24 09 3991 4 000009', 9);
 INSERT INTO arancel (numero, subtotal, descripcion, IGI, tasa_interes, Tipo_Arancel, pedimento, categoria) VALUES (10, 74000,    'Arancel Ad Valorem para vehículos importados.',                  20,   0,   1, '24 10 3991 4 000010', 10);
 
+-- tipo_embalaje
+INSERT INTO tipo_embalaje (id, nombre, peso_maximo, descripcion) VALUES
+    (1, 'Caja',        100.00,   'Caja de cartón o madera; artículos de hasta 100 kg'),
+    (2, 'Sobre',         3.00,   'Sobre acolchado o de burbuja; documentos y artículos ligeros'),
+    (3, 'Paleta',     1500.00,   'Paleta de madera o plástico; cargas industriales paletizadas'),
+    (4, 'Tambor',      250.00,   'Tambor metálico o plástico; líquidos y graneles'),
+    (5, 'Contenedor', 28000.00,  "Contenedor marítimo 20'/40'/40'HC; cargas de gran volumen");
+
+-- categoria_embalaje (embalajes compatibles por categoría de producto)
+INSERT INTO categoria_embalaje (categoria_id, tipo_embalaje_id) VALUES
+    (1,1),(1,3),(1,5),   -- Electrodomésticos: Caja, Paleta, Contenedor
+    (2,1),(2,3),(2,5),   -- Textiles: Caja, Paleta, Contenedor
+    (3,3),(3,4),(3,5),   -- Insumos Industriales: Paleta, Tambor, Contenedor
+    (4,1),(4,3),(4,5),   -- Calzado: Caja, Paleta, Contenedor
+    (5,3),(5,5),         -- Maquinaria: Paleta, Contenedor
+    (6,1),(6,2),(6,3),(6,5),  -- Componentes Electrónicos: Caja, Sobre, Paleta, Contenedor
+    (7,1),(7,3),(7,4),(7,5),  -- Bebidas Alcohólicas: Caja, Paleta, Tambor, Contenedor
+    (8,3),(8,5),         -- Acero y Metales: Paleta, Contenedor
+    (9,1),(9,3),(9,4),(9,5),  -- Productos Agropecuarios: Caja, Paleta, Tambor, Contenedor
+    (10,5),              -- Vehículos: solo Contenedor
+    (11,1),(11,2),(11,3),(11,5),  -- Productos Farmacéuticos: Caja, Sobre, Paleta, Contenedor
+    (12,1),(12,3),(12,5),  -- Alimentos Procesados: Caja, Paleta, Contenedor
+    (13,3),(13,4),(13,5),  -- Químicos Industriales: Paleta, Tambor, Contenedor
+    (14,1),(14,3),(14,5),  -- Material Eléctrico: Caja, Paleta, Contenedor
+    (15,1),(15,3),(15,4),(15,5),  -- Plásticos y Hules: Caja, Paleta, Tambor, Contenedor
+    (16,1),(16,2),(16,3),(16,5),  -- Cosméticos y Perfumería: Caja, Sobre, Paleta, Contenedor
+    (17,1),(17,2),(17,3),(17,5),  -- Suplementos Alimenticios: Caja, Sobre, Paleta, Contenedor
+    (18,1),(18,3),(18,5),  -- Equipos Médicos: Caja, Paleta, Contenedor
+    (19,1),(19,5),         -- Material Bélico: Caja, Contenedor
+    (20,1),(20,2),(20,5),  -- Equipo Óptico y Visión: Caja, Sobre, Contenedor
+    (21,5),              -- Animales Vivos: solo Contenedor
+    (22,3),(22,4),(22,5),  -- Semillas y Granos: Paleta, Tambor, Contenedor
+    (23,1),(23,3),(23,5),  -- Juguetes y Art. Infantil: Caja, Paleta, Contenedor
+    (24,1),(24,3),(24,5),  -- Textiles Técnicos: Caja, Paleta, Contenedor
+    (25,3),(25,4),(25,5),  -- Fertilizantes/Agroquímicos: Paleta, Tambor, Contenedor
+    (26,4),(26,5),         -- Combustibles y Lubricantes: Tambor, Contenedor
+    (27,3),(27,5),         -- Madera y Prod. Forestales: Paleta, Contenedor
+    (28,1),(28,3),(28,5),  -- Papel y Cartón: Caja, Paleta, Contenedor
+    (29,1),(29,5),         -- Instrumentos Musicales: Caja, Contenedor
+    (30,1),(30,3),(30,5);  -- Artículos Deportivos: Caja, Paleta, Contenedor
+
 -- paquete
-INSERT INTO paquete (codigo, peso, tipo_embalaje, dimensiones, cliente, pedimento) VALUES (1, 250.5, 'Contenedor marítimo 20''', '589x235x239 cm', 1, '24 01 3991 4 000001');
-INSERT INTO paquete (codigo, peso, tipo_embalaje, dimensiones, cliente, pedimento) VALUES (2, 80, 'Palé de madera', '120x100x150 cm', 2, '24 02 3991 4 000002');
-INSERT INTO paquete (codigo, peso, tipo_embalaje, dimensiones, cliente, pedimento) VALUES (3, 1200, 'Contenedor marítimo 40''', '1203x235x239 cm', 3, '24 03 3991 4 000003');
-INSERT INTO paquete (codigo, peso, tipo_embalaje, dimensiones, cliente, pedimento) VALUES (4, 45.75, 'Caja de cartón reforzada', '60x40x50 cm', 4, '24 04 3991 4 000004');
-INSERT INTO paquete (codigo, peso, tipo_embalaje, dimensiones, cliente, pedimento) VALUES (5, 310, 'Palé de plástico', '120x100x180 cm', 5, '24 05 3991 4 000005');
-INSERT INTO paquete (codigo, peso, tipo_embalaje, dimensiones, cliente, pedimento) VALUES (6, 980, 'Contenedor marítimo 20''', '589x235x239 cm', 6, '24 06 3991 4 000006');
-INSERT INTO paquete (codigo, peso, tipo_embalaje, dimensiones, cliente, pedimento) VALUES (7, 55.2, 'Caja de madera', '80x60x60 cm', 7, '24 07 3991 4 000007');
-INSERT INTO paquete (codigo, peso, tipo_embalaje, dimensiones, cliente, pedimento) VALUES (8, 420, 'Palé de aluminio', '120x100x200 cm', 8, '24 08 3991 4 000008');
-INSERT INTO paquete (codigo, peso, tipo_embalaje, dimensiones, cliente, pedimento) VALUES (9, 15, 'Sobre reforzado', '40x30x5 cm', 9, '24 09 3991 4 000009');
-INSERT INTO paquete (codigo, peso, tipo_embalaje, dimensiones, cliente, pedimento) VALUES (10, 2100, 'Contenedor refrigerado 40''', '1203x235x239 cm', 10, '24 10 3991 4 000010');
-INSERT INTO paquete (codigo, peso, tipo_embalaje, dimensiones, cliente, pedimento) VALUES (11, 610, 'Contenedor marítimo 20''', '589x235x239 cm', 11, NULL);
+INSERT INTO paquete (codigo, peso, tipo_embalaje_id, dimensiones, cliente, pedimento) VALUES ( 1,  250.5, 5, '589x235x239 cm',   1, '24 01 3991 4 000001');
+INSERT INTO paquete (codigo, peso, tipo_embalaje_id, dimensiones, cliente, pedimento) VALUES ( 2,   80.0, 3, '120x100x150 cm',   2, '24 02 3991 4 000002');
+INSERT INTO paquete (codigo, peso, tipo_embalaje_id, dimensiones, cliente, pedimento) VALUES ( 3, 1200.0, 5, '1203x235x239 cm',  3, '24 03 3991 4 000003');
+INSERT INTO paquete (codigo, peso, tipo_embalaje_id, dimensiones, cliente, pedimento) VALUES ( 4,  45.75, 1, '60x40x50 cm',      4, '24 04 3991 4 000004');
+INSERT INTO paquete (codigo, peso, tipo_embalaje_id, dimensiones, cliente, pedimento) VALUES ( 5,  310.0, 3, '120x100x180 cm',   5, '24 05 3991 4 000005');
+INSERT INTO paquete (codigo, peso, tipo_embalaje_id, dimensiones, cliente, pedimento) VALUES ( 6,  980.0, 5, '589x235x239 cm',   6, '24 06 3991 4 000006');
+INSERT INTO paquete (codigo, peso, tipo_embalaje_id, dimensiones, cliente, pedimento) VALUES ( 7,   55.2, 1, '80x60x60 cm',      7, '24 07 3991 4 000007');
+INSERT INTO paquete (codigo, peso, tipo_embalaje_id, dimensiones, cliente, pedimento) VALUES ( 8,  420.0, 3, '120x100x200 cm',   8, '24 08 3991 4 000008');
+INSERT INTO paquete (codigo, peso, tipo_embalaje_id, dimensiones, cliente, pedimento) VALUES ( 9,   15.0, 2, '40x30x5 cm',       9, '24 09 3991 4 000009');
+INSERT INTO paquete (codigo, peso, tipo_embalaje_id, dimensiones, cliente, pedimento) VALUES (10, 2100.0, 5, '1203x235x239 cm', 10, '24 10 3991 4 000010');
+INSERT INTO paquete (codigo, peso, tipo_embalaje_id, dimensiones, cliente, pedimento) VALUES (11,  610.0, 5, '589x235x239 cm',  11, NULL);
 
 -- producto
 INSERT INTO producto (codigo, nombre, descripcion, peso, valor_unitario, paquete) VALUES (1, 'Refrigerador Samsung 20 pies', 'Refrigerador de dos puertas, eficiencia A++.', 85, 12500, 1);

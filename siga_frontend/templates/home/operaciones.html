@@ -177,17 +177,28 @@
         </table>
 
         {% if operaciones.has_other_pages %}
-        <div class="paginacion" style="display:flex;gap:6px;justify-content:center;padding:16px 0;">
+        <div class="tabla-paginacion">
             {% if operaciones.has_previous %}
-            <a href="?pagina={{ operaciones.previous_page_number }}{% if query %}&q={{ query }}{% endif %}"
-               class="btn-pag">&laquo; Anterior</a>
+                <a href="?pagina={{ operaciones.previous_page_number }}{% if query %}&q={{ query }}{% endif %}"
+                   class="pagina-btn pagina-flecha"><i data-lucide="chevron-left"></i></a>
+            {% else %}
+                <button class="pagina-btn pagina-flecha" disabled><i data-lucide="chevron-left"></i></button>
             {% endif %}
-            <span style="padding:6px 12px;font-size:13px;color:#6b7280;">
-                Página {{ operaciones.number }} de {{ operaciones.paginator.num_pages }}
-            </span>
+
+            {% for num in operaciones.paginator.page_range %}
+                {% if operaciones.number == num %}
+                    <button class="pagina-btn pagina-activa">{{ num }}</button>
+                {% elif num >= operaciones.number|add:"-2" and num <= operaciones.number|add:"2" %}
+                    <a href="?pagina={{ num }}{% if query %}&q={{ query }}{% endif %}"
+                       class="pagina-btn">{{ num }}</a>
+                {% endif %}
+            {% endfor %}
+
             {% if operaciones.has_next %}
-            <a href="?pagina={{ operaciones.next_page_number }}{% if query %}&q={{ query }}{% endif %}"
-               class="btn-pag">Siguiente &raquo;</a>
+                <a href="?pagina={{ operaciones.next_page_number }}{% if query %}&q={{ query }}{% endif %}"
+                   class="pagina-btn pagina-flecha"><i data-lucide="chevron-right"></i></a>
+            {% else %}
+                <button class="pagina-btn pagina-flecha" disabled><i data-lucide="chevron-right"></i></button>
             {% endif %}
         </div>
         {% endif %}

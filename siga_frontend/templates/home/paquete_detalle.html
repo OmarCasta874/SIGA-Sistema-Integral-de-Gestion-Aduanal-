@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
     <link rel="stylesheet" href="{% static 'home/css/paquetes.css' %}">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="{% static 'home/js/sidebar.js' %}"></script>
 </head>
 <body>
 
@@ -111,7 +112,8 @@
                     {% for cat in categorias %}
                     <option value="{{ cat.numero }}"
                             data-permiso="{{ cat.tipo_permiso_requerido|default:'' }}"
-                            data-nombre="{{ cat.nombre }}">
+                            data-nombre="{{ cat.nombre }}"
+                            data-embalajes="{{ cat.embalajes_permitidos }}">
                         {{ cat.nombre }}{% if cat.tipo_permiso_requerido %} (Requiere: {{ cat.tipo_permiso_requerido }}){% endif %}
                     </option>
                     {% endfor %}
@@ -180,7 +182,7 @@
             <div>
                 <h1 class="page-title">{{ paquete.numero }}</h1>
                 <p class="page-subtitle">
-                    {{ paquete.tipo_embalaje }} · {{ paquete.peso }} Kg
+                    {{ paquete.tipo_embalaje.nombre }} · {{ paquete.peso }} Kg
                     {% if paquete.dimensions %} · {{ paquete.dimensions }}{% endif %}
                 </p>
             </div>
@@ -211,7 +213,7 @@
             </div>
             <div class="detalle-row">
                 <span class="detalle-label">Tipo de embalaje</span>
-                <span>{{ paquete.tipo_embalaje }}</span>
+                <span>{{ paquete.tipo_embalaje.nombre }}</span>
             </div>
             <div class="detalle-row">
                 <span class="detalle-label">Peso</span>
@@ -233,6 +235,46 @@
                     {% endif %}
                 </span>
             </div>
+
+            <!-- Barra de capacidad de peso -->
+            <div class="paq-peso-bloque">
+                <p class="paq-peso-titulo">Capacidad de peso</p>
+                {% with pct=paquete.peso_porcentaje %}
+                <div class="paq-peso-track">
+                    <div id="paq-fill"
+                         class="paq-peso-fill {% if pct >= 100 %}paq-peso-fill--full{% elif pct >= 80 %}paq-peso-fill--warn{% else %}paq-peso-fill--ok{% endif %}"
+                         style="width:{{ pct }}%"></div>
+                </div>
+                {% endwith %}
+                <div class="paq-peso-labels">
+                    <span>Ocupado: <strong>{{ paquete.peso_ocupado }} kg</strong></span>
+                    <span>Disponible: <strong id="paq-disponible-txt">{{ paquete.peso_disponible }} kg</strong></span>
+                </div>
+            </div>
+
+            {% if paquete.inspeccion %}
+            <div style="margin-top:16px; padding-top:14px; border-top:1px solid #E5E7EB;">
+                <p style="font-size:12px; font-weight:700; color:#9CA3AF; text-transform:uppercase; letter-spacing:.04em; margin:0 0 10px;">
+                    Inspección vinculada
+                </p>
+                <div class="detalle-row">
+                    <span class="detalle-label">Fecha</span>
+                    <span>{{ paquete.inspeccion.fecha_inspeccion|default:'—' }}</span>
+                </div>
+                <div class="detalle-row">
+                    <span class="detalle-label">Hora inicio</span>
+                    <span>{{ paquete.inspeccion.hora_inicio|default:'—' }}</span>
+                </div>
+                <div class="detalle-row">
+                    <span class="detalle-label">Semáforo</span>
+                    <span>{{ paquete.inspeccion.semaforo_resultado|default:'—' }}</span>
+                </div>
+                <div class="detalle-row">
+                    <span class="detalle-label">Resultado</span>
+                    <span>{{ paquete.inspeccion.resultado|default:'Pendiente' }}</span>
+                </div>
+            </div>
+            {% endif %}
         </div>
 
         <!-- Productos -->
@@ -246,6 +288,7 @@
                             <th>Nombre</th>
                             <th>Descripción</th>
                             <th>Peso</th>
+                            <th>Valor unit.</th>
                             <th>Cantidad</th>
                         </tr>
                     </thead>
@@ -255,6 +298,7 @@
                             <td style="font-weight:500; color:#111827;">{{ prod.nombre }}</td>
                             <td style="color:#6B7280;">{{ prod.descripcion|default:'—' }}</td>
                             <td>{{ prod.peso }} Kg</td>
+                            <td>${{ prod.valor_unitario }}</td>
                             <td>{{ prod.cantidad }}</td>
                         </tr>
                         {% endfor %}
@@ -262,8 +306,8 @@
                 </table>
 
                 <div class="paq-subtotal">
-                    <span>Total de registros</span>
-                    <span class="paq-subtotal-valor">{{ paquete.productos|length }}</span>
+                    <span>Subtotal declarado</span>
+                    <span class="paq-subtotal-valor">${{ paquete.subtotal }}</span>
                 </div>
 
             {% else %}
@@ -284,9 +328,13 @@
 <script>
     lucide.createIcons();
 
-    const CSRF             = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
-    const URL_PRODUCTOS    = "{% url 'home:paquete_detalle' paquete.codigo %}";
-    const PERMISOS_CLIENTE = new Set({{ permisos_cliente|safe }});
+    const CSRF               = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+    const URL_PRODUCTOS      = "{% url 'home:paquete_detalle' paquete.codigo %}";
+    const PERMISOS_CLIENTE   = new Set({{ permisos_cliente|safe }});
+    const TIPO_EMBALAJE_ID   = {{ paquete.tipo_embalaje.id|default:"null" }};
+    const TIPO_EMBALAJE_NOMBRE = "{{ paquete.tipo_embalaje.nombre|default:'' }}";
+    const PESO_MAXIMO        = {{ paquete.tipo_embalaje.peso_maximo|default:"0" }};
+    let   PESO_DISPONIBLE    = {{ paquete.peso_disponible|default:"0" }};
 
     /* ── Modal logout ────────────────────────────────────────────────── */
     function mostrarModalLogout() { document.getElementById('modalLogout').classList.add('activo'); }
@@ -330,6 +378,18 @@
         btnGuardar.disabled    = true;
 
         if (!categoriaId) return;
+
+        /* ── Verificar compatibilidad de embalaje ── */
+        const embalajesRaw      = opt.dataset.embalajes || '[]';
+        const embalajesPermitidos = JSON.parse(embalajesRaw.replace(/\(/g,'[').replace(/\)/g,']'));
+        if (TIPO_EMBALAJE_ID && embalajesPermitidos.length > 0 && !embalajesPermitidos.includes(TIPO_EMBALAJE_ID)) {
+            aviso.className     = 'prod-aviso prod-aviso--error';
+            aviso.innerHTML     = `<i data-lucide="package-x" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i>
+                La categoría <strong>${nombreCat}</strong> no es compatible con el embalaje <strong>${TIPO_EMBALAJE_NOMBRE}</strong> de este paquete.`;
+            aviso.style.display = 'block';
+            lucide.createIcons();
+            return;
+        }
 
         /* ── Verificar permiso ── */
         if (permisoReq && !PERMISOS_CLIENTE.has(permisoReq)) {
@@ -393,11 +453,41 @@
         document.getElementById('prod-descripcion').value = opt.dataset.descripcion;
         document.getElementById('prod-peso').value        = opt.dataset.peso;
         document.getElementById('prod-valor').value       = opt.dataset.valor;
+        document.getElementById('prod-cantidad').value    = 1;
 
         detalle.style.display = 'block';
-        btn.disabled          = false;
+        validarPesoModal();
         lucide.createIcons();
     });
+
+    /* ── Validación de peso en tiempo real ─────────────────────────── */
+    document.getElementById('prod-cantidad').addEventListener('input', validarPesoModal);
+
+    function validarPesoModal() {
+        const pesoUnitario = parseFloat(document.getElementById('prod-peso').value) || 0;
+        const cantidad     = parseInt(document.getElementById('prod-cantidad').value, 10) || 1;
+        const pesoNuevo    = pesoUnitario * cantidad;
+        const aviso        = document.getElementById('prod-aviso-permiso');
+        const btn          = document.getElementById('btn-guardar-producto');
+
+        if (PESO_MAXIMO > 0 && pesoNuevo > PESO_DISPONIBLE) {
+            aviso.className     = 'prod-aviso prod-aviso--peso';
+            aviso.innerHTML     = `<i data-lucide="weight" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i>
+                Sin capacidad: el producto requiere <strong>${pesoNuevo.toFixed(2)} kg</strong>
+                pero el paquete solo tiene <strong>${PESO_DISPONIBLE.toFixed(2)} kg</strong> disponibles.`;
+            aviso.style.display = 'block';
+            btn.disabled        = true;
+            lucide.createIcons();
+        } else {
+            /* limpia solo si el aviso era de peso (preserva aviso de permiso) */
+            if (aviso.classList.contains('prod-aviso--peso')) {
+                aviso.style.display = 'none';
+            }
+            if (!aviso.classList.contains('prod-aviso--error')) {
+                btn.disabled = false;
+            }
+        }
+    }
 
     /* ── Guardar producto ────────────────────────────────────────────── */
     async function guardarProducto() {
@@ -436,7 +526,12 @@
             if (resp.ok || resp.redirected) {
                 window.location.reload();
             } else {
-                alert('Error al guardar el producto. Intenta de nuevo.');
+                let msg = 'Error al guardar el producto. Intenta de nuevo.';
+                try {
+                    const data = await resp.json();
+                    if (data.error) msg = data.error;
+                } catch { /* respuesta no JSON */ }
+                alert(msg);
                 document.getElementById('prod-progreso').style.display    = 'none';
                 document.getElementById('btn-guardar-producto').disabled  = false;
             }

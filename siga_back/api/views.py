@@ -5,6 +5,7 @@ import random
 from django.contrib.auth import authenticate
 from django.shortcuts import get_object_or_404
 
+from django.db import models
 from rest_framework import viewsets, status
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import action
@@ -18,7 +19,7 @@ from home.models import (
     Permiso, Bitacora, CategoriaProductos, CategoriasProductosRel,
     RegimenAduanero, SemaforoFiscal, TipoImportaciones, TipoExportaciones,
     Paquete, Producto, Pago, Factura, Sancion,
-    EstadoOpeAduanera, Inspeccion,
+    EstadoOpeAduanera, Inspeccion, TipoEmbalaje,
 )
 from .serializers import (
     UsuarioSerializer,
@@ -33,6 +34,7 @@ from .serializers import (
     PermisoListSerializer, SancionSerializer,
     PaqueteSerializer, PaqueteCreateSerializer, ProductoCreateSerializer,
     ProductoCategoriaSerializer, SemaforoFiscalSerializer, InspeccionSerializer,
+    TipoEmbalajeSerializer,
 )
 
 
@@ -58,9 +60,9 @@ def _parse_date(value):
 
 
 def _generar_folio_permiso(autoridad):
-    anio    = date.today().year
+    anio = date.today().year
     prefijo = f'PERM-{autoridad}-{anio}-'
-    claves  = Permiso.objects.filter(tipo_permiso=autoridad).values_list('clave_numerica', flat=True)
+    claves = Permiso.objects.filter(tipo_permiso=autoridad).values_list('clave_numerica', flat=True)
     max_num = 0
     for clave in claves:
         if clave.startswith(prefijo):
@@ -72,23 +74,23 @@ def _generar_folio_permiso(autoridad):
 
 
 def _generar_numero_pedimento(codigo_aduana):
-    hoy           = date.today()
-    anio_2d       = str(hoy.year)[-2:]
+    hoy = date.today()
+    anio_2d = str(hoy.year)[-2:]
     ultimo_digito = str(hoy.year)[-1:]
-    patente       = '3991'
-    cod           = str(codigo_aduana).zfill(2)
-    consecutivo   = str(Pedimento.objects.count() + 1).zfill(6)
+    patente = '3991'
+    cod = str(codigo_aduana).zfill(2)
+    consecutivo = str(Pedimento.objects.count() + 1).zfill(6)
     return f'{anio_2d} {cod} {patente} {ultimo_digito} {consecutivo}'
 
 
 # ── Auth ───────────────────────────────────────────────────────────────────────
 
 class AuthLoginView(APIView):
-    permission_classes     = [AllowAny]
+    permission_classes = [AllowAny]
     authentication_classes = []
 
     def post(self, request):
-        correo    = request.data.get('correo', '')
+        correo = request.data.get('correo', '')
         contrasena = request.data.get('contrasena', '')
         user = authenticate(request, username=correo, password=contrasena)
         if user is None:
@@ -105,7 +107,7 @@ class AuthLoginView(APIView):
 
 class AuthLogoutView(APIView):
     authentication_classes = [TokenAuthentication]
-    permission_classes     = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         request.user.auth_token.delete()
@@ -114,7 +116,7 @@ class AuthLogoutView(APIView):
 
 class AuthMeView(APIView):
     authentication_classes = [TokenAuthentication]
-    permission_classes     = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         return Response(UsuarioSerializer(request.user).data)
@@ -123,9 +125,9 @@ class AuthMeView(APIView):
 # ── Clientes ───────────────────────────────────────────────────────────────────
 
 class ClienteViewSet(viewsets.ModelViewSet):
-    queryset               = Cliente.objects.all()
+    queryset = Cliente.objects.all().order_by('-numero')
     authentication_classes = [TokenAuthentication]
-    permission_classes     = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):
         if self.action == 'retrieve':
@@ -137,7 +139,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
         cliente = self.get_object()
 
         if request.method == 'GET':
-            hoy  = date.today()
+            hoy = date.today()
             data = []
             for p in cliente.permisos.all():
                 vig = _parse_date(p.vigencia)
@@ -151,9 +153,9 @@ class ClienteViewSet(viewsets.ModelViewSet):
             return Response(data)
 
         # ── POST: registrar nuevo permiso ──────────────────────────────────
-        autoridad   = request.data.get('tipo_permiso', '').strip()
+        autoridad = request.data.get('tipo_permiso', '').strip()
         vigencia_raw = request.data.get('vigencia', '').strip()
-        descripcion  = request.data.get('descripcion', '').strip()
+        descripcion = request.data.get('descripcion', '').strip()
 
         if not autoridad:
             return Response({'error': 'El tipo de permiso es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -168,7 +170,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
 
         existente = Permiso.objects.filter(cliente=cliente, tipo_permiso=autoridad).first()
         if existente:
-            existente.vigencia    = vigencia_date
+            existente.vigencia = vigencia_date
             existente.descripcion = descripcion
             existente.save(update_fields=['vigencia', 'descripcion'])
             hoy = date.today()
@@ -185,7 +187,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_200_OK,
             )
 
-        folio   = _generar_folio_permiso(autoridad)
+        folio = _generar_folio_permiso(autoridad)
         Permiso.objects.create(
             clave_numerica=folio,
             tipo_permiso=autoridad,
@@ -210,7 +212,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
 
 class PermisoDeleteView(APIView):
     authentication_classes = [TokenAuthentication]
-    permission_classes     = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def delete(self, request, pk, clave):
         cliente = get_object_or_404(Cliente, numero=pk)
@@ -225,18 +227,18 @@ class PermisoDeleteView(APIView):
 # ── Aduanas ────────────────────────────────────────────────────────────────────
 
 class AduanaViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset               = Aduana.objects.all()
-    serializer_class       = AduanaSerializer
+    queryset = Aduana.objects.all().order_by('-codigo')
+    serializer_class = AduanaSerializer
     authentication_classes = [TokenAuthentication]
-    permission_classes     = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
 
 # ── Operaciones ────────────────────────────────────────────────────────────────
 
 class OperacionViewSet(viewsets.ModelViewSet):
-    queryset               = OperacionAduanera.objects.select_related('cliente', 'aduana').order_by('-ID_operacion')
+    queryset = OperacionAduanera.objects.select_related('cliente', 'aduana').order_by('-ID_operacion')
     authentication_classes = [TokenAuthentication]
-    permission_classes     = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):
         if self.action == 'retrieve':
@@ -245,12 +247,12 @@ class OperacionViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         tipo_operacion = request.data.get('tipo_operacion', '')
-        cliente_id     = request.data.get('cliente')
-        aduana_id      = request.data.get('aduana')
+        cliente_id = request.data.get('cliente')
+        aduana_id = request.data.get('aduana')
 
         cliente = get_object_or_404(Cliente, numero=cliente_id)
-        aduana  = get_object_or_404(Aduana, codigo=aduana_id)
-        estado  = get_object_or_404(EstadoOpeAduanera, codigo=1)  # "En proceso"
+        aduana = get_object_or_404(Aduana, codigo=aduana_id)
+        estado = get_object_or_404(EstadoOpeAduanera, codigo=1)  # "En proceso"
 
         bitacora = Bitacora.objects.create(
             descripcion=f'Apertura de operación aduanera | Tipo: {tipo_operacion} | Cliente: {cliente}',
@@ -290,26 +292,30 @@ class OperacionViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        semaforo         = _generar_semaforo()
-        numero_pedimento = _generar_numero_pedimento(op.aduana_id)
-
-        paquetes    = Paquete.objects.filter(cliente=op.cliente)
-        valor_total = sum(
-            float(prod.valor_unitario)
-            for paq in paquetes
-            for prod in Producto.objects.filter(paquete=paq)
-        )
-
-        clave_pedimento    = request.data.get('clave_pedimento', '')
-        regimen_adu_id     = request.data.get('regimen_adu')
-        permiso_clave      = request.data.get('permiso')
+        clave_pedimento = request.data.get('clave_pedimento', '')
+        regimen_adu_id = request.data.get('regimen_adu')
+        permiso_clave = request.data.get('permiso')
         tipo_importacion_id = request.data.get('tipo_importacion')
         tipo_exportacion_id = request.data.get('tipo_exportacion')
 
-        regimen   = get_object_or_404(RegimenAduanero, num_regimen=regimen_adu_id) if regimen_adu_id else None
-        permiso   = get_object_or_404(Permiso, clave_numerica=permiso_clave) if permiso_clave else None
-        tipo_imp  = TipoImportaciones.objects.filter(tipo_importacion=tipo_importacion_id).first()
-        tipo_exp  = TipoExportaciones.objects.filter(tipo_exportacion=tipo_exportacion_id).first()
+        if not regimen_adu_id:
+            return Response({'error': 'El régimen aduanero es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not permiso_clave:
+            return Response({'error': 'El permiso es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        regimen = get_object_or_404(RegimenAduanero, num_regimen=regimen_adu_id)
+        permiso = get_object_or_404(Permiso, clave_numerica=permiso_clave)
+        tipo_imp = TipoImportaciones.objects.filter(tipo_importacion=tipo_importacion_id).first()
+        tipo_exp = TipoExportaciones.objects.filter(tipo_exportacion=tipo_exportacion_id).first()
+
+        semaforo = _generar_semaforo()
+        numero_pedimento = _generar_numero_pedimento(op.aduana_id)
+
+        valor_total = (
+            Producto.objects
+            .filter(paquete__cliente=op.cliente)
+            .aggregate(total=models.Sum('valor_unitario'))['total'] or 0
+        )
 
         ped = Pedimento.objects.create(
             numero_pedimento=numero_pedimento,
@@ -336,26 +342,26 @@ class OperacionViewSet(viewsets.ModelViewSet):
 # ── Pedimentos ─────────────────────────────────────────────────────────────────
 
 class PedimentoViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset               = Pedimento.objects.select_related('regimen_adu', 'semaforo', 'ope_aduanera').all()
-    serializer_class       = PedimentoSerializer
+    queryset = Pedimento.objects.select_related('regimen_adu', 'semaforo', 'ope_aduanera').order_by('-fecha_registro')
+    serializer_class = PedimentoSerializer
     authentication_classes = [TokenAuthentication]
-    permission_classes     = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
 
 # ── Catálogos (read-only) ──────────────────────────────────────────────────────
 
 class BitacoraViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset               = Bitacora.objects.all().order_by('-fecha', '-hora')
-    serializer_class       = BitacoraSerializer
+    queryset = Bitacora.objects.all().order_by('-fecha', '-hora')
+    serializer_class = BitacoraSerializer
     authentication_classes = [TokenAuthentication]
-    permission_classes     = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
 
 class CategoriaViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset               = CategoriaProductos.objects.all().order_by('numero')
-    serializer_class       = CategoriaProductosSerializer
+    queryset = CategoriaProductos.objects.all().order_by('-numero')
+    serializer_class = CategoriaProductosSerializer
     authentication_classes = [TokenAuthentication]
-    permission_classes     = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     @action(detail=True, methods=['get'], url_path='productos')
     def productos(self, request, pk=None):
@@ -374,57 +380,57 @@ class CategoriaViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class RegimenViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset               = RegimenAduanero.objects.all()
-    serializer_class       = RegimenAduaneroSerializer
+    queryset = RegimenAduanero.objects.all()
+    serializer_class = RegimenAduaneroSerializer
     authentication_classes = [TokenAuthentication]
-    permission_classes     = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
 
 class TipoImportacionViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset               = TipoImportaciones.objects.all()
-    serializer_class       = TipoImportacionesSerializer
+    queryset = TipoImportaciones.objects.all()
+    serializer_class = TipoImportacionesSerializer
     authentication_classes = [TokenAuthentication]
-    permission_classes     = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
 
 class TipoExportacionViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset               = TipoExportaciones.objects.all()
-    serializer_class       = TipoExportacionesSerializer
+    queryset = TipoExportaciones.objects.all()
+    serializer_class = TipoExportacionesSerializer
     authentication_classes = [TokenAuthentication]
-    permission_classes     = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
 
 class UsuarioViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset               = Usuario.objects.all()
-    serializer_class       = UsuarioSerializer
+    queryset = Usuario.objects.all().order_by('-ID_usuario')
+    serializer_class = UsuarioSerializer
     authentication_classes = [TokenAuthentication]
-    permission_classes     = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
 
 class PermisoViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset               = Permiso.objects.select_related('cliente').order_by('tipo_permiso', 'clave_numerica')
-    serializer_class       = PermisoListSerializer
+    queryset = Permiso.objects.select_related('cliente').order_by('-vigencia')
+    serializer_class = PermisoListSerializer
     authentication_classes = [TokenAuthentication]
-    permission_classes     = [IsAuthenticated]
-    lookup_field           = 'clave_numerica'
+    permission_classes = [IsAuthenticated]
+    lookup_field = 'clave_numerica'
 
 
 # ── Pagos ──────────────────────────────────────────────────────────────────────
 
 class PagoViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset               = Pago.objects.select_related('estado_pago').order_by('-fecha_pago')
-    serializer_class       = PagoSerializer
+    queryset = Pago.objects.select_related('estado_pago').order_by('-fecha_pago')
+    serializer_class = PagoSerializer
     authentication_classes = [TokenAuthentication]
-    permission_classes     = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
 
 # ── Facturas ───────────────────────────────────────────────────────────────────
 
 class FacturaViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset               = Factura.objects.select_related('ID_operacion').order_by('-fecha_factura')
-    serializer_class       = FacturaSerializer
+    queryset = Factura.objects.select_related('ID_operacion').order_by('-fecha_factura')
+    serializer_class = FacturaSerializer
     authentication_classes = [TokenAuthentication]
-    permission_classes     = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
 # -- Dashboard ------------------------------------------------------------------
 class DashboardAPIView(APIView):
@@ -502,10 +508,20 @@ class SancionViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
 
 
-class PaqueteViewSet(viewsets.ModelViewSet):
-    queryset               = Paquete.objects.select_related('cliente', 'pedimento').prefetch_related('productos').order_by('codigo')
+class TipoEmbalajeViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = TipoEmbalaje.objects.all().order_by('id')
+    serializer_class = TipoEmbalajeSerializer
     authentication_classes = [TokenAuthentication]
-    permission_classes     = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
+
+
+class PaqueteViewSet(viewsets.ModelViewSet):
+    queryset = Paquete.objects.select_related(
+        'cliente', 'pedimento', 'tipo_embalaje',
+        'inspeccion', 'inspeccion__semaforo',
+    ).prefetch_related('productos').order_by('-codigo')
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):
         if self.action in ('create', 'update', 'partial_update'):
@@ -515,10 +531,32 @@ class PaqueteViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], url_path='productos')
     def agregar_producto(self, request, pk=None):
         paquete = self.get_object()
-        data    = {**request.data, 'paquete': paquete.codigo}
-        ser     = ProductoCreateSerializer(data=data)
+
+        # Validar capacidad de peso antes de guardar
+        try:
+            peso_unitario = float(request.data.get('peso', 0))
+            cantidad = int(request.data.get('cantidad', 1))
+            peso_nuevo = peso_unitario * cantidad
+        except (ValueError, TypeError):
+            peso_nuevo = 0
+
+        if peso_nuevo > 0 and paquete.tipo_embalaje:
+            from django.db.models import Sum, F, ExpressionWrapper, DecimalField as Df
+            ocupado = paquete.productos.aggregate(
+                total=Sum(ExpressionWrapper(F('peso') * F('cantidad'), output_field=Df(max_digits=12, decimal_places=2)))
+            )['total'] or 0
+            peso_max = float(paquete.tipo_embalaje.peso_maximo)
+            disponible = round(peso_max - float(ocupado), 2)
+            if peso_nuevo > disponible:
+                return Response(
+                    {'error': f'Sin espacio: el producto ocupa {peso_nuevo:.2f} kg pero el paquete solo tiene {disponible:.2f} kg disponibles.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        data = {**request.data, 'paquete': paquete.codigo}
+        ser = ProductoCreateSerializer(data=data)
         if ser.is_valid():
-            producto     = ser.save()
+            producto = ser.save()
             categoria_id = request.data.get('categoria')
             if categoria_id:
                 try:
@@ -530,13 +568,13 @@ class PaqueteViewSet(viewsets.ModelViewSet):
         return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class SemaforoFiscalViewSet(viewsets.ModelViewSet):
-    queryset               = SemaforoFiscal.objects.all().order_by('ID')
-    serializer_class       = SemaforoFiscalSerializer
+    queryset = SemaforoFiscal.objects.all().order_by('-ID')
+    serializer_class = SemaforoFiscalSerializer
     authentication_classes = [TokenAuthentication]
-    permission_classes     = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
 class InspeccionViewSet(viewsets.ModelViewSet):
-    queryset               = Inspeccion.objects.all().order_by('numero')
-    serializer_class       = InspeccionSerializer
+    queryset = Inspeccion.objects.all().order_by('-numero')
+    serializer_class = InspeccionSerializer
     authentication_classes = [TokenAuthentication]
-    permission_classes     = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]

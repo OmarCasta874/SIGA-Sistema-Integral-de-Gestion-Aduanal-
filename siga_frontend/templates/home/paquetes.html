@@ -119,11 +119,11 @@
                     <label>Tipo de embalaje</label>
                     <select name="tipo_embalaje" id="select-embalaje" required>
                         <option value="">— Seleccionar —</option>
-                        <option value="Caja">Caja</option>
-                        <option value="Sobre">Sobre</option>
-                        <option value="Paleta">Paleta</option>
-                        <option value="Tambor">Tambor</option>
-                        <option value="Contenedor">Contenedor</option>
+                        <option value="1" data-nombre="Caja">Caja</option>
+                        <option value="2" data-nombre="Sobre">Sobre</option>
+                        <option value="3" data-nombre="Paleta">Paleta</option>
+                        <option value="4" data-nombre="Tambor">Tambor</option>
+                        <option value="5" data-nombre="Contenedor">Contenedor</option>
                     </select>
                 </div>
                 <div class="paq-campo">
@@ -170,8 +170,8 @@
             <span class="paq-stat-valor paq-stat-naranja">{{ sin_pedimento }}</span>
         </div>
         <div class="paq-stat-card">
-            <span class="paq-stat-label">Pendientes de revisión</span>
-            <span class="paq-stat-valor paq-stat-rojo">{{ sin_pedimento }}</span>
+            <span class="paq-stat-label">Con inspección</span>
+            <span class="paq-stat-valor paq-stat-rojo">{{ con_inspeccion }}</span>
         </div>
     </div>
 
@@ -207,7 +207,7 @@
                 <tr class="paq-fila">
                     <td class="paq-numero">{{ paquete.numero }}</td>
                     <td>{{ paquete.cliente_nombre }}</td>
-                    <td>{{ paquete.tipo_embalaje }}</td>
+                    <td>{{ paquete.tipo_embalaje.nombre }}</td>
                     <td>{{ paquete.peso }} Kg</td>
                     <td>{{ paquete.dimensions|default:'—' }}</td>
                     <td>
@@ -326,7 +326,7 @@
 
     /* Al cambiar el tipo de embalaje: repoblar el select de dimensiones */
     document.getElementById('select-embalaje').addEventListener('change', function () {
-        const tipo  = this.value;
+        const tipo  = this.options[this.selectedIndex].dataset.nombre || '';
         const selDim = document.getElementById('select-dimensiones');
 
         /* Limpiar dimensiones y peso */

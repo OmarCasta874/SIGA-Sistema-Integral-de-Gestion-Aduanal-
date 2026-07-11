@@ -144,6 +144,34 @@
             {% endfor %}
             </tbody>
         </table>
+
+        {% if inspecciones.has_other_pages %}
+        <div class="tabla-paginacion">
+            {% if inspecciones.has_previous %}
+                <a href="?pagina={{ inspecciones.previous_page_number }}" class="pagina-btn pagina-flecha">
+                    <i data-lucide="chevron-left"></i>
+                </a>
+            {% else %}
+                <button class="pagina-btn pagina-flecha" disabled><i data-lucide="chevron-left"></i></button>
+            {% endif %}
+
+            {% for num in inspecciones.paginator.page_range %}
+                {% if inspecciones.number == num %}
+                    <button class="pagina-btn pagina-activa">{{ num }}</button>
+                {% elif num >= inspecciones.number|add:"-2" and num <= inspecciones.number|add:"2" %}
+                    <a href="?pagina={{ num }}" class="pagina-btn">{{ num }}</a>
+                {% endif %}
+            {% endfor %}
+
+            {% if inspecciones.has_next %}
+                <a href="?pagina={{ inspecciones.next_page_number }}" class="pagina-btn pagina-flecha">
+                    <i data-lucide="chevron-right"></i>
+                </a>
+            {% else %}
+                <button class="pagina-btn pagina-flecha" disabled><i data-lucide="chevron-right"></i></button>
+            {% endif %}
+        </div>
+        {% endif %}
     </section>
 </main>
 

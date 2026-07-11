@@ -236,7 +236,7 @@ def operaciones_view(request):
         for o in ops_raw
     ]
 
-    paginador = Paginator(ops_con_estado, 8)
+    paginador = Paginator(ops_con_estado, 5)
 
     try:
         clientes = api.safe_json(api.get(request, '/clientes/'), [])
@@ -603,7 +603,7 @@ def permisos_view(request):
             or q in p.get('cliente_nombre', '').lower()
         ]
 
-    paginador          = Paginator(permisos, 10)
+    paginador          = Paginator(permisos, 5)
     permisos_paginados = paginador.get_page(request.GET.get('pagina', 1))
 
     return render(request, 'home/permisos.html', {
@@ -641,9 +641,10 @@ def semaforofiscal_view(request):
         print(f"Error al obtener semáforos: {e}")
         semaforos = []
         
+    paginador = Paginator(semaforos, 5)
     context = {
-        "semaforos": semaforos,
-        "total_semaforos": len(semaforos),
+        "semaforos":        paginador.get_page(request.GET.get('pagina', 1)),
+        "total_semaforos":  len(semaforos),
     }
 
     return render(request, 'home/semaforo_fiscal.html', context)
@@ -708,20 +709,22 @@ def paquetes_view(request):
             or q in p.get('numero', '').lower()
         ]
 
-    total         = len(paquetes)
-    con_pedimento = sum(1 for p in paquetes if p.get('pedimento_num') not in ('—', None, ''))
-    sin_pedimento = total - con_pedimento
+    total           = len(paquetes)
+    con_pedimento   = sum(1 for p in paquetes if p.get('pedimento_num') not in ('—', None, ''))
+    sin_pedimento   = total - con_pedimento
+    con_inspeccion  = sum(1 for p in paquetes if p.get('inspeccion'))
 
     paginador         = Paginator(paquetes, 5)
     paquetes_paginados = paginador.get_page(request.GET.get('pagina', 1))
 
     return render(request, 'home/paquetes.html', {
-        'paquetes':       paquetes_paginados,
-        'clientes':       clientes,
-        'total':          total,
-        'con_pedimento':  con_pedimento,
-        'sin_pedimento':  sin_pedimento,
-        'query':          query,
+        'paquetes':        paquetes_paginados,
+        'clientes':        clientes,
+        'total':           total,
+        'con_pedimento':   con_pedimento,
+        'sin_pedimento':   sin_pedimento,
+        'con_inspeccion':  con_inspeccion,
+        'query':           query,
     })
 
 
@@ -762,16 +765,13 @@ def paquete_detalle_view(request, pk):
     cliente_id = paquete.get('cliente')
     if cliente_id:
         try:
-            r_perm = api.get(request, '/permisos/')
-            todos = api.safe_json(r_perm, []) if r_perm.status_code == 200 else []
-            from datetime import date
-            hoy = date.today().isoformat()
-            permisos_cliente = {
-                p['tipo_permiso']
-                for p in todos
-                if str(p.get('cliente_numero')) == str(cliente_id)
-                and p.get('vigencia', '0000-00-00') >= hoy
-            }
+            r_perm = api.get(request, f'/clientes/{cliente_id}/permisos/')
+            if r_perm.status_code == 200:
+                permisos_cliente = {
+                    p['tipo']
+                    for p in api.safe_json(r_perm, [])
+                    if p.get('vigente')
+                }
         except Exception:
             pass
 
@@ -786,16 +786,17 @@ def paquete_detalle_view(request, pk):
 def inspecciones_view(request):
     try:
         response = api.get(request, "/inspecciones/")
-        inspecciones = response.json()
-    except Exception as e:
-        print(e)
+        inspecciones = api.safe_json(response, []) if response.status_code == 200 else []
+    except Exception:
         inspecciones = []
-        
+        messages.error(request, 'No fue posible obtener las inspecciones.')
+
+    paginador = Paginator(inspecciones, 5)
     return render(
         request,
         'home/inspecciones.html',
         {
-            "inspecciones": inspecciones,
-            "total_inspecciones": len(inspecciones)
+            "inspecciones":       paginador.get_page(request.GET.get('pagina', 1)),
+            "total_inspecciones": len(inspecciones),
         }
     )

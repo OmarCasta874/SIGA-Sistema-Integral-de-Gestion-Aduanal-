@@ -7,6 +7,7 @@ from home.models import (
     Permiso, Bitacora, CategoriaProductos,
     RegimenAduanero, SemaforoFiscal, TipoImportaciones, TipoExportaciones,
     Pago, Factura, Sancion, Paquete, Producto, EstadoPago, Inspeccion,
+    TipoEmbalaje,
 )
 
 
@@ -34,8 +35,8 @@ class AduanaSerializer(serializers.ModelSerializer):
 
 class PermisoResumenSerializer(serializers.ModelSerializer):
     vigente = serializers.SerializerMethodField()
-    clave   = serializers.CharField(source='clave_numerica')
-    tipo    = serializers.CharField(source='tipo_permiso')
+    clave = serializers.CharField(source='clave_numerica')
+    tipo = serializers.CharField(source='tipo_permiso')
     vigencia_fmt = serializers.SerializerMethodField()
 
     class Meta:
@@ -50,13 +51,13 @@ class PermisoResumenSerializer(serializers.ModelSerializer):
 
 
 class PermisoListSerializer(serializers.ModelSerializer):
-    vigente        = serializers.SerializerMethodField()
-    vigencia_fmt   = serializers.SerializerMethodField()
+    vigente = serializers.SerializerMethodField()
+    vigencia_fmt = serializers.SerializerMethodField()
     cliente_nombre = serializers.SerializerMethodField()
     cliente_numero = serializers.IntegerField(source='cliente_id', read_only=True)
 
     class Meta:
-        model  = Permiso
+        model = Permiso
         fields = [
             'clave_numerica', 'tipo_permiso', 'vigencia', 'vigencia_fmt',
             'vigente', 'descripcion', 'cliente_numero', 'cliente_nombre',
@@ -130,12 +131,35 @@ class BitacoraSerializer(serializers.ModelSerializer):
         fields = ['numero', 'descripcion', 'fecha', 'hora']
 
 
+class TipoEmbalajeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TipoEmbalaje
+        fields = ['id', 'nombre', 'peso_maximo', 'descripcion']
+
+
 class CategoriaProductosSerializer(serializers.ModelSerializer):
     tipo_arancel_nombre = serializers.CharField(source='tipo_arancel.nombre', read_only=True)
+    fraccion_fmt = serializers.SerializerMethodField()
+    embalajes_permitidos = serializers.SerializerMethodField()
 
     class Meta:
         model = CategoriaProductos
-        fields = ['numero', 'nombre', 'descripcion', 'IGI', 'tipo_arancel', 'tipo_arancel_nombre', 'tipo_permiso_requerido']
+        fields = [
+            'numero', 'nombre', 'descripcion', 'IGI',
+            'tipo_arancel', 'tipo_arancel_nombre',
+            'tipo_permiso_requerido',
+            'fraccion_arancelaria', 'fraccion_fmt',
+            'embalajes_permitidos',
+        ]
+
+    def get_fraccion_fmt(self, obj):
+        f = obj.fraccion_arancelaria
+        if not f or len(f) < 8:
+            return f
+        return f'{f[0:4]}.{f[4:6]}.{f[6:8]}.{f[8:10]}'
+
+    def get_embalajes_permitidos(self, obj):
+        return list(obj.embalajes.values_list('tipo_embalaje_id', flat=True))
 
 class ProductoCategoriaSerializer(serializers.ModelSerializer):
     class Meta:
@@ -145,7 +169,7 @@ class ProductoCategoriaSerializer(serializers.ModelSerializer):
 
 class PedimentoSerializer(serializers.ModelSerializer):
     regimen_adu = RegimenAduaneroSerializer(read_only=True)
-    semaforo    = SemaforoFiscalSerializer(read_only=True)
+    semaforo = SemaforoFiscalSerializer(read_only=True)
 
     class Meta:
         model = Pedimento
@@ -153,13 +177,24 @@ class PedimentoSerializer(serializers.ModelSerializer):
             'numero_pedimento', 'clave_pedimento', 'fecha_registro',
             'valor_total', 'semaforo', 'regimen_adu',
             'permiso', 'ope_aduanera', 'tipo_exportacion', 'tipo_importacion',
+            'medio_transporte', 'pais_origen_mercancia', 'pais_destino',
+            'incoterm', 'tipo_cambio',
         ]
+
+
+def _calcular_paso(obj):
+    from home.models import Pedimento, Pago
+    if not Pedimento.objects.filter(ope_aduanera=obj).exists():
+        return 1
+    if not Pago.objects.filter(pedimento__ope_aduanera=obj).exists():
+        return 2
+    return 3
 
 
 class OperacionListSerializer(serializers.ModelSerializer):
     cliente = ClienteSerializer(read_only=True)
-    aduana  = AduanaSerializer(read_only=True)
-    paso    = serializers.SerializerMethodField()
+    aduana = AduanaSerializer(read_only=True)
+    paso = serializers.SerializerMethodField()
 
     class Meta:
         model = OperacionAduanera
@@ -169,18 +204,13 @@ class OperacionListSerializer(serializers.ModelSerializer):
         ]
 
     def get_paso(self, obj):
-        from home.models import Pedimento, Pago
-        if not Pedimento.objects.filter(ope_aduanera=obj).exists():
-            return 1
-        if not Pago.objects.filter(pedimento__ope_aduanera=obj).exists():
-            return 2
-        return 3
+        return _calcular_paso(obj)
 
 
 class OperacionDetalleSerializer(serializers.ModelSerializer):
-    cliente   = ClienteSerializer(read_only=True)
-    aduana    = AduanaSerializer(read_only=True)
-    paso      = serializers.SerializerMethodField()
+    cliente = ClienteSerializer(read_only=True)
+    aduana = AduanaSerializer(read_only=True)
+    paso = serializers.SerializerMethodField()
     pedimento = serializers.SerializerMethodField()
 
     class Meta:
@@ -191,12 +221,7 @@ class OperacionDetalleSerializer(serializers.ModelSerializer):
         ]
 
     def get_paso(self, obj):
-        from home.models import Pedimento, Pago
-        if not Pedimento.objects.filter(ope_aduanera=obj).exists():
-            return 1
-        if not Pago.objects.filter(pedimento__ope_aduanera=obj).exists():
-            return 2
-        return 3
+        return _calcular_paso(obj)
 
     def get_pedimento(self, obj):
         ped = (
@@ -260,19 +285,33 @@ class ProductoCreateSerializer(serializers.ModelSerializer):
         fields = ['nombre', 'descripcion', 'peso', 'valor_unitario', 'cantidad', 'paquete']
 
 
+class InspeccionSerializer(serializers.ModelSerializer):
+    semaforo_resultado = serializers.CharField(source='semaforo.resultado', read_only=True)
+
+    class Meta:
+        model = Inspeccion
+        fields = ['numero', 'fecha_inspeccion', 'hora_inicio', 'semaforo', 'semaforo_resultado', 'resultado']
+
+
 class PaqueteSerializer(serializers.ModelSerializer):
-    numero         = serializers.SerializerMethodField()
+    numero = serializers.SerializerMethodField()
     cliente_nombre = serializers.SerializerMethodField()
-    pedimento_num  = serializers.SerializerMethodField()
-    subtotal       = serializers.SerializerMethodField()
-    productos      = ProductoSerializer(many=True, read_only=True)
+    pedimento_num = serializers.SerializerMethodField()
+    subtotal = serializers.SerializerMethodField()
+    peso_ocupado = serializers.SerializerMethodField()
+    peso_disponible = serializers.SerializerMethodField()
+    peso_porcentaje = serializers.SerializerMethodField()
+    productos = ProductoSerializer(many=True, read_only=True)
+    inspeccion = InspeccionSerializer(read_only=True)
+    tipo_embalaje = TipoEmbalajeSerializer(read_only=True)
 
     class Meta:
         model = Paquete
         fields = [
             'codigo', 'numero', 'peso', 'tipo_embalaje', 'dimensions',
             'cliente', 'cliente_nombre', 'pedimento_num', 'subtotal',
-            'productos',
+            'peso_ocupado', 'peso_disponible', 'peso_porcentaje',
+            'inspeccion', 'productos',
         ]
 
     def get_numero(self, obj):
@@ -289,14 +328,29 @@ class PaqueteSerializer(serializers.ModelSerializer):
         total = obj.productos.aggregate(total=Sum('valor_unitario'))['total']
         return float(total) if total else 0.0
 
+    def _calc_peso_ocupado(self, obj):
+        # usa el prefetch cache de productos — sin query extra
+        return sum(float(p.peso) * p.cantidad for p in obj.productos.all())
+
+    def get_peso_ocupado(self, obj):
+        return round(self._calc_peso_ocupado(obj), 2)
+
+    def get_peso_disponible(self, obj):
+        peso_max = float(obj.tipo_embalaje.peso_maximo) if obj.tipo_embalaje else 0.0
+        return round(peso_max - self._calc_peso_ocupado(obj), 2)
+
+    def get_peso_porcentaje(self, obj):
+        peso_max = float(obj.tipo_embalaje.peso_maximo) if obj.tipo_embalaje else 0.0
+        if peso_max == 0:
+            return 0
+        return min(round((self._calc_peso_ocupado(obj) / peso_max) * 100, 1), 100)
+
 
 class PaqueteCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Paquete
-        fields = ['tipo_embalaje', 'peso', 'dimensions', 'cliente']
-        
-        
-class InspeccionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Inspeccion
-        fields = ['numero', 'fecha_inspeccion', 'hora_inicio', 'semaforo', 'resultado']
+        fields = ['tipo_embalaje', 'peso', 'dimensions', 'cliente', 'inspeccion']
+        extra_kwargs = {
+            'inspeccion':    {'required': False, 'allow_null': True},
+            'tipo_embalaje': {'required': True},
+        }

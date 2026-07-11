@@ -69,7 +69,7 @@ class NuevoClienteForm(forms.ModelForm):
 # Formulario Nuevo pedimento
 # ──────────────────────────────────────────────────────────────────
 CLAVES_PEDIMENTO = [
-    ('',   'Selecciona una clave...'),
+    ('', 'Selecciona una clave...'),
     ('A1', 'A1 — Importación definitiva'),
     ('A2', 'A2 — Importación definitiva de franja o región fronteriza'),
     ('B1', 'B1 — Importación temporal de residente en el extranjero'),
@@ -154,10 +154,10 @@ class NuevaOperacionForm(forms.ModelForm):
         widgets = {
             'tipo_operacion': forms.Select(
                 choices=[
-                    ('',            'Selecciona...'),
+                    ('', 'Selecciona...'),
                     ('Importación', 'Importación'),
                     ('Exportación', 'Exportación'),
-                    ('Tránsito',    'Tránsito'),
+                    ('Tránsito', 'Tránsito'),
                 ],
                 attrs={'class': 'form-input'}
             ),
@@ -171,23 +171,23 @@ class NuevaOperacionForm(forms.ModelForm):
 from .models import Permiso
 
 TIPOS_PERMISO = [
-    ('',                           'Selecciona la autoridad...'),
-    ('COFEPRIS',                   'COFEPRIS — Alimentos, medicamentos y dispositivos médicos'),
-    ('SENASICA',                   'SENASICA — Sanidad animal y vegetal'),
-    ('SEMARNAT',                   'SEMARNAT — Medio ambiente y recursos naturales'),
-    ('SADER',                      'SADER — Agricultura y desarrollo rural'),
-    ('SEDENA',                     'SEDENA — Materiales y equipos militares'),
-    ('SE',                         'SE — Secretaría de Economía (cupos y fracciones)'),
-    ('SAT-IMMEX',                  'SAT — Programa IMMEX (maquila)'),
-    ('CRE',                        'CRE — Comisión Reguladora de Energía'),
-    ('PROFEPA',                    'PROFEPA — Certificado CITES (flora y fauna)'),
-    ('Otro',                       'Otro permiso regulatorio'),
+    ('', 'Selecciona la autoridad...'),
+    ('COFEPRIS', 'COFEPRIS — Alimentos, medicamentos y dispositivos médicos'),
+    ('SENASICA', 'SENASICA — Sanidad animal y vegetal'),
+    ('SEMARNAT', 'SEMARNAT — Medio ambiente y recursos naturales'),
+    ('SADER', 'SADER — Agricultura y desarrollo rural'),
+    ('SEDENA', 'SEDENA — Materiales y equipos militares'),
+    ('SE', 'SE — Secretaría de Economía (cupos y fracciones)'),
+    ('SAT-IMMEX', 'SAT — Programa IMMEX (maquila)'),
+    ('CRE', 'CRE — Comisión Reguladora de Energía'),
+    ('PROFEPA', 'PROFEPA — Certificado CITES (flora y fauna)'),
+    ('Otro', 'Otro permiso regulatorio'),
 ]
 
 
 class NuevoPermisoForm(forms.ModelForm):
     class Meta:
-        model  = Permiso
+        model = Permiso
         fields = ['clave_numerica', 'tipo_permiso', 'vigencia', 'descripcion']
         labels = {
             'clave_numerica': 'Clave / Folio del permiso',

@@ -19,19 +19,19 @@ class UsuarioManager(BaseUserManager):
 
 
 class Usuario(AbstractBaseUser):
-    ID_usuario    = models.AutoField(primary_key=True, db_column='ID_usuario')
+    ID_usuario = models.AutoField(primary_key=True, db_column='ID_usuario')
     nombre_usuario = models.CharField(max_length=50, unique=True, db_column='nombre_usuario')
-    nombre_pila   = models.CharField(max_length=40, db_column='nombre_pila')
-    primer_apell  = models.CharField(max_length=40, db_column='primer_apell')
-    seg_apell     = models.CharField(max_length=40, blank=True, null=True, db_column='seg_apell')
-    fecha_alta    = models.DateField(db_column='fecha_alta')
-    correo        = models.EmailField(max_length=80, unique=True, db_column='correo')
-    contrasena    = models.CharField(max_length=100, db_column='contrasena')
-    bitacora      = models.IntegerField(db_column='bitacora', null=True, blank=True)
+    nombre_pila = models.CharField(max_length=40, db_column='nombre_pila')
+    primer_apell = models.CharField(max_length=40, db_column='primer_apell')
+    seg_apell = models.CharField(max_length=40, blank=True, null=True, db_column='seg_apell')
+    fecha_alta = models.DateField(db_column='fecha_alta')
+    correo = models.EmailField(max_length=80, unique=True, db_column='correo')
+    contrasena = models.CharField(max_length=100, db_column='contrasena')
+    bitacora = models.IntegerField(db_column='bitacora', null=True, blank=True)
 
     objects = UsuarioManager()
 
-    USERNAME_FIELD  = 'correo'
+    USERNAME_FIELD = 'correo'
     REQUIRED_FIELDS = ['nombre_usuario']
 
     @property
@@ -124,7 +124,7 @@ class Inspeccion(models.Model):
     numero = models.AutoField(primary_key=True, db_column='numero')
     fecha_inspeccion = models.DateField(db_column='fecha_inspeccion')
     hora_inicio = models.TimeField(db_column='hora_inicio')
-    resultado = models.CharField(max_length=20, blank=True, null=True, db_column='resultado')
+    resultado = models.CharField(max_length=100, blank=True, null=True, db_column='resultado')
     semaforo = models.ForeignKey(
         SemaforoFiscal, on_delete=models.CASCADE,
         db_column='semaforo', related_name='inspecciones'
@@ -374,11 +374,11 @@ class Incidencia(models.Model):
 # Modelo OPERACION_ADUANERA
 # ──────────────────────────────────────────────────────────────────
 class EstadoOpeAduanera(models.Model):
-    codigo      = models.AutoField(primary_key=True, db_column='codigo')
+    codigo = models.AutoField(primary_key=True, db_column='codigo')
     descripcion = models.CharField(max_length=100, db_column='descripcion')
 
     class Meta:
-        managed  = False
+        managed = False
         db_table = 'estado_opeaduanera'
 
     def __str__(self):
@@ -386,10 +386,10 @@ class EstadoOpeAduanera(models.Model):
 
 
 class OperacionAduanera(models.Model):
-    ID_operacion        = models.AutoField(primary_key=True, db_column='ID_operacion')
-    fecha_inicio        = models.DateField(db_column='fecha_inicio')
-    fecha_final         = models.DateField(blank=True, null=True, db_column='fecha_final')
-    tipo_operacion      = models.CharField(max_length=20, db_column='tipo_operacion')
+    ID_operacion = models.AutoField(primary_key=True, db_column='ID_operacion')
+    fecha_inicio = models.DateField(db_column='fecha_inicio')
+    fecha_final = models.DateField(blank=True, null=True, db_column='fecha_final')
+    tipo_operacion = models.CharField(max_length=20, db_column='tipo_operacion')
     estado_ope_aduanera = models.ForeignKey(
         EstadoOpeAduanera, on_delete=models.PROTECT,
         db_column='estado_ope_aduanera', related_name='operaciones'
@@ -582,6 +582,11 @@ class Pedimento(models.Model):
         db_column='tipo_importacion', related_name='pedimentos',
         blank=True, null=True
     )
+    medio_transporte = models.CharField(max_length=20, blank=True, null=True, db_column='medio_transporte')
+    pais_origen_mercancia = models.CharField(max_length=60, blank=True, null=True, db_column='pais_origen_mercancia')
+    pais_destino = models.CharField(max_length=60, blank=True, null=True, db_column='pais_destino')
+    incoterm = models.CharField(max_length=10, blank=True, null=True, db_column='incoterm')
+    tipo_cambio = models.DecimalField(max_digits=10, decimal_places=4, blank=True, null=True, db_column='tipo_cambio')
 
     class Meta:
         managed = False
@@ -663,12 +668,34 @@ class Arancel(models.Model):
 
 
 # ──────────────────────────────────────────────────────────────────
+# Modelo TIPO_EMBALAJE
+# ──────────────────────────────────────────────────────────────────
+class TipoEmbalaje(models.Model):
+    id = models.AutoField(primary_key=True, db_column='id')
+    nombre = models.CharField(max_length=50, unique=True, db_column='nombre')
+    peso_maximo = models.DecimalField(max_digits=10, decimal_places=2, db_column='peso_maximo')
+    descripcion = models.CharField(max_length=200, blank=True, null=True, db_column='descripcion')
+
+    class Meta:
+        managed = False
+        db_table = 'tipo_embalaje'
+        verbose_name = 'Tipo de embalaje'
+        verbose_name_plural = 'Tipos de embalaje'
+
+    def __str__(self):
+        return self.nombre
+
+
+# ──────────────────────────────────────────────────────────────────
 # Modelo PAQUETE
 # ──────────────────────────────────────────────────────────────────
 class Paquete(models.Model):
     codigo = models.AutoField(primary_key=True, db_column='codigo')
     peso = models.DecimalField(max_digits=10, decimal_places=2, db_column='peso')
-    tipo_embalaje = models.CharField(max_length=30, db_column='tipo_embalaje')
+    tipo_embalaje = models.ForeignKey(
+        TipoEmbalaje, on_delete=models.PROTECT,
+        db_column='tipo_embalaje_id', related_name='paquetes'
+    )
     dimensions = models.CharField(max_length=50, blank=True, null=True, db_column='dimensiones')
     cliente = models.ForeignKey(
         Cliente, on_delete=models.CASCADE,
@@ -677,6 +704,11 @@ class Paquete(models.Model):
     pedimento = models.ForeignKey(
         Pedimento, on_delete=models.SET_NULL,
         db_column='pedimento', related_name='paquetes',
+        blank=True, null=True,
+    )
+    inspeccion = models.ForeignKey(
+        Inspeccion, on_delete=models.SET_NULL,
+        db_column='inspeccion', related_name='paquetes',
         blank=True, null=True,
     )
 
@@ -705,6 +737,10 @@ class CategoriaProductos(models.Model):
     tipo_permiso_requerido = models.CharField(
         max_length=50, blank=True, null=True,
         db_column='tipo_permiso_requerido',
+    )
+    fraccion_arancelaria = models.CharField(
+        max_length=10, blank=True, null=True,
+        db_column='fraccion_arancelaria',
     )
 
     class Meta:
@@ -743,7 +779,32 @@ class Producto(models.Model):
 
 
 # ──────────────────────────────────────────────────────────────────
-# Modelo CATEGORIAS_PRODUCTOS_REL 
+# Modelo CATEGORIA_EMBALAJE
+# ──────────────────────────────────────────────────────────────────
+class CategoriaEmbalaje(models.Model):
+    id = models.AutoField(primary_key=True, db_column='id')
+    categoria = models.ForeignKey(
+        CategoriaProductos, on_delete=models.CASCADE,
+        db_column='categoria_id', related_name='embalajes'
+    )
+    tipo_embalaje = models.ForeignKey(
+        TipoEmbalaje, on_delete=models.CASCADE,
+        db_column='tipo_embalaje_id', related_name='categorias'
+    )
+
+    class Meta:
+        managed = False
+        db_table = 'categoria_embalaje'
+        verbose_name = 'Categoría - Embalaje'
+        verbose_name_plural = 'Categorías - Embalajes'
+        unique_together = (('categoria', 'tipo_embalaje'),)
+
+    def __str__(self):
+        return f'{self.categoria} → {self.tipo_embalaje}'
+
+
+# ──────────────────────────────────────────────────────────────────
+# Modelo CATEGORIAS_PRODUCTOS_REL
 # ──────────────────────────────────────────────────────────────────
 class CategoriasProductosRel(models.Model):
     categorias = models.ForeignKey(
