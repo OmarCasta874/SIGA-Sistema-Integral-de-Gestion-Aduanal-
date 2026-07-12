@@ -49,10 +49,17 @@
     gap: 16px;
 }
 
+.tabla-search-form {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+}
+
 .bitacora-buscar {
     flex: 1;
-    max-width: 320px;
-    padding: 10px 14px;
+    padding: 10px 14px 10px 36px;
     border: 1px solid #E5E7EB;
     border-radius: 8px;
     font-size: 14px;
@@ -62,6 +69,18 @@
 .bitacora-buscar:focus {
     outline: none;
     border-color: #2563EB;
+}
+
+.bitacora-buscar-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    z-index: 1;
+    color: #9CA3AF;
+    pointer-events: none;
 }
 
 .bitacora-exportar-btn {

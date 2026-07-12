@@ -114,6 +114,7 @@
 
     <div class="bitacora-toolbar">
         <form method="get" action="{% url 'home:bitacora' %}" class="tabla-search-form">
+            <i data-lucide="search" class="bitacora-buscar-icon"></i>
             <input type="text" name="q" value="{{ query }}" class="bitacora-buscar" placeholder="Buscar actividad...">
             <button type="submit" class="bitacora-exportar-btn">Filtrar</button>
             {% if query %}
