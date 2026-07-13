@@ -48,6 +48,16 @@
     background: #1D4FD1;
 }
 
+.facturas-select {
+    padding: 10px 14px;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    background: #F9FAFB;
+    font-size: 14px;
+    color: #374151;
+    cursor: pointer;
+}
+
 .facturas-card {
     background: #FFFFFF;
     border: 1px solid #E5E7EB;

@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="{% static 'home/css/bitacora.css' %}">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script src="{% static 'home/js/buscador.js' %}"></script>
+    <script src="{% static 'home/js/ordenador.js' %}"></script>
+    <script src="{% static 'home/js/mostrador.js' %}"></script>
     <script defer src="{% static 'home/js/sidebar.js' %}"></script>
 </head>
 <body>
@@ -121,6 +123,14 @@
                 <a href="{% url 'home:bitacora' %}" class="btn-limpiar">✕ Limpiar</a>
             {% endif %}
         </form>
+        <select class="bitacora-select" data-ordenador data-ordenador-target="tbodyBitacora" data-ordenador-columna="0">
+            <option value="">Ordenar por</option>
+            <option value="alfabetico">Alfabético (A-Z)</option>
+            <option value="ascendente">Menor a mayor</option>
+            <option value="descendente">Mayor a menor</option>
+            <option value="fecha" data-columna="3" data-modo="ascendente">Fecha</option>
+            <option value="hora" data-columna="2" data-modo="ascendente">Hora</option>
+        </select>
     </div>
 
     <div class="bitacora-panel">
@@ -134,7 +144,7 @@
                     <th>Estado</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="tbodyBitacora">
                 {% for entrada in entradas %}
                 <tr>
                     <td>{{ entrada.numero }}</td>

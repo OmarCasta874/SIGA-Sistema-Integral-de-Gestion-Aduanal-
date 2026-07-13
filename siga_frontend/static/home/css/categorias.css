@@ -171,6 +171,16 @@
     background-color: #1d4ed8;
 }
 
+.categorias-select {
+    padding: 10px 14px;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    background: #F9FAFB;
+    font-size: 14px;
+    color: #374151;
+    cursor: pointer;
+}
+
 /* SIDEBAR COLAPSADO (modo mini) */
 
 .sidebar {

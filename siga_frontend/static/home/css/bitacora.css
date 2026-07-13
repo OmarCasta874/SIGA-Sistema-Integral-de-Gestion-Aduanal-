@@ -99,6 +99,16 @@
     background: #1D4ED8;
 }
 
+.bitacora-select {
+    padding: 10px 14px;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    background: #F9FAFB;
+    font-size: 14px;
+    color: #374151;
+    cursor: pointer;
+}
+
 /* TABLA */
 .bitacora-panel {
     background: #FFFFFF;

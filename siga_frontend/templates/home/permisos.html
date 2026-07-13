@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="{% static 'home/css/permisos.css' %}">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script src="{% static 'home/js/buscador.js' %}"></script>
+    <script src="{% static 'home/js/ordenador.js' %}"></script>
+    <script src="{% static 'home/js/mostrador.js' %}"></script>
     <script defer src="{% static 'home/js/sidebar.js' %}"></script>
 </head>
 <body>
@@ -112,6 +114,22 @@
                 {% endif %}
             </div>
         </form>
+
+        <div class="permisos-toolbar" style="margin-top: 10px;">
+            <select class="permisos-select" data-mostrador data-mostrador-target="tbodyPermisos" data-mostrador-columna="4">
+                <option value="">Todos los estados</option>
+                <option value="Vigente">Vigente</option>
+                <option value="Vencido" data-mostrador-vacio="No hay permisos vencidos">Vencido</option>
+            </select>
+
+            <select class="permisos-select" data-ordenador data-ordenador-target="tbodyPermisos" data-ordenador-columna="0">
+                <option value="">Ordenar por</option>
+                <option value="alfabetico">Alfabético (A-Z)</option>
+                <option value="ascendente">Menor a mayor</option>
+                <option value="descendente">Mayor a menor</option>
+                <option value="vigencia" data-columna="3" data-modo="ascendente">Vigencia</option>
+            </select>
+        </div>
 
         <div class="permisos-tabla-header">
             <span class="permisos-tabla-titulo">
@@ -260,7 +278,7 @@
                     </div>
                     <a id="dp-link-cliente" href="#"
                        class="btn-guardar"
-                       style="display:inline-block;margin-top:16px;width:100%;text-align:center;text-decoration:none;">
+                       style="margin-top:16px;width:100%;text-align:center;text-decoration:none;">
                         Ver cliente
                     </a>
                 </div>

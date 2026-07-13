@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="{% static 'home/css/pagos.css' %}">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script src="{% static 'home/js/buscador.js' %}"></script>
+    <script src="{% static 'home/js/ordenador.js' %}"></script>
+    <script src="{% static 'home/js/mostrador.js' %}"></script>
     <script defer src="{% static 'home/js/sidebar.js' %}"></script>
 </head>
 <body>
@@ -103,6 +105,20 @@
                 <a href="{% url 'home:pagos' %}" class="btn-limpiar">✕ Limpiar</a>
             {% endif %}
         </form>
+        <select class="pagos-select" data-mostrador data-mostrador-target="tbodyPagos" data-mostrador-columna="3">
+            <option value="">Todos los estados</option>
+            <option value="Pagado" data-mostrador-vacio="No hay pagos pagados.">Pagado</option>
+            <option value="Pendiente" data-mostrador-vacio="No hay pagos pendientes.">Pendiente</option>
+            <option value="Rechazado" data-mostrador-vacio="No hay pagos rechazados.">Rechazado</option>
+        </select>
+
+        <select class="pagos-select" data-ordenador data-ordenador-target="tbodyPagos" data-ordenador-columna="0">
+            <option value="">Ordenar por</option>
+            <option value="alfabetico">Alfabético (A-Z)</option>
+            <option value="ascendente">Menor a mayor</option>
+            <option value="descendente">Mayor a menor</option>
+            <option value="fecha" data-columna="2" data-modo="ascendente">Fecha Pago</option>
+        </select>
         <button type="button" class="btn-pagos btn-pagos-nuevo">
             <i data-lucide="plus"></i> Nuevo pago
         </button>
