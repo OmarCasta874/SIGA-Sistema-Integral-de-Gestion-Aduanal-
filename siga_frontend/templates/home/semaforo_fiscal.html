@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="{% static 'home/css/semaforo_fiscal.css' %}">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script src="{% static 'home/js/buscador.js' %}"></script>
+    <script src="{% static 'home/js/ordenador.js' %}"></script>
+    <script src="{% static 'home/js/mostrador.js' %}"></script>
     <script defer src="{% static 'home/js/sidebar.js' %}"></script>
 </head>
 <body>
@@ -109,6 +111,13 @@
             <input type="text" name="q" value="{{ query }}" placeholder="Buscar en el Semáforo Fiscal..." 
             data-buscador-target="tbodySemaforos" data-buscador-colspan="4">
         </div>
+        <select class="semaforo-select" data-ordenador data-ordenador-target="tbodySemaforos" data-ordenador-columna="0">
+            <option value="">Ordenar por</option>
+            <option value="alfabetico">Alfabético (A-Z)</option>
+            <option value="ascendente">Menor a mayor</option>
+            <option value="descendente">Mayor a menor</option>
+            <option value="hora" data-columna="1" data-modo="ascendente">Hora</option>
+        </select>
     </section>
 
     <section class="semaforo-tabla-wrapper">

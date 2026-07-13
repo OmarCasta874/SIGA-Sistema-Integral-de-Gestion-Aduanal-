@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="{% static 'home/css/operaciones.css' %}">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script src="{% static 'home/js/buscador.js' %}"></script>
+    <script src="{% static 'home/js/ordenador.js' %}"></script>
+    <script src="{% static 'home/js/mostrador.js' %}"></script>
     <script defer src="{% static 'home/js/sidebar.js' %}"></script>
 </head>
 <body>
@@ -125,7 +127,21 @@
             <a href="?" style="font-size:13px;color:#6b7280;margin-left:8px;">Limpiar</a>
             {% endif %}
         </form>
-
+        <select class="operaciones-select" data-mostrador data-mostrador-target="tbodyOperaciones" data-mostrador-columna="0">
+            <option value="">Todos los Tipos de Operación</option>
+            <option value="Importación" data-mostrador-vacio="No hay operaciones de Importación.">Importación</option>
+            <option value="Exportación" data-mostrador-vacio="No hay operaciones de Exportación.">Exportación</option>
+            <option value="Tránsito" data-mostrador-vacio="No hay operaciones de Tránsito.">Tránsito</option>
+        </select>
+        <select class="operaciones-select" data-ordenador data-ordenador-target="tbodyOperaciones" data-ordenador-columna="0">
+            <option value="">Ordenar por</option>
+            <option value="alfabetico">Alfabético (A-Z)</option>
+            <option value="ascendente">Menor a mayor</option>
+            <option value="descendente">Mayor a menor</option>
+            <option value="cliente" data-columna="1" data-modo="ascendente">Cliente</option>
+            <option value="aduana" data-columna="2" data-modo="ascendente">Aduana</option>
+            <option value="fecha" data-columna="3" data-modo="ascendente">Fecha Apertura</option>
+        </select>
         <button type="button" class="btn-nueva_operacion-op" onclick="abrirModal('modalNuevaOperacion')">
             <i data-lucide="plus"></i>Nueva operación
         </button>

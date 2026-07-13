@@ -167,6 +167,16 @@ button i {
     flex-shrink: 0;
 }
 
+.operaciones-select {
+    padding: 10px 14px;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    background: #F9FAFB;
+    font-size: 14px;
+    color: #374151;
+    cursor: pointer;
+}
+
 /* TABLAS */
 .tabla-operaciones {
     background: white;

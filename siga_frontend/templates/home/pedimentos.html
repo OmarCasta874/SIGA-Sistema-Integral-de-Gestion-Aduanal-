@@ -11,6 +11,8 @@
     <link rel="stylesheet" href="{% static 'home/css/pedimentos.css' %}">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script src="{% static 'home/js/buscador.js' %}"></script>
+    <script src="{% static 'home/js/ordenador.js' %}"></script>
+    <script src="{% static 'home/js/mostrador.js' %}"></script>
     <script defer src="{% static 'home/js/sidebar.js' %}"></script>
 </head>
 <body>
@@ -96,21 +98,29 @@
         <h1> Pedimentos </h1>
     </div>
     <div class="buscador-pedimentos">
-    <form method="get" action="{% url 'home:pedimentos' %}" style="display:flex; gap:10px; flex:1;">
-        <input type="text" name="q" value="{{ query }}"
-               class="input-buscar" placeholder="Buscar pedimento..."
-               data-buscador-target="tbodyPedimentos" data-buscador-colspan="4">
-        <button type="submit" class="btn-filtrar">
-            <i data-lucide="filter"></i> Filtrar
+        <form method="get" action="{% url 'home:pedimentos' %}" style="display:flex; gap:10px; flex:1;">
+            <input type="text" name="q" value="{{ query }}"
+                class="input-buscar" placeholder="Buscar pedimento..."
+                data-buscador-target="tbodyPedimentos" data-buscador-colspan="4">
+            <button type="submit" class="btn-filtrar">
+                <i data-lucide="filter"></i> Filtrar
+            </button>
+            {% if query %}
+                <a href="{% url 'home:pedimentos' %}" class="btn-limpiar">✕ Limpiar</a>
+            {% endif %}
+        </form>
+        <select class="pedimentos-select" data-ordenador data-ordenador-target="tbodyPedimentos" data-ordenador-columna="0">
+            <option value="">Ordenar por</option>
+            <option value="alfabetico">Alfabético (A-Z)</option>
+            <option value="ascendente">Menor a mayor</option>
+            <option value="descendente">Mayor a menor</option>
+            <option value="clave" data-columna="2" data-modo="ascendente">Clave</option>
+            <option value="valor" data-columna="3" data-modo="ascendente">Valor total</option>
+        </select>
+        <button class="btn-nuevo" onclick="abrirModal('modalPedimento')">
+            <i data-lucide="plus"></i> Nuevo pedimento
         </button>
-        {% if query %}
-            <a href="{% url 'home:pedimentos' %}" class="btn-limpiar">✕ Limpiar</a>
-        {% endif %}
-    </form>
-    <button class="btn-nuevo" onclick="abrirModal('modalPedimento')">
-        <i data-lucide="plus"></i> Nuevo pedimento
-    </button>
-</div>
+    </div>
     <section class="tabla-pedimentos">
     <h3>Lista de pedimentos</h3>
     <table>
