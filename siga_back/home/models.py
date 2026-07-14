@@ -19,6 +19,13 @@ class UsuarioManager(BaseUserManager):
 
 
 class Usuario(AbstractBaseUser):
+    ROL_ADMINISTRADOR = 'Administrador'
+    ROL_AGENTE = 'Agente Aduanal'
+    ROLES = [
+        (ROL_ADMINISTRADOR, 'Administrador'),
+        (ROL_AGENTE, 'Agente Aduanal'),
+    ]
+
     ID_usuario = models.AutoField(primary_key=True, db_column='ID_usuario')
     nombre_usuario = models.CharField(max_length=50, unique=True, db_column='nombre_usuario')
     nombre_pila = models.CharField(max_length=40, db_column='nombre_pila')
@@ -28,6 +35,8 @@ class Usuario(AbstractBaseUser):
     correo = models.EmailField(max_length=80, unique=True, db_column='correo')
     contrasena = models.CharField(max_length=100, db_column='contrasena')
     bitacora = models.IntegerField(db_column='bitacora', null=True, blank=True)
+    rol = models.CharField(max_length=20, choices=ROLES, default=ROL_AGENTE, db_column='rol')
+    activo = models.BooleanField(default=True, db_column='activo')
 
     objects = UsuarioManager()
 
@@ -43,7 +52,7 @@ class Usuario(AbstractBaseUser):
         self.contrasena = value
 
     @property
-    def is_active(self):    return True
+    def is_active(self):    return self.activo
     @property
     def is_staff(self):     return True
     @property
@@ -70,6 +79,7 @@ class Cliente(models.Model):
     seg_apell = models.CharField(max_length=40, blank=True, null=True, db_column='seg_apell')
     tipo_persona = models.CharField(max_length=20, db_column='tipo_persona')
     RFC = models.CharField(max_length=13, unique=True, db_column='RFC')
+    activo = models.BooleanField(default=True, db_column='activo')
 
     class Meta:
         managed = False
@@ -242,10 +252,27 @@ class Aduana(models.Model):
 # Modelo BITACORA
 # ──────────────────────────────────────────────────────────────────
 class Bitacora(models.Model):
+    MODULOS = [
+        ('Login', 'Login'), ('Clientes', 'Clientes'), ('Operaciones', 'Operaciones'),
+        ('Pedimentos', 'Pedimentos'), ('Pagos', 'Pagos'), ('Permisos', 'Permisos'),
+        ('Paquetes', 'Paquetes'), ('Facturas', 'Facturas'), ('Inspecciones', 'Inspecciones'),
+        ('Sanciones', 'Sanciones'), ('Categorias', 'Categorías'), ('Usuarios', 'Usuarios'),
+    ]
+    TIPOS_ACCION = [
+        ('Creación', 'Creación'), ('Edición', 'Edición'),
+        ('Eliminación', 'Eliminación'), ('Login', 'Login'),
+    ]
+
     numero = models.AutoField(primary_key=True, db_column='numero')
     descripcion = models.CharField(max_length=250, db_column='descripcion')
     fecha = models.DateField(db_column='fecha')
     hora = models.TimeField(db_column='hora')
+    usuario = models.ForeignKey(
+        'Usuario', on_delete=models.SET_NULL, null=True, blank=True,
+        db_column='usuario_id', related_name='bitacoras',
+    )
+    modulo = models.CharField(max_length=50, choices=MODULOS, default='', db_column='modulo')
+    tipo_accion = models.CharField(max_length=20, choices=TIPOS_ACCION, default='', db_column='tipo_accion')
 
     class Meta:
         managed = False
@@ -587,6 +614,7 @@ class Pedimento(models.Model):
     pais_destino = models.CharField(max_length=60, blank=True, null=True, db_column='pais_destino')
     incoterm = models.CharField(max_length=10, blank=True, null=True, db_column='incoterm')
     tipo_cambio = models.DecimalField(max_digits=10, decimal_places=4, blank=True, null=True, db_column='tipo_cambio')
+    fecha_limite = models.DateTimeField(blank=True, null=True, db_column='fecha_limite')
 
     class Meta:
         managed = False

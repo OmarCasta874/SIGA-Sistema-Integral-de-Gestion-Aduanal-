@@ -20,11 +20,44 @@ class UsuarioSerializer(serializers.ModelSerializer):
         fields = [
             'ID_usuario', 'nombre_usuario', 'nombre_pila',
             'primer_apell', 'seg_apell', 'correo', 'fecha_alta',
-            'nombre_completo',
+            'nombre_completo', 'rol', 'activo',
         ]
 
     def get_nombre_completo(self, obj):
         return obj.get_full_name()
+
+
+class UsuarioCreateSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, min_length=6)
+
+    class Meta:
+        model = Usuario
+        fields = ['nombre_pila', 'primer_apell', 'seg_apell', 'correo', 'nombre_usuario', 'password', 'rol']
+
+    def create(self, validated_data):
+        password = validated_data.pop('password')
+        usuario = Usuario(**validated_data)
+        usuario.fecha_alta = date.today()
+        usuario.set_password(password)
+        usuario.save()
+        return usuario
+
+
+class UsuarioUpdateSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=False, min_length=6)
+
+    class Meta:
+        model = Usuario
+        fields = ['nombre_pila', 'primer_apell', 'seg_apell', 'correo', 'nombre_usuario', 'password', 'rol']
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop('password', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        if password:
+            instance.set_password(password)
+        instance.save()
+        return instance
 
 
 class AduanaSerializer(serializers.ModelSerializer):
@@ -75,17 +108,36 @@ class PermisoListSerializer(serializers.ModelSerializer):
 
 
 class ClienteSerializer(serializers.ModelSerializer):
+    telefono           = serializers.SerializerMethodField()
+    correo_electronico = serializers.SerializerMethodField()
+
     class Meta:
         model = Cliente
-        fields = ['numero', 'nombre', 'primer_apell', 'seg_apell', 'tipo_persona', 'RFC']
+        fields = ['numero', 'nombre', 'primer_apell', 'seg_apell', 'tipo_persona', 'RFC', 'activo',
+                  'telefono', 'correo_electronico']
+
+    def get_telefono(self, obj):
+        t = obj.telefonos.first()
+        return t.numTelefono if t else ''
+
+    def get_correo_electronico(self, obj):
+        c = obj.correos.first()
+        return c.correoElec if c else ''
 
 
 class ClienteDetalleSerializer(serializers.ModelSerializer):
-    permisos = serializers.SerializerMethodField()
+    permisos   = serializers.SerializerMethodField()
+    telefonos  = serializers.SerializerMethodField()
+    correos    = serializers.SerializerMethodField()
+    pedimentos = serializers.SerializerMethodField()
 
     class Meta:
         model = Cliente
-        fields = ['numero', 'nombre', 'primer_apell', 'seg_apell', 'tipo_persona', 'RFC', 'permisos']
+        fields = [
+            'numero', 'nombre', 'primer_apell', 'seg_apell',
+            'tipo_persona', 'RFC', 'activo',
+            'permisos', 'telefonos', 'correos', 'pedimentos',
+        ]
 
     def get_permisos(self, obj):
         hoy = date.today()
@@ -99,6 +151,24 @@ class ClienteDetalleSerializer(serializers.ModelSerializer):
             }
             for p in obj.permisos.all()
         ]
+
+    def get_telefonos(self, obj):
+        return [t.numTelefono for t in obj.telefonos.all()]
+
+    def get_correos(self, obj):
+        return [c.correoElec for c in obj.correos.all()]
+
+    def get_pedimentos(self, obj):
+        pedimentos = []
+        for op in obj.operaciones.prefetch_related('pedimentos__semaforo', 'pedimentos__pagos').all():
+            for p in op.pedimentos.all():
+                pedimentos.append({
+                    'numero':   p.numero_pedimento,
+                    'fecha':    p.fecha_registro.strftime('%d/%m/%Y'),
+                    'semaforo': p.semaforo.resultado,
+                    'con_pago': p.pagos.exists(),
+                })
+        return pedimentos
 
 
 class SemaforoFiscalSerializer(serializers.ModelSerializer):
@@ -126,9 +196,14 @@ class TipoExportacionesSerializer(serializers.ModelSerializer):
 
 
 class BitacoraSerializer(serializers.ModelSerializer):
+    usuario_nombre = serializers.SerializerMethodField()
+
     class Meta:
         model = Bitacora
-        fields = ['numero', 'descripcion', 'fecha', 'hora']
+        fields = ['numero', 'descripcion', 'fecha', 'hora', 'modulo', 'tipo_accion', 'usuario_nombre']
+
+    def get_usuario_nombre(self, obj):
+        return obj.usuario.get_full_name() if obj.usuario else None
 
 
 class TipoEmbalajeSerializer(serializers.ModelSerializer):

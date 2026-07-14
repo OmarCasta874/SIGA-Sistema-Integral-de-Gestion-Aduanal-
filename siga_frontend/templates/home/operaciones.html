@@ -334,25 +334,14 @@
                                    placeholder="Ej. Japón">
                         </div>
                     </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>País de destino</label>
-                            <input type="text" name="pais_destino" class="form-input"
-                                   value="México" readonly>
-                        </div>
-                        <div class="form-group">
-                            <label>Tipo de importación</label>
-                            <select name="tipo_importacion" class="form-input">
-                                <option value="">Selecciona...</option>
-                                {% for t in tipos_importacion %}
-                                    <option value="{{ t.tipo_importacion }}">{{ t.nombre }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
+                    <div class="form-group">
+                        <label>País de destino</label>
+                        <input type="text" name="pais_destino" class="form-input"
+                               value="México" readonly>
                     </div>
                     <div class="form-group">
                         <label>Régimen aduanero</label>
-                        <select name="regimen_adu" class="form-input">
+                        <select name="regimen_adu" id="imp-regimen" class="form-input">
                             <option value="">Selecciona...</option>
                             {% for r in regimenes %}
                                 {% if 'import' in r.descripcion|lower or 'temporal' in r.descripcion|lower or 'depósito' in r.descripcion|lower %}
@@ -403,25 +392,14 @@
                                    placeholder="Ej. Estados Unidos">
                         </div>
                     </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>País de origen</label>
-                            <input type="text" name="pais_origen" class="form-input"
-                                   value="México" readonly>
-                        </div>
-                        <div class="form-group">
-                            <label>Tipo de exportación</label>
-                            <select name="tipo_exportacion" class="form-input">
-                                <option value="">Selecciona...</option>
-                                {% for t in tipos_exportacion %}
-                                    <option value="{{ t.tipo_exportacion }}">{{ t.nombre }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
+                    <div class="form-group">
+                        <label>País de origen</label>
+                        <input type="text" name="pais_origen" class="form-input"
+                               value="México" readonly>
                     </div>
                     <div class="form-group">
                         <label>Régimen aduanero</label>
-                        <select name="regimen_adu" class="form-input">
+                        <select name="regimen_adu" id="exp-regimen" class="form-input">
                             <option value="">Selecciona...</option>
                             {% for r in regimenes %}
                                 {% if 'export' in r.descripcion|lower %}
@@ -471,6 +449,22 @@
                     <div class="detalle-row">
                         <span class="detalle-label">Fecha apertura</span>
                         <span id="resumen-fecha"></span>
+                    </div>
+                    <div class="detalle-row">
+                        <span class="detalle-label" id="resumen-label-contraparte">Proveedor</span>
+                        <span id="resumen-contraparte"></span>
+                    </div>
+                    <div class="detalle-row">
+                        <span class="detalle-label">País origen</span>
+                        <span id="resumen-pais-origen"></span>
+                    </div>
+                    <div class="detalle-row">
+                        <span class="detalle-label">País destino</span>
+                        <span id="resumen-pais-destino"></span>
+                    </div>
+                    <div class="detalle-row">
+                        <span class="detalle-label">Régimen aduanero</span>
+                        <span id="resumen-regimen"></span>
                     </div>
                 </div>
             </div>
@@ -577,12 +571,32 @@
         document.getElementById('prog-3').classList.add('activo');
         document.getElementById('modal-subtitulo').textContent = 'Paso 3 de 3 — Confirmar';
 
+        // Paso 1
         const cliente = document.getElementById('op-cliente');
         document.getElementById('resumen-tipo').textContent    = tipoOperacionActual;
         document.getElementById('resumen-cliente').textContent = cliente.options[cliente.selectedIndex].text;
         const selAduana = document.getElementById('op-aduana');
         document.getElementById('resumen-aduana').textContent  = selAduana.options[selAduana.selectedIndex]?.text || '';
         document.getElementById('resumen-fecha').textContent   = document.getElementById('op-fecha').value;
+
+        // Paso 2
+        if (tipo === 'importacion') {
+            const form   = document.getElementById('form-importacion');
+            const selReg = document.getElementById('imp-regimen');
+            document.getElementById('resumen-label-contraparte').textContent = 'Proveedor';
+            document.getElementById('resumen-contraparte').textContent  = form.querySelector('[name="proveedor"]').value || '—';
+            document.getElementById('resumen-pais-origen').textContent  = form.querySelector('[name="pais_origen"]').value || '—';
+            document.getElementById('resumen-pais-destino').textContent = form.querySelector('[name="pais_destino"]').value || 'México';
+            document.getElementById('resumen-regimen').textContent      = selReg.options[selReg.selectedIndex]?.text || '—';
+        } else {
+            const form   = document.getElementById('form-exportacion');
+            const selReg = document.getElementById('exp-regimen');
+            document.getElementById('resumen-label-contraparte').textContent = 'Comprador';
+            document.getElementById('resumen-contraparte').textContent  = form.querySelector('[name="comprador"]').value || '—';
+            document.getElementById('resumen-pais-origen').textContent  = form.querySelector('[name="pais_origen"]').value || 'México';
+            document.getElementById('resumen-pais-destino').textContent = form.querySelector('[name="pais_destino"]').value || '—';
+            document.getElementById('resumen-regimen').textContent      = selReg.options[selReg.selectedIndex]?.text || '—';
+        }
 
         document.getElementById('paso-3').style.display = '';
         lucide.createIcons();

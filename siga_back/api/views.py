@@ -1,5 +1,5 @@
 import datetime
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import random
 
 from django.contrib.auth import authenticate
@@ -20,9 +20,10 @@ from home.models import (
     RegimenAduanero, SemaforoFiscal, TipoImportaciones, TipoExportaciones,
     Paquete, Producto, Pago, Factura, Sancion,
     EstadoOpeAduanera, Inspeccion, TipoEmbalaje,
+    Telefono, CorreoElectronico,
 )
 from .serializers import (
-    UsuarioSerializer,
+    UsuarioSerializer, UsuarioCreateSerializer, UsuarioUpdateSerializer,
     ClienteSerializer, ClienteDetalleSerializer,
     AduanaSerializer,
     OperacionListSerializer, OperacionDetalleSerializer,
@@ -85,6 +86,17 @@ def _generar_numero_pedimento(codigo_aduana):
 
 # ── Auth ───────────────────────────────────────────────────────────────────────
 
+def _registrar_bitacora(usuario, modulo, tipo_accion, descripcion):
+    Bitacora.objects.create(
+        descripcion=descripcion,
+        fecha=date.today(),
+        hora=datetime.now().time(),
+        usuario=usuario,
+        modulo=modulo,
+        tipo_accion=tipo_accion,
+    )
+
+
 class AuthLoginView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
@@ -98,7 +110,19 @@ class AuthLoginView(APIView):
                 {'error': 'Correo o contraseña incorrectos.'},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
-        token, _ = Token.objects.get_or_create(user=user)
+        if not user.activo:
+            return Response(
+                {'error': 'Tu cuenta está desactivada. Contacta al administrador.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        Token.objects.filter(user=user).delete()
+        token = Token.objects.create(user=user)
+        _registrar_bitacora(
+            usuario=user,
+            modulo='Login',
+            tipo_accion='Login',
+            descripcion=f'Inicio de sesión: {user.get_full_name()} ({user.correo})',
+        )
         return Response({
             'token':   token.key,
             'usuario': UsuarioSerializer(user).data,
@@ -125,7 +149,7 @@ class AuthMeView(APIView):
 # ── Clientes ───────────────────────────────────────────────────────────────────
 
 class ClienteViewSet(viewsets.ModelViewSet):
-    queryset = Cliente.objects.all().order_by('-numero')
+    queryset = Cliente.objects.prefetch_related('telefonos', 'correos').order_by('-numero')
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
@@ -133,6 +157,68 @@ class ClienteViewSet(viewsets.ModelViewSet):
         if self.action == 'retrieve':
             return ClienteDetalleSerializer
         return ClienteSerializer
+
+    def create(self, request, *args, **kwargs):
+        telefono = request.data.get('telefono', '').strip()
+        correo   = request.data.get('correo_electronico', '').strip()
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        cliente = serializer.save()
+        if telefono:
+            Telefono.objects.create(numTelefono=telefono, cliente=cliente)
+        if correo:
+            CorreoElectronico.objects.create(
+                correoElec=correo, cliente=cliente, usuario=request.user
+            )
+        _registrar_bitacora(
+            usuario=request.user, modulo='Clientes', tipo_accion='Creación',
+            descripcion=f'Cliente creado: {cliente}',
+        )
+        return Response(self.get_serializer(cliente).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'], url_path='contacto')
+    def contacto(self, request, pk=None):
+        cliente  = self.get_object()
+        telefono = request.data.get('telefono', '').strip()
+        correo   = request.data.get('correo_electronico', '').strip()
+
+        if telefono:
+            tel = cliente.telefonos.first()
+            if tel:
+                tel.numTelefono = telefono
+                tel.save()
+            else:
+                Telefono.objects.create(numTelefono=telefono, cliente=cliente)
+
+        if correo:
+            cor = cliente.correos.first()
+            if cor:
+                cor.correoElec = correo
+                cor.save()
+            else:
+                CorreoElectronico.objects.create(
+                    correoElec=correo, cliente=cliente, usuario=request.user
+                )
+
+        _registrar_bitacora(
+            usuario=request.user, modulo='Clientes', tipo_accion='Edición',
+            descripcion=f'Contacto actualizado: {cliente}',
+        )
+        return Response({'ok': True})
+
+    @action(detail=True, methods=['post'], url_path='toggle-activo')
+    def toggle_activo(self, request, pk=None):
+        cliente = self.get_object()
+        cliente.activo = not cliente.activo
+        cliente.save()
+        estado = 'activado' if cliente.activo else 'desactivado'
+        _registrar_bitacora(
+            usuario=request.user,
+            modulo='Clientes',
+            tipo_accion='Edición',
+            descripcion=f'Cliente {estado}: {cliente}',
+        )
+        return Response({'activo': cliente.activo})
 
     @action(detail=True, methods=['get', 'post'], url_path='permisos')
     def permisos(self, request, pk=None):
@@ -254,10 +340,19 @@ class OperacionViewSet(viewsets.ModelViewSet):
         aduana = get_object_or_404(Aduana, codigo=aduana_id)
         estado = get_object_or_404(EstadoOpeAduanera, codigo=1)  # "En proceso"
 
+        if not Paquete.objects.filter(cliente=cliente).exists():
+            return Response(
+                {'error': f'El cliente {cliente} no tiene paquetes registrados. Registra al menos un paquete antes de crear una operación.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         bitacora = Bitacora.objects.create(
             descripcion=f'Apertura de operación aduanera | Tipo: {tipo_operacion} | Cliente: {cliente}',
             fecha=date.today(),
             hora=datetime.now().time(),
+            usuario=request.user,
+            modulo='Operaciones',
+            tipo_accion='Creación',
         )
         op = OperacionAduanera.objects.create(
             tipo_operacion=tipo_operacion,
@@ -292,11 +387,14 @@ class OperacionViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        clave_pedimento = request.data.get('clave_pedimento', '')
-        regimen_adu_id = request.data.get('regimen_adu')
-        permiso_clave = request.data.get('permiso')
-        tipo_importacion_id = request.data.get('tipo_importacion')
-        tipo_exportacion_id = request.data.get('tipo_exportacion')
+        clave_pedimento    = request.data.get('clave_pedimento', '')
+        regimen_adu_id     = request.data.get('regimen_adu')
+        permiso_clave      = request.data.get('permiso')
+        medio_transporte   = request.data.get('medio_transporte') or None
+        pais_origen        = request.data.get('pais_origen_mercancia') or None
+        pais_destino       = request.data.get('pais_destino') or None
+        incoterm           = request.data.get('incoterm') or None
+        tipo_cambio        = request.data.get('tipo_cambio') or None
 
         if not regimen_adu_id:
             return Response({'error': 'El régimen aduanero es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -305,8 +403,6 @@ class OperacionViewSet(viewsets.ModelViewSet):
 
         regimen = get_object_or_404(RegimenAduanero, num_regimen=regimen_adu_id)
         permiso = get_object_or_404(Permiso, clave_numerica=permiso_clave)
-        tipo_imp = TipoImportaciones.objects.filter(tipo_importacion=tipo_importacion_id).first()
-        tipo_exp = TipoExportaciones.objects.filter(tipo_exportacion=tipo_exportacion_id).first()
 
         semaforo = _generar_semaforo()
         numero_pedimento = _generar_numero_pedimento(op.aduana_id)
@@ -326,14 +422,23 @@ class OperacionViewSet(viewsets.ModelViewSet):
             regimen_adu=regimen,
             permiso=permiso,
             ope_aduanera=op,
-            tipo_importacion=tipo_imp,
-            tipo_exportacion=tipo_exp,
+            medio_transporte=medio_transporte,
+            pais_origen_mercancia=pais_origen,
+            pais_destino=pais_destino,
+            incoterm=incoterm,
+            tipo_cambio=tipo_cambio,
         )
+
+        # RF31: actualizar estado de operación a "Pendiente de pago"
+        estado_pendiente = get_object_or_404(EstadoOpeAduanera, codigo=4)
+        op.estado_ope_aduanera = estado_pendiente
+        op.save(update_fields=['estado_ope_aduanera'])
+
         return Response(
             {
-                'numero_pedimento':  ped.numero_pedimento,
+                'numero_pedimento':   ped.numero_pedimento,
                 'semaforo_resultado': semaforo.resultado,
-                'valor_total':       float(ped.valor_total),
+                'valor_total':        float(ped.valor_total),
             },
             status=status.HTTP_201_CREATED,
         )
@@ -400,11 +505,49 @@ class TipoExportacionViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
 
 
-class UsuarioViewSet(viewsets.ReadOnlyModelViewSet):
+class UsuarioViewSet(viewsets.ModelViewSet):
     queryset = Usuario.objects.all().order_by('-ID_usuario')
-    serializer_class = UsuarioSerializer
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return UsuarioCreateSerializer
+        if self.action in ('update', 'partial_update'):
+            return UsuarioUpdateSerializer
+        return UsuarioSerializer
+
+    def perform_create(self, serializer):
+        usuario = serializer.save()
+        _registrar_bitacora(
+            usuario=self.request.user,
+            modulo='Usuarios',
+            tipo_accion='Creación',
+            descripcion=f'Usuario creado: {usuario.get_full_name()} ({usuario.correo})',
+        )
+
+    def perform_update(self, serializer):
+        usuario = serializer.save()
+        _registrar_bitacora(
+            usuario=self.request.user,
+            modulo='Usuarios',
+            tipo_accion='Edición',
+            descripcion=f'Usuario editado: {usuario.get_full_name()} ({usuario.correo})',
+        )
+
+    @action(detail=True, methods=['post'], url_path='toggle-activo')
+    def toggle_activo(self, request, pk=None):
+        usuario = self.get_object()
+        usuario.activo = not usuario.activo
+        usuario.save()
+        estado = 'activado' if usuario.activo else 'desactivado'
+        _registrar_bitacora(
+            usuario=request.user,
+            modulo='Usuarios',
+            tipo_accion='Edición',
+            descripcion=f'Usuario {estado}: {usuario.get_full_name()} ({usuario.correo})',
+        )
+        return Response({'activo': usuario.activo})
 
 
 class PermisoViewSet(viewsets.ReadOnlyModelViewSet):
@@ -438,50 +581,69 @@ class DashboardAPIView(APIView):
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
+        from django.utils import timezone
+
         pedimentos_recientes = Pedimento.objects.select_related(
                 "ope_aduanera__cliente",
                 "regimen_adu",
                 "semaforo",
             ).order_by("-fecha_registro")[:5]
-    
+
+        ahora = timezone.now()
+        limite_48h = ahora + timedelta(hours=48)
+
         pedimentos = []
-        
         for p in pedimentos_recientes:
+            por_vencer = (
+                p.fecha_limite is not None
+                and ahora <= p.fecha_limite <= limite_48h
+            )
             pedimentos.append({
                 "numero": p.numero_pedimento,
                 "cliente": str(p.ope_aduanera.cliente),
                 "regimen": str(p.regimen_adu),
                 "estado": p.ope_aduanera.tipo_operacion,
                 "semaforo": p.semaforo.resultado,
+                "fecha_limite": p.fecha_limite,
+                "por_vencer": por_vencer,
             })
-            
+
         bitacora_reciente = Bitacora.objects.order_by("-fecha", "-hora")[:5]
         bitacora = BitacoraSerializer(bitacora_reciente, many=True).data
-        
-        total_verde = SemaforoFiscal.objects.filter(
-            resultado__icontains="Verde"
-        ).count()
-        
-        total_amarillo = SemaforoFiscal.objects.filter(
-            resultado__icontains="Amarillo"
-        ).count()
-        
-        total_rojo = SemaforoFiscal.objects.filter(
-            resultado__icontains="Rojo"
-        ).count()
-        
+
+        total_verde = SemaforoFiscal.objects.filter(resultado__icontains="Verde").count()
+        total_amarillo = SemaforoFiscal.objects.filter(resultado__icontains="Amarillo").count()
+        total_rojo = SemaforoFiscal.objects.filter(resultado__icontains="Rojo").count()
         total_semaforos = total_verde + total_amarillo + total_rojo
-        
-        porcentaje_verde = round((total_verde / total_semaforos) * 100) if total_semaforos else 0
+
+        porcentaje_verde    = round((total_verde    / total_semaforos) * 100) if total_semaforos else 0
         porcentaje_amarillo = round((total_amarillo / total_semaforos) * 100) if total_semaforos else 0
-        porcentaje_rojo = round((total_rojo / total_semaforos) * 100) if total_semaforos else 0
-            
+        porcentaje_rojo     = round((total_rojo     / total_semaforos) * 100) if total_semaforos else 0
+
+        # RF09 — pedimentos con pago registrado
+        pedimentos_completados = Pedimento.objects.filter(pagos__isnull=False).distinct().count()
+
+        # RF10 — pedimentos con semáforo verde
+        pedimentos_liberados = Pedimento.objects.filter(
+            semaforo__resultado__icontains="Verde"
+        ).count()
+
+        # RF11 — pedimentos que vencen en menos de 48 horas
+        pedimentos_por_vencer = Pedimento.objects.filter(
+            fecha_limite__isnull=False,
+            fecha_limite__gte=ahora,
+            fecha_limite__lte=limite_48h,
+        ).count()
+
         data = {
             "total_pedimentos": Pedimento.objects.count(),
             "total_pagos": Pago.objects.count(),
             "total_clientes": Cliente.objects.count(),
             "total_operaciones": OperacionAduanera.objects.count(),
             "total_aduanas": Aduana.objects.count(),
+            "pedimentos_completados": pedimentos_completados,
+            "pedimentos_liberados": pedimentos_liberados,
+            "pedimentos_por_vencer": pedimentos_por_vencer,
             "pedimentos": pedimentos,
             "bitacora": bitacora,
             "semaforo": {
@@ -494,7 +656,7 @@ class DashboardAPIView(APIView):
                 "porcentaje_rojo": porcentaje_rojo,
             },
         }
-        
+
         return Response(data)
     
 # -- Sanción --------------------------------------------------------------------
@@ -516,12 +678,18 @@ class TipoEmbalajeViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class PaqueteViewSet(viewsets.ModelViewSet):
-    queryset = Paquete.objects.select_related(
-        'cliente', 'pedimento', 'tipo_embalaje',
-        'inspeccion', 'inspeccion__semaforo',
-    ).prefetch_related('productos').order_by('-codigo')
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = Paquete.objects.select_related(
+            'cliente', 'pedimento', 'tipo_embalaje',
+            'inspeccion', 'inspeccion__semaforo',
+        ).prefetch_related('productos').order_by('-codigo')
+        cliente_id = self.request.query_params.get('cliente')
+        if cliente_id:
+            qs = qs.filter(cliente_id=cliente_id)
+        return qs
 
     def get_serializer_class(self):
         if self.action in ('create', 'update', 'partial_update'):

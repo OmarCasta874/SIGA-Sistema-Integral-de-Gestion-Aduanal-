@@ -3,24 +3,136 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Operación {{ op.ID_operacion }} — SIGA</title>
+    <title>Operación #{{ op.ID_operacion }} — SIGA</title>
     <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script src="{% static 'home/js/sidebar.js' %}"></script>
+    <style>
+        /* ── Layout base ── */
+        .op-header  { display:flex; align-items:center; gap:14px; margin-bottom:24px; }
+        .op-title   { font-size:22px; font-weight:700; color:#111827; }
+        .tipo-badge { display:inline-block; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:600; }
+        .tipo-importación { background:#DBEAFE; color:#1D4ED8; }
+        .tipo-exportación { background:#D1FAE5; color:#065F46; }
+        .tipo-tránsito    { background:#FEF3C7; color:#92400E; }
+        .estado-op-pill   { display:inline-block; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:600; background:#F3F4F6; color:#374151; }
+        .detalle-card  { background:#fff; border:1px solid #E5E7EB; border-radius:10px; padding:20px; }
+        .detalle-card h3 { font-size:15px; font-weight:700; color:#111827; margin-bottom:14px; }
+        .detalle-row   { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #F3F4F6; font-size:14px; }
+        .detalle-row:last-child { border-bottom:none; }
+        .detalle-label { color:#9CA3AF; font-size:13px; }
+        .pill-generado { background:#FEF3C7; color:#92400E; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:600; }
+        .pill-pagado   { background:#D1FAE5; color:#065F46; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:600; }
+        .paquetes-panel { background:#fff; border:1px solid #E5E7EB; border-radius:10px; padding:20px; margin-bottom:20px; }
+        .paquetes-panel h3 { font-size:15px; font-weight:700; color:#111827; margin-bottom:14px; }
+        .tabla-paquetes { width:100%; border-collapse:collapse; }
+        .tabla-paquetes th { text-align:left; font-size:12px; font-weight:600; color:#9CA3AF; text-transform:uppercase; padding:0 12px 10px; border-bottom:1px solid #E5E7EB; }
+        .tabla-paquetes td { padding:12px; font-size:14px; color:#374151; border-bottom:1px solid #F1F3F5; }
+        .tabla-paquetes tbody tr:last-child td { border-bottom:none; }
+        .sin-datos { text-align:center; color:#9CA3AF; padding:20px; font-size:14px; }
+        .btn-generar { background:#2563EB; color:#fff; border:none; border-radius:8px; padding:10px 20px; font-size:14px; font-weight:600; cursor:pointer; }
+        .btn-generar:hover { background:#1D4ED8; }
+        .btn-volver  { display:inline-flex; align-items:center; gap:6px; color:#6B7280; font-size:14px; text-decoration:none; margin-bottom:20px; }
+        .btn-volver:hover { color:#111827; }
+        .alerta { padding:12px 16px; border-radius:8px; margin-bottom:16px; font-size:14px; }
+        .alerta-success { background:#D1FAE5; color:#065F46; border:1px solid #A7F3D0; }
+        .alerta-error   { background:#FEE2E2; color:#991B1B; border:1px solid #FECACA; }
+
+        /* ── Pedimento SAT display (static, when pedimento exists) ── */
+        .ped-doc { background:#fff; border:2px solid #1e3a5f; border-radius:6px; margin-bottom:20px; font-size:13px; overflow:hidden; }
+        .ped-doc-titulo { background:#1e3a5f; color:#fff; text-align:center; padding:8px; font-size:12px; font-weight:700; letter-spacing:2px; }
+        .ped-doc-header { display:grid; grid-template-columns:2fr 1fr 1fr 1fr; border-bottom:1px solid #1e3a5f; }
+        .ped-field { padding:6px 10px; border-right:1px solid #c8d6e5; }
+        .ped-field:last-child { border-right:none; }
+        .ped-field-label { font-size:9px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:.5px; margin-bottom:2px; }
+        .ped-field-value { font-size:13px; font-weight:600; color:#111827; }
+        .ped-field-value.mono { font-family:monospace; font-size:14px; }
+        .ped-section-title { background:#f0f4f8; padding:5px 10px; font-size:10px; font-weight:700; color:#1e3a5f; text-transform:uppercase; letter-spacing:1px; border-bottom:1px solid #c8d6e5; border-top:1px solid #c8d6e5; }
+        .ped-row { display:grid; border-bottom:1px solid #e5e7eb; }
+        .ped-row:last-child { border-bottom:none; }
+        .ped-col-2 { grid-template-columns:1fr 1fr; }
+        .ped-col-3 { grid-template-columns:1fr 1fr 1fr; }
+        .ped-col-4 { grid-template-columns:1fr 1fr 1fr 1fr; }
+        .semaforo-dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; display:inline-block; }
+        .dot-verde { background:#16a34a; }
+        .dot-rojo  { background:#dc2626; }
+        .ped-sin-pedimento { text-align:center; padding:32px 20px; border:2px dashed #E5E7EB; border-radius:10px; margin-bottom:20px; }
+        .ped-sin-pedimento p { color:#9CA3AF; font-size:14px; margin-bottom:16px; }
+
+        /* ── Modal overlay ── */
+        .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:1000; justify-content:center; align-items:center; }
+        .modal-overlay.activo { display:flex; }
+        .modal-box-pedimento { background:#fff; border-radius:12px; width:760px; max-width:97vw; max-height:93vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.2); }
+        .modal-header  { display:flex; justify-content:space-between; align-items:flex-start; padding:20px 24px 16px; border-bottom:1px solid #F3F4F6; }
+        .modal-header h3 { font-size:17px; font-weight:700; color:#111827; }
+        .modal-cerrar  { background:none; border:none; cursor:pointer; color:#9CA3AF; }
+        .modal-body    { padding:20px 24px; }
+        .modal-footer  { padding:16px 24px 20px; display:flex; justify-content:flex-end; gap:10px; border-top:1px solid #F3F4F6; }
+        .form-group    { margin-bottom:16px; }
+        .form-group label { display:block; font-size:13px; font-weight:600; color:#374151; margin-bottom:6px; }
+        .form-input    { width:100%; padding:10px 12px; border:1px solid #E5E7EB; border-radius:8px; font-size:14px; color:#374151; box-sizing:border-box; background:#fff; }
+        .form-input:focus { outline:none; border-color:#2563EB; }
+        .form-row      { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+        .btn-cancelar  { background:#F3F4F6; color:#374151; border:none; border-radius:8px; padding:10px 18px; font-size:14px; font-weight:600; cursor:pointer; }
+        .btn-guardar   { background:#2563EB; color:#fff; border:none; border-radius:8px; padding:10px 18px; font-size:14px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+        .btn-guardar:hover  { background:#1D4ED8; }
+        .btn-cancelar:hover { background:#E5E7EB; }
+
+        /* ── Progress bar ── */
+        .progreso-barra   { display:flex; align-items:center; padding:16px 24px; gap:0; }
+        .progreso-paso    { display:flex; flex-direction:column; align-items:center; gap:4px; }
+        .progreso-circulo { width:28px; height:28px; border-radius:50%; background:#E5E7EB; color:#9CA3AF; font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+        .progreso-paso span { font-size:11px; color:#9CA3AF; white-space:nowrap; }
+        .progreso-paso.activo .progreso-circulo   { background:#2563EB; color:#fff; }
+        .progreso-paso.completo .progreso-circulo { background:#16A34A; color:#fff; }
+        .progreso-paso.activo span, .progreso-paso.completo span { color:#111827; font-weight:600; }
+        .progreso-linea { flex:1; height:2px; background:#E5E7EB; margin:0 6px; margin-bottom:18px; }
+        .progreso-linea.completa { background:#16A34A; }
+
+        /* ── Auto-fill info box ── */
+        .autofill-box { background:#F0F9FF; border:1px solid #BAE6FD; border-radius:8px; padding:12px 16px; margin-bottom:16px; display:flex; gap:10px; align-items:flex-start; }
+        .autofill-icon { color:#0EA5E9; flex-shrink:0; padding-top:2px; }
+        .autofill-content { flex:1; }
+        .autofill-title { font-size:11px; font-weight:700; color:#0369A1; margin-bottom:6px; text-transform:uppercase; letter-spacing:.5px; }
+        .autofill-items { display:flex; flex-wrap:wrap; gap:16px; }
+        .autofill-item  { font-size:12px; }
+        .autofill-item strong { color:#374151; }
+        .autofill-item span  { color:#1D4ED8; font-weight:600; }
+
+        /* ── Permiso cards ── */
+        .permiso-cards { display:flex; flex-wrap:wrap; gap:10px; margin-top:8px; }
+        .permiso-card  { border:2px solid #E5E7EB; border-radius:10px; padding:12px 16px; cursor:pointer; flex:1; min-width:140px; transition:border-color .15s, background .15s; }
+        .permiso-card:hover  { border-color:#2563EB; background:#EFF6FF; }
+        .permiso-card.selected { border-color:#2563EB; background:#EFF6FF; }
+        .permiso-card-tipo    { font-weight:700; font-size:13px; color:#111827; margin-bottom:4px; }
+        .permiso-card-vig     { font-size:11px; color:#6B7280; display:flex; align-items:center; gap:4px; margin-bottom:2px; }
+        .permiso-vencido      { display:inline-block; margin-top:4px; background:#FEE2E2; color:#991B1B; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; }
+        .permiso-no-hay       { background:#FEF3C7; border:1px solid #FDE68A; border-radius:8px; padding:10px 14px; font-size:13px; color:#92400E; display:flex; align-items:center; gap:8px; }
+
+        /* ── SAT pedimento preview table (paso 2) ── */
+        .sat-wrap  { overflow-x:auto; max-height:52vh; overflow-y:auto; border:1px solid #1e3a5f; border-radius:4px; }
+        .sat-table { width:100%; border-collapse:collapse; font-size:10.5px; font-family:'Courier New', Courier, monospace; table-layout:fixed; }
+        .sat-table td { border:1px solid #000; padding:4px 6px; vertical-align:top; background:#fff; word-break:break-word; }
+        .sat-title-row td { text-align:center; font-size:13px; font-weight:700; letter-spacing:4px; padding:8px; border-bottom:2px solid #000; font-family:Arial,sans-serif; }
+        .sat-section-hdr { background:#1e3a5f !important; color:#fff; text-align:center; font-weight:700; letter-spacing:2px; font-size:9px; padding:4px 6px !important; }
+        .sat-lbl { font-size:7.5px; font-weight:700; color:#555; text-transform:uppercase; display:block; margin-bottom:2px; letter-spacing:.3px; font-family:Arial,sans-serif; }
+        .sat-val { font-size:10.5px; font-weight:600; color:#000; display:block; min-height:14px; }
+        .sat-val.mono { font-family:'Courier New', monospace; letter-spacing:1px; }
+        .sat-sub  { border-collapse:collapse; width:100%; margin-top:3px; }
+        .sat-sub td { border:1px solid #bbb; padding:2px 4px; font-size:9.5px; background:#fff; }
+        .sat-sub th { border:1px solid #bbb; padding:2px 4px; background:#f0f0f0; font-size:8px; text-transform:uppercase; font-weight:700; color:#555; font-family:Arial,sans-serif; }
+
+        /* ── Paso 3 confirm ── */
+        .confirm-check { text-align:center; padding:10px 0 20px; }
+        .confirm-icon  { width:56px; height:56px; border-radius:50%; background:#D1FAE5; display:flex; align-items:center; justify-content:center; margin:0 auto 12px; }
+    </style>
 </head>
 <body>
-<main class="main">
-    <div class="page-header">
-        <a href="{% url 'home:operaciones' %}" class="btn-volver">
-            <i data-lucide="arrow-left"></i> Volver
-        </a>
-        <h1 class="page-title">
-            Operación #{{ op.ID_operacion }}
-            <span class="tipo-badge tipo-{{ op.tipo_operacion|lower }}">
-                {{ op.tipo_operacion }}
-            </span>
-        </h1>
-    </div>
+<main class="main" style="padding:28px 32px; max-width:1100px; margin:0 auto;">
+
+    <a href="{% url 'home:operaciones' %}" class="btn-volver">
+        <i data-lucide="arrow-left" style="width:16px;height:16px;"></i> Volver a operaciones
+    </a>
 
     {% if messages %}
         {% for m in messages %}
@@ -28,103 +140,824 @@
         {% endfor %}
     {% endif %}
 
-    <!-- Barra de progreso -->
-    <div class="progreso-barra">
-        <div class="progreso-paso {% if paso >= 1 %}activo{% endif %} {% if paso > 1 %}completo{% endif %}">
-            <div class="progreso-circulo">
-                {% if paso > 1 %}
-                    <i data-lucide="check"></i>
-                {% else %}
-                    1
-                {% endif %}
-            </div>
-            <span>Operación aduanera</span>
-        </div>
-        <div class="progreso-linea {% if paso > 1 %}completa{% endif %}"></div>
-        <div class="progreso-paso {% if paso >= 2 %}activo{% endif %} {% if paso > 2 %}completo{% endif %}">
-            <div class="progreso-circulo">
-                {% if paso > 2 %}
-                    <i data-lucide="check"></i>
-                {% else %}
-                    2
-                {% endif %}
-            </div>
-            <span>Pedimento</span>
-        </div>
-        <div class="progreso-linea {% if paso > 2 %}completa{% endif %}"></div>
-        <div class="progreso-paso {% if paso >= 3 %}activo{% endif %}">
-            <div class="progreso-circulo">3</div>
-            <span>Pago</span>
-        </div>
+    <!-- Encabezado -->
+    <div class="op-header">
+        <span class="op-title">Operación #{{ op.ID_operacion }}</span>
+        <span class="tipo-badge tipo-{{ op.tipo_operacion|lower }}">{{ op.tipo_operacion }}</span>
+        {% if op.estado_ope_aduanera %}
+            <span class="estado-op-pill">{{ op.estado_ope_aduanera.descripcion }}</span>
+        {% endif %}
     </div>
 
-    <!-- Datos de la operación -->
-    <div class="detalle-grid">
-        <div class="detalle-card">
-            <h3>Datos de la operación</h3>
-            <div class="detalle-row">
+    <!-- Card: datos de la operación -->
+    <div class="detalle-card" style="margin-bottom:20px;">
+        <h3>Datos de la operación</h3>
+        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:0;">
+            <div class="detalle-row" style="flex-direction:column; align-items:flex-start; padding:10px 14px;">
                 <span class="detalle-label">Cliente</span>
-                <span>{{ op.cliente.nombre }} {{ op.cliente.primer_apell|default:'' }}</span>
+                <span style="font-weight:600;">{{ op.cliente.nombre }} {{ op.cliente.primer_apell|default:'' }}</span>
+                <span style="font-size:12px;color:#6B7280;">RFC: {{ op.cliente.RFC }}</span>
             </div>
-            <div class="detalle-row">
+            <div class="detalle-row" style="flex-direction:column; align-items:flex-start; padding:10px 14px;">
                 <span class="detalle-label">Aduana</span>
-                <span>{{ op.aduana.nombre }}</span>
+                <span style="font-weight:600;">{{ op.aduana.nombre }}</span>
+                <span style="font-size:12px;color:#6B7280;">Clave: {{ op.aduana.codigo }}</span>
             </div>
-            <div class="detalle-row">
-                <span class="detalle-label">Fecha apertura</span>
-                <span>{{ op.fecha_inicio }}</span>
+            <div class="detalle-row" style="flex-direction:column; align-items:flex-start; padding:10px 14px;">
+                <span class="detalle-label">Tipo / Fecha apertura</span>
+                <span style="font-weight:600;">{{ op.tipo_operacion }}</span>
+                <span style="font-size:12px;color:#6B7280;">{{ op.fecha_inicio }}</span>
             </div>
-            <div class="detalle-row">
+            <div class="detalle-row" style="flex-direction:column; align-items:flex-start; padding:10px 14px;">
                 <span class="detalle-label">Estado</span>
-                <span>{{ op.estado|default:'Abierta' }}</span>
-            </div>
-        </div>
-
-        <!-- Pedimento si ya existe -->
-        {% if pedimento %}
-        <div class="detalle-card">
-            <h3>Pedimento</h3>
-            <div class="detalle-row">
-                <span class="detalle-label">Número</span>
-                <span>{{ pedimento.numero_pedimento }}</span>
-            </div>
-            <div class="detalle-row">
-                <span class="detalle-label">Clave</span>
-                <span>{{ pedimento.clave_pedimento }}</span>
-            </div>
-            <div class="detalle-row">
-                <span class="detalle-label">Valor total</span>
-                <span>${{ pedimento.valor_total }}</span>
-            </div>
-            <div class="detalle-row">
-                <span class="detalle-label">Semáforo</span>
-                <span class="{% if 'Verde' in pedimento.semaforo.resultado %}texto-verde{% else %}texto-rojo{% endif %}">
-                    {{ pedimento.semaforo.resultado }}
+                <span class="estado-op-pill" style="margin-top:4px;">
+                    {{ op.estado_ope_aduanera.descripcion|default:"En proceso" }}
                 </span>
             </div>
         </div>
-        {% endif %}
     </div>
 
-    <!-- Acción del siguiente paso -->
-    <div class="siguiente-paso">
-        {% if paso == 1 %}
-            <a href="{% url 'home:operacion_pedimento' op.ID_operacion %}" class="btn-guardar">
-                Continuar — Generar pedimento →
-            </a>
-        {% elif paso == 2 %}
-            <p class="form-hint">Pedimento generado. El siguiente paso es registrar el pago.</p>
-            <button class="btn-guardar" disabled style="opacity:0.5; cursor:not-allowed;">
+    <!-- Documento pedimento SAT -->
+    {% if pedimento %}
+    <div class="ped-doc">
+        <div class="ped-doc-titulo">P E D I M E N T O &nbsp; — &nbsp; {{ op.tipo_operacion|upper }}</div>
+
+        <div class="ped-doc-header">
+            <div class="ped-field">
+                <div class="ped-field-label">Número de pedimento</div>
+                <div class="ped-field-value mono">{{ pedimento.numero_pedimento }}</div>
+            </div>
+            <div class="ped-field">
+                <div class="ped-field-label">T. Oper / Clave</div>
+                <div class="ped-field-value">{{ op.tipo_operacion }} / {{ pedimento.clave_pedimento }}</div>
+            </div>
+            <div class="ped-field">
+                <div class="ped-field-label">Fecha de registro</div>
+                <div class="ped-field-value">{{ pedimento.fecha_registro }}</div>
+            </div>
+            <div class="ped-field">
+                <div class="ped-field-label">Estado</div>
+                <div class="ped-field-value">
+                    {% if estado_pedimento == 'Pagado' %}
+                        <span class="pill-pagado">Pagado</span>
+                    {% else %}
+                        <span class="pill-generado">Generado</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="ped-row ped-col-4" style="display:grid;">
+            <div class="ped-field">
+                <div class="ped-field-label">Destino</div>
+                <div class="ped-field-value">{{ pedimento.pais_destino|default:"—" }}</div>
+            </div>
+            <div class="ped-field">
+                <div class="ped-field-label">Tipo de cambio</div>
+                <div class="ped-field-value">{% if pedimento.tipo_cambio %}$ {{ pedimento.tipo_cambio }}{% else %}—{% endif %}</div>
+            </div>
+            <div class="ped-field">
+                <div class="ped-field-label">Peso bruto</div>
+                <div class="ped-field-value">{{ peso_bruto }} KG</div>
+            </div>
+            <div class="ped-field">
+                <div class="ped-field-label">Aduana E/S</div>
+                <div class="ped-field-value">{{ op.aduana.codigo }} — {{ op.aduana.nombre }}</div>
+            </div>
+        </div>
+
+        <div class="ped-section-title">MEDIOS DE TRANSPORTE</div>
+        <div class="ped-row ped-col-4" style="display:grid;">
+            <div class="ped-field">
+                <div class="ped-field-label">Entrada / Salida</div>
+                <div class="ped-field-value">{{ pedimento.medio_transporte|default:"—" }}</div>
+            </div>
+            <div class="ped-field">
+                <div class="ped-field-label">País origen mercancía</div>
+                <div class="ped-field-value">{{ pedimento.pais_origen_mercancia|default:"—" }}</div>
+            </div>
+            <div class="ped-field">
+                <div class="ped-field-label">Incoterm</div>
+                <div class="ped-field-value">{{ pedimento.incoterm|default:"—" }}</div>
+            </div>
+            <div class="ped-field">
+                <div class="ped-field-label">Valor total declarado</div>
+                <div class="ped-field-value">${{ pedimento.valor_total }}</div>
+            </div>
+        </div>
+
+        <div class="ped-section-title">
+            DATOS DEL {% if op.tipo_operacion == 'Importación' %}IMPORTADOR{% else %}EXPORTADOR{% endif %}
+        </div>
+        <div class="ped-row ped-col-3" style="display:grid;">
+            <div class="ped-field">
+                <div class="ped-field-label">RFC</div>
+                <div class="ped-field-value mono">{{ op.cliente.RFC }}</div>
+            </div>
+            <div class="ped-field">
+                <div class="ped-field-label">Nombre / Razón social</div>
+                <div class="ped-field-value">{{ op.cliente.nombre }} {{ op.cliente.primer_apell|default:'' }} {{ op.cliente.seg_apell|default:'' }}</div>
+            </div>
+            <div class="ped-field">
+                <div class="ped-field-label">Permiso regulatorio</div>
+                <div class="ped-field-value">{{ pedimento.permiso.tipo_permiso|default:"—" }}</div>
+            </div>
+        </div>
+
+        <div class="ped-section-title">RÉGIMEN ADUANERO</div>
+        <div class="ped-row ped-col-2" style="display:grid;">
+            <div class="ped-field">
+                <div class="ped-field-label">Régimen</div>
+                <div class="ped-field-value">
+                    {{ pedimento.regimen_adu.clave_oficial|default:"—" }}{% if pedimento.regimen_adu %} — {{ pedimento.regimen_adu.descripcion }}{% endif %}
+                </div>
+            </div>
+            <div class="ped-field">
+                <div class="ped-field-label">Semáforo fiscal</div>
+                <div class="ped-field-value" style="display:flex;align-items:center;gap:6px;">
+                    <span class="semaforo-dot {% if 'Verde' in pedimento.semaforo.resultado %}dot-verde{% else %}dot-rojo{% endif %}"></span>
+                    {% if 'Verde' in pedimento.semaforo.resultado %}Verde{% else %}Rojo{% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div style="padding:12px 16px; display:flex; justify-content:flex-end;">
+            <button class="btn-guardar" disabled style="opacity:.5;cursor:not-allowed;">
                 Registrar pago (próximamente)
             </button>
+        </div>
+    </div>
+
+    {% else %}
+    <div class="ped-sin-pedimento">
+        <p>Esta operación aún no tiene un pedimento generado.</p>
+        <button class="btn-generar" onclick="abrirModalPedimento()">
+            + Generar pedimento
+        </button>
+    </div>
+    {% endif %}
+
+    <!-- RF32: Paquetes del cliente -->
+    <div class="paquetes-panel">
+        <h3>Paquetes del cliente</h3>
+        {% if paquetes %}
+            <table class="tabla-paquetes">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Embalaje</th>
+                        <th>Peso</th>
+                        <th>Productos</th>
+                        <th>Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pq in paquetes %}
+                    <tr>
+                        <td>PQ-{{ pq.codigo|stringformat:"05d" }}</td>
+                        <td>{{ pq.tipo_embalaje.nombre|default:"—" }}</td>
+                        <td>{{ pq.peso }} kg</td>
+                        <td>{{ pq.productos|length }}</td>
+                        <td>${{ pq.subtotal }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         {% else %}
-            <p class="texto-verde" style="font-weight:600;">
-                ✓ Operación completada y pagada.
-            </p>
+            <p class="sin-datos">El cliente no tiene paquetes registrados.</p>
         {% endif %}
     </div>
+
 </main>
 
-<script>lucide.createIcons();</script>
+<!-- ═══════════════════════════════════════════════════════════
+     MODAL: Generar pedimento (3 pasos)
+═══════════════════════════════════════════════════════════ -->
+{% if not pedimento %}
+<div class="modal-overlay" id="modalPedimento">
+    <div class="modal-box-pedimento">
+
+        <div class="modal-header">
+            <div>
+                <h3>Generar pedimento</h3>
+                <p id="ped-subtitulo" style="font-size:13px;color:#6b7280;margin-top:2px;">
+                    Paso 1 de 3 — Datos de transporte
+                </p>
+            </div>
+            <button class="modal-cerrar" onclick="cerrarModalPedimento()">
+                <i data-lucide="x" style="width:20px;height:20px;"></i>
+            </button>
+        </div>
+
+        <div class="progreso-barra">
+            <div class="progreso-paso activo" id="ped-prog-1">
+                <div class="progreso-circulo">1</div>
+                <span>Transporte</span>
+            </div>
+            <div class="progreso-linea" id="ped-linea-1"></div>
+            <div class="progreso-paso" id="ped-prog-2">
+                <div class="progreso-circulo">2</div>
+                <span>Pedimento</span>
+            </div>
+            <div class="progreso-linea" id="ped-linea-2"></div>
+            <div class="progreso-paso" id="ped-prog-3">
+                <div class="progreso-circulo">3</div>
+                <span>Confirmar</span>
+            </div>
+        </div>
+
+        <form method="post" action="{% url 'home:operacion_pedimento' op.ID_operacion %}" id="form-pedimento">
+            {% csrf_token %}
+            <!-- Valores auto-completados como campos ocultos -->
+            <input type="hidden" name="clave_pedimento" id="ped-clave-hidden">
+            <input type="hidden" name="regimen_adu"     id="ped-regimen-hidden">
+            <input type="hidden" name="permiso"         id="ped-permiso-hidden"
+                   value="{% if permisos %}{{ permisos.0.clave }}{% endif %}">
+
+            <!-- ─── PASO 1: Transporte + permiso ─── -->
+            <div id="ped-paso-1">
+                <div class="modal-body">
+
+                    <!-- Info box: datos auto-completados -->
+                    <div class="autofill-box">
+                        <div class="autofill-icon">
+                            <i data-lucide="check-circle-2" style="width:18px;height:18px;"></i>
+                        </div>
+                        <div class="autofill-content">
+                            <div class="autofill-title">Datos completados automáticamente</div>
+                            <div class="autofill-items">
+                                <div class="autofill-item">
+                                    <strong>Clave: </strong><span id="ped-clave-display">—</span>
+                                </div>
+                                <div class="autofill-item">
+                                    <strong>Régimen: </strong><span id="ped-regimen-display">—</span>
+                                </div>
+                                <div class="autofill-item">
+                                    <strong>RFC: </strong><span>{{ op.cliente.RFC }}</span>
+                                </div>
+                                <div class="autofill-item">
+                                    <strong>Aduana: </strong><span>{{ op.aduana.codigo }} — {{ op.aduana.nombre }}</span>
+                                </div>
+                                <div class="autofill-item">
+                                    <strong>Valor estimado: </strong><span>${{ valor_estimado }}</span>
+                                </div>
+                                <div class="autofill-item">
+                                    <strong>Peso bruto: </strong><span>{{ peso_bruto }} kg</span>
+                                </div>
+                                {% if auto_pais_destino %}
+                                <div class="autofill-item">
+                                    <strong>País destino: </strong><span>{{ auto_pais_destino }}</span>
+                                </div>
+                                {% endif %}
+                                {% if auto_pais_origen %}
+                                <div class="autofill-item">
+                                    <strong>País origen: </strong><span>{{ auto_pais_origen }}</span>
+                                </div>
+                                {% endif %}
+                                <div class="autofill-item">
+                                    <strong>Núm. pedimento: </strong><span class="mono" style="font-family:monospace;">{{ next_num_ped }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Permisos del cliente como tarjetas -->
+                    <div class="form-group">
+                        <label>Permiso regulatorio del cliente</label>
+                        {% if permisos %}
+                        <div class="permiso-cards" id="permiso-cards-container">
+                            {% for p in permisos %}
+                            <div class="permiso-card {% if forloop.first %}selected{% endif %}"
+                                 onclick="seleccionarPermiso('{{ p.clave }}', this)"
+                                 data-clave="{{ p.clave }}">
+                                <div class="permiso-card-tipo">{{ p.tipo }}</div>
+                                <div class="permiso-card-vig">
+                                    <i data-lucide="calendar" style="width:10px;height:10px;"></i>
+                                    Vence: {{ p.vigencia }}
+                                </div>
+                                {% if not p.vigente %}
+                                    <span class="permiso-vencido">VENCIDO</span>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="permiso-no-hay">
+                            <i data-lucide="alert-circle" style="width:14px;height:14px;"></i>
+                            El cliente no tiene permisos registrados.
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Países auto-llenados (ocultos, derivados del tipo de operación) -->
+                    <input type="hidden" name="pais_destino"         id="ped-pais-destino"
+                           value="{{ auto_pais_destino }}">
+                    <input type="hidden" name="pais_origen_mercancia" id="ped-pais-origen"
+                           value="{{ auto_pais_origen }}">
+
+                    <!-- Campos de transporte -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Medio de transporte</label>
+                            <select name="medio_transporte" id="ped-transporte" class="form-input">
+                                <option value="">Selecciona...</option>
+                                <option value="Aéreo">Aéreo</option>
+                                <option value="Marítimo">Marítimo</option>
+                                <option value="Terrestre">Terrestre</option>
+                                <option value="Ferroviario">Ferroviario</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Incoterm</label>
+                            <select name="incoterm" id="ped-incoterm" class="form-input">
+                                <option value="">Selecciona...</option>
+                                <option value="EXW">EXW — Ex Works</option>
+                                <option value="FOB">FOB — Free On Board</option>
+                                <option value="CIF">CIF — Cost, Insurance & Freight</option>
+                                <option value="CIP">CIP — Carriage and Insurance Paid</option>
+                                <option value="DAP">DAP — Delivered At Place</option>
+                                <option value="DDP">DDP — Delivered Duty Paid</option>
+                                <option value="FCA">FCA — Free Carrier</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Tipo de cambio (USD/MXN)</label>
+                        <input type="number" name="tipo_cambio" id="ped-tipo-cambio"
+                               class="form-input" placeholder="Ej. 17.3500" step="0.0001" min="0">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancelar" onclick="cerrarModalPedimento()">Cancelar</button>
+                    <button type="button" class="btn-guardar" onclick="pedPaso2()">
+                        Ver pedimento <i data-lucide="arrow-right" style="width:14px;height:14px;"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ─── PASO 2: Pedimento SAT (previsualización) ─── -->
+            <div id="ped-paso-2" style="display:none;">
+                <div class="modal-body">
+                    <p style="font-size:12px;color:#6B7280;margin-bottom:12px;">
+                        Previsualización del pedimento. Los campos con "—" se completarán al ser procesados por el SAT.
+                    </p>
+                    <div class="sat-wrap">
+                        <table class="sat-table">
+
+                            <!-- Título -->
+                            <tr class="sat-title-row">
+                                <td colspan="6">P &nbsp; E &nbsp; D &nbsp; I &nbsp; M &nbsp; E &nbsp; N &nbsp; T &nbsp; O</td>
+                                <td colspan="2" style="text-align:right;font-size:9px;font-weight:normal;letter-spacing:0;font-family:Arial,sans-serif;">
+                                    <div>Página 1 de 1</div>
+                                    <div style="font-weight:700;">CERTIFICACIONES</div>
+                                </td>
+                            </tr>
+
+                            <!-- Fila 1: NUM | T.OPER CVE | RÉGIMEN -->
+                            <tr>
+                                <td colspan="3">
+                                    <span class="sat-lbl">NUM. PEDIMENTO</span>
+                                    <span class="sat-val mono">{{ next_num_ped }}</span>
+                                </td>
+                                <td colspan="3">
+                                    <span class="sat-lbl">T. OPER &nbsp;&nbsp;&nbsp; CVE. PEDIMENTO</span>
+                                    <span class="sat-val">
+                                        <span id="prev-tipo">—</span>
+                                        &nbsp;&nbsp;&nbsp;&nbsp;
+                                        <span id="prev-clave">—</span>
+                                    </span>
+                                </td>
+                                <td colspan="2">
+                                    <span class="sat-lbl">RÉGIMEN</span>
+                                    <span class="sat-val" id="prev-regimen">—</span>
+                                </td>
+                            </tr>
+
+                            <!-- Fila 2: DESTINO | TIPO CAMBIO | PESO BRUTO | ADUANA E/S -->
+                            <tr>
+                                <td colspan="2">
+                                    <span class="sat-lbl">DESTINO</span>
+                                    <span class="sat-val" id="prev-destino">—</span>
+                                </td>
+                                <td colspan="2">
+                                    <span class="sat-lbl">TIPO CAMBIO</span>
+                                    <span class="sat-val" id="prev-tc">—</span>
+                                </td>
+                                <td colspan="2">
+                                    <span class="sat-lbl">PESO BRUTO</span>
+                                    <span class="sat-val">{{ peso_bruto }} KG</span>
+                                </td>
+                                <td colspan="2">
+                                    <span class="sat-lbl">ADUANA E/S</span>
+                                    <span class="sat-val">{{ op.aduana.codigo }} — {{ op.aduana.nombre }}</span>
+                                </td>
+                            </tr>
+
+                            <!-- Fila 3: TRANSPORTE (con sub-tabla) | VALORES -->
+                            <tr>
+                                <td colspan="4" rowspan="2">
+                                    <span class="sat-lbl">MEDIOS DE TRANSPORTE</span>
+                                    <table class="sat-sub" style="margin-top:4px;">
+                                        <tr>
+                                            <th>ENTRADA / SALIDA</th>
+                                            <th>ARRIBO</th>
+                                            <th>SALIDA</th>
+                                        </tr>
+                                        <tr>
+                                            <td><span class="sat-val" id="prev-transporte">—</span></td>
+                                            <td><span class="sat-val">—</span></td>
+                                            <td><span class="sat-val">—</span></td>
+                                        </tr>
+                                    </table>
+                                </td>
+                                <td colspan="4">
+                                    <span class="sat-lbl">VALOR DOLARES</span>
+                                    <span class="sat-val" id="prev-val-usd">—</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td colspan="2">
+                                    <span class="sat-lbl">VALOR ADUANA</span>
+                                    <span class="sat-val">$ {{ valor_estimado|default:"—" }}</span>
+                                </td>
+                                <td colspan="2">
+                                    <span class="sat-lbl">PRECIO PAGADO / VALOR COMERCIAL</span>
+                                    <span class="sat-val">$ {{ valor_estimado|default:"—" }}</span>
+                                </td>
+                            </tr>
+
+                            <!-- Sección: importador/exportador -->
+                            <tr>
+                                <td colspan="8" class="sat-section-hdr">
+                                    DATOS DEL {% if op.tipo_operacion == 'Importación' %}IMPORTADOR{% else %}EXPORTADOR{% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td colspan="2">
+                                    <span class="sat-lbl">RFC</span>
+                                    <span class="sat-val mono">{{ op.cliente.RFC }}</span>
+                                </td>
+                                <td colspan="6">
+                                    <span class="sat-lbl">NOMBRE, DENOMINACION O RAZON SOCIAL</span>
+                                    <span class="sat-val">{{ op.cliente.nombre }} {{ op.cliente.primer_apell|default:'' }} {{ op.cliente.seg_apell|default:'' }}</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td colspan="8">
+                                    <span class="sat-lbl">CURP</span>
+                                    <span class="sat-val">—</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td colspan="8">
+                                    <span class="sat-lbl">DOMICILIO</span>
+                                    <span class="sat-val">—</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <span class="sat-lbl">VAL. SEGUROS</span>
+                                    <span class="sat-val">—</span>
+                                </td>
+                                <td>
+                                    <span class="sat-lbl">SEGUROS</span>
+                                    <span class="sat-val">—</span>
+                                </td>
+                                <td colspan="2">
+                                    <span class="sat-lbl">FLETES</span>
+                                    <span class="sat-val">—</span>
+                                </td>
+                                <td colspan="2">
+                                    <span class="sat-lbl">EMBALAJES</span>
+                                    <span class="sat-val" id="prev-incoterm">—</span>
+                                </td>
+                                <td colspan="2">
+                                    <span class="sat-lbl">OTROS INCREMENTABLES</span>
+                                    <span class="sat-val">—</span>
+                                </td>
+                            </tr>
+
+                            <!-- Códigos -->
+                            <tr>
+                                <td colspan="2">
+                                    <span class="sat-lbl">CODIGO DE ACEPTACION</span>
+                                    <span class="sat-val">—</span>
+                                </td>
+                                <td colspan="4">
+                                    <span class="sat-lbl">CODIGO DE BARRAS</span>
+                                    <span class="sat-val">—</span>
+                                </td>
+                                <td colspan="2">
+                                    <span class="sat-lbl">CLAVE SECCION ADUANERA</span>
+                                    <span class="sat-val">{{ op.aduana.codigo }}</span>
+                                </td>
+                            </tr>
+
+                            <!-- Bultos y tasas -->
+                            <tr>
+                                <td colspan="4">
+                                    <span class="sat-lbl">MARCAS, NUMEROS Y TOTAL DE BULTOS</span>
+                                    <span class="sat-val">{{ paquetes|length }} BULTOS</span>
+                                </td>
+                                <td colspan="4">
+                                    <span class="sat-lbl">TASAS A NIVEL PEDIMENTO</span>
+                                    <table class="sat-sub" style="margin-top:4px;">
+                                        <tr>
+                                            <th>CONTRIB</th>
+                                            <th>CVE. T. TASA</th>
+                                            <th>TASA</th>
+                                        </tr>
+                                        <tr><td>IGI</td><td>AD</td><td>—</td></tr>
+                                        <tr><td>DTA</td><td>AD</td><td>0.8%</td></tr>
+                                        <tr><td>IVA</td><td>IVA</td><td>16%</td></tr>
+                                    </table>
+                                </td>
+                            </tr>
+
+                            <!-- Cuadro de liquidación -->
+                            <tr>
+                                <td colspan="8" class="sat-section-hdr">CUADRO DE LIQUIDACION</td>
+                            </tr>
+                            <tr>
+                                <td colspan="4">
+                                    <table class="sat-sub" style="width:100%;">
+                                        <tr>
+                                            <th>CONCEPTO</th>
+                                            <th>F.P.</th>
+                                            <th>IMPORTE</th>
+                                        </tr>
+                                        <tr><td>DTA</td><td>1</td><td id="prev-dta">—</td></tr>
+                                        <tr><td>IGI</td><td>1</td><td id="prev-igi">—</td></tr>
+                                        <tr><td>IVA</td><td>1</td><td id="prev-iva">—</td></tr>
+                                    </table>
+                                </td>
+                                <td colspan="4">
+                                    <span class="sat-lbl">TOTALES</span>
+                                    <table class="sat-sub" style="margin-top:4px;width:100%;">
+                                        <tr>
+                                            <th>EFECTIVO</th>
+                                            <td id="prev-total-efectivo">—</td>
+                                        </tr>
+                                        <tr>
+                                            <th>OTROS</th>
+                                            <td>—</td>
+                                        </tr>
+                                        <tr>
+                                            <th style="font-weight:800;">TOTAL</th>
+                                            <td id="prev-gran-total">—</td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+
+                            <!-- Permisos -->
+                            <tr>
+                                <td colspan="8" class="sat-section-hdr">PERMISOS REGULATORIOS</td>
+                            </tr>
+                            <tr>
+                                <td colspan="8">
+                                    <span class="sat-lbl">PERMISO DEL CLIENTE</span>
+                                    <span class="sat-val" id="prev-permiso">—</span>
+                                </td>
+                            </tr>
+
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancelar" onclick="pedVolver1()">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px;"></i> Atrás
+                    </button>
+                    <button type="button" class="btn-guardar" onclick="pedPaso3()">
+                        Confirmar <i data-lucide="arrow-right" style="width:14px;height:14px;"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ─── PASO 3: Confirmar y generar ─── -->
+            <div id="ped-paso-3" style="display:none;">
+                <div class="modal-body">
+                    <div class="confirm-check">
+                        <div class="confirm-icon">
+                            <i data-lucide="check" style="width:28px;height:28px;color:#16A34A;"></i>
+                        </div>
+                        <h3 style="font-size:18px;font-weight:700;color:#111827;margin-bottom:6px;">
+                            ¿Generar pedimento?
+                        </h3>
+                        <p style="font-size:13px;color:#6B7280;margin-bottom:20px;">
+                            Se generará el pedimento y se actualizará el estado de la operación a <strong>Pendiente</strong>.
+                        </p>
+                    </div>
+                    <div class="detalle-card">
+                        <div class="detalle-row">
+                            <span class="detalle-label">Cliente</span>
+                            <span>{{ op.cliente.nombre }} {{ op.cliente.primer_apell|default:'' }} ({{ op.cliente.RFC }})</span>
+                        </div>
+                        <div class="detalle-row">
+                            <span class="detalle-label">Tipo de operación</span>
+                            <span>{{ op.tipo_operacion }}</span>
+                        </div>
+                        <div class="detalle-row">
+                            <span class="detalle-label">Clave pedimento</span>
+                            <span id="res-clave">—</span>
+                        </div>
+                        <div class="detalle-row">
+                            <span class="detalle-label">Régimen</span>
+                            <span id="res-regimen">—</span>
+                        </div>
+                        <div class="detalle-row">
+                            <span class="detalle-label">Permiso</span>
+                            <span id="res-permiso">—</span>
+                        </div>
+                        <div class="detalle-row">
+                            <span class="detalle-label">Transporte</span>
+                            <span id="res-transporte">—</span>
+                        </div>
+                        <div class="detalle-row">
+                            <span class="detalle-label">Valor estimado</span>
+                            <span>${{ valor_estimado }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancelar" onclick="pedVolver2()">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px;"></i> Atrás
+                    </button>
+                    <button type="submit" class="btn-guardar" style="background:#16A34A;">
+                        <i data-lucide="check-circle-2" style="width:16px;height:16px;"></i>
+                        Generar pedimento
+                    </button>
+                </div>
+            </div>
+
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<script>
+lucide.createIcons();
+
+const TIPO_OPERACION  = "{{ op.tipo_operacion }}";
+const VALOR_ESTIMADO  = {{ valor_estimado|default:0 }};
+const REGIMENES       = {{ regimenes_json|safe }};
+
+/* ── Helpers ──────────────────────────────────────── */
+const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+/* ── Auto-completar clave y régimen al cargar ─────── */
+window.addEventListener('DOMContentLoaded', () => {
+    // Clave
+    const claveAuto = TIPO_OPERACION === 'Importación' ? 'A1'
+                    : TIPO_OPERACION === 'Exportación'  ? 'V1' : '';
+    document.getElementById('ped-clave-hidden').value = claveAuto;
+    const claveLabels = { 'A1': 'A1 — Importación definitiva', 'V1': 'V1 — Exportación definitiva' };
+    setText('ped-clave-display', claveLabels[claveAuto] || claveAuto || '—');
+
+    // Régimen
+    let regimenAuto = null;
+    if (TIPO_OPERACION === 'Importación') {
+        regimenAuto = REGIMENES.find(r =>
+            r.descripcion.toLowerCase().includes('import') ||
+            (r.clave_oficial || '').toUpperCase().includes('IMP'));
+    } else if (TIPO_OPERACION === 'Exportación') {
+        regimenAuto = REGIMENES.find(r =>
+            r.descripcion.toLowerCase().includes('export') ||
+            (r.clave_oficial || '').toUpperCase().includes('EXP'));
+    }
+    if (!regimenAuto && REGIMENES.length) regimenAuto = REGIMENES[0];
+    if (regimenAuto) {
+        document.getElementById('ped-regimen-hidden').value = regimenAuto.num_regimen;
+        setText('ped-regimen-display', `${regimenAuto.clave_oficial} — ${regimenAuto.descripcion}`);
+    }
+
+    {% if abrir_modal %}
+    abrirModalPedimento();
+    {% endif %}
+});
+
+/* ── Selección de permiso por tarjeta ────────────── */
+function seleccionarPermiso(clave, cardEl) {
+    document.querySelectorAll('.permiso-card').forEach(c => c.classList.remove('selected'));
+    cardEl.classList.add('selected');
+    document.getElementById('ped-permiso-hidden').value = clave;
+}
+
+/* ── Modal abrir/cerrar ───────────────────────────── */
+function abrirModalPedimento() {
+    document.getElementById('modalPedimento').classList.add('activo');
+}
+function cerrarModalPedimento() {
+    document.getElementById('modalPedimento').classList.remove('activo');
+}
+
+/* ── Paso 1 → Paso 2 (vista previa SAT) ──────────── */
+function pedPaso2() {
+    {% if permisos %}
+    if (!document.getElementById('ped-permiso-hidden').value) {
+        alert('Selecciona un permiso del cliente.'); return;
+    }
+    {% endif %}
+
+    const medioVal    = document.getElementById('ped-transporte').value;
+    const incotermVal = document.getElementById('ped-incoterm').value;
+    // Países ya vienen de los hidden inputs (auto-llenados por Django)
+    const paisD       = document.getElementById('ped-pais-destino').value || '—';
+    const paisO       = document.getElementById('ped-pais-origen').value  || '—';
+    const tcVal       = parseFloat(document.getElementById('ped-tipo-cambio').value) || 0;
+
+    const claveVal  = document.getElementById('ped-clave-hidden').value;
+    const regLabel  = document.getElementById('ped-regimen-display').textContent;
+
+    const selectedCard = document.querySelector('.permiso-card.selected');
+    const permisoLabel = selectedCard
+        ? selectedCard.querySelector('.permiso-card-tipo').textContent.trim()
+        : '—';
+
+    // Cálculos financieros aproximados
+    const valUSD = tcVal > 0 ? (VALOR_ESTIMADO / tcVal).toFixed(2) : null;
+    const dta    = VALOR_ESTIMADO > 0 ? (VALOR_ESTIMADO * 0.008).toFixed(2) : null;
+    const iva    = VALOR_ESTIMADO > 0 ? (VALOR_ESTIMADO * 0.16).toFixed(2)  : null;
+    const total  = (dta && iva) ? (parseFloat(dta) + parseFloat(iva)).toFixed(2) : null;
+
+    // Poblar tabla SAT
+    setText('prev-tipo',          TIPO_OPERACION === 'Importación' ? 'IMP' : TIPO_OPERACION === 'Exportación' ? 'EXP' : '—');
+    setText('prev-clave',         claveVal || '—');
+    setText('prev-regimen',       regLabel || '—');
+    setText('prev-destino',       TIPO_OPERACION === 'Importación' ? paisD : paisO);
+    setText('prev-tc',            tcVal > 0 ? `$ ${tcVal.toFixed(4)}` : '—');
+    setText('prev-transporte',    medioVal || '—');
+    setText('prev-val-usd',       valUSD ? `USD ${valUSD}` : '—');
+    setText('prev-incoterm',      incotermVal || '—');
+    setText('prev-dta',           dta   ? `$ ${dta}`   : '—');
+    setText('prev-igi',           '—');
+    setText('prev-iva',           iva   ? `$ ${iva}`   : '—');
+    setText('prev-total-efectivo',total  ? `$ ${total}` : '—');
+    setText('prev-gran-total',    total  ? `$ ${total}` : '—');
+    setText('prev-permiso',       permisoLabel);
+
+    marcarCompleto('ped-prog-1', 'ped-linea-1', 'ped-prog-2');
+    document.getElementById('ped-paso-1').style.display = 'none';
+    document.getElementById('ped-paso-2').style.display = '';
+    setText('ped-subtitulo', 'Paso 2 de 3 — Previsualización del pedimento');
+    lucide.createIcons();
+}
+
+/* ── Paso 2 → Paso 3 (confirmar) ────────────────── */
+function pedPaso3() {
+    const selectedCard = document.querySelector('.permiso-card.selected');
+    setText('res-clave',      document.getElementById('ped-clave-hidden').value    || '—');
+    setText('res-regimen',    document.getElementById('ped-regimen-display').textContent);
+    setText('res-permiso',    selectedCard ? selectedCard.querySelector('.permiso-card-tipo').textContent.trim() : '—');
+    const medioSel = document.getElementById('ped-transporte');
+    setText('res-transporte', medioSel.value || '—');
+
+    marcarCompleto('ped-prog-2', 'ped-linea-2', 'ped-prog-3');
+    document.getElementById('ped-paso-2').style.display = 'none';
+    document.getElementById('ped-paso-3').style.display = '';
+    setText('ped-subtitulo', 'Paso 3 de 3 — Confirmar');
+    lucide.createIcons();
+}
+
+/* ── Retroceder ──────────────────────────────────── */
+function pedVolver1() {
+    document.getElementById('ped-paso-2').style.display = 'none';
+    document.getElementById('ped-paso-1').style.display = '';
+    desmarcar('ped-prog-1', 'ped-linea-1', 'ped-prog-2', '1');
+    setText('ped-subtitulo', 'Paso 1 de 3 — Datos de transporte');
+}
+
+function pedVolver2() {
+    document.getElementById('ped-paso-3').style.display = 'none';
+    document.getElementById('ped-paso-2').style.display = '';
+    desmarcar('ped-prog-2', 'ped-linea-2', 'ped-prog-3', '2');
+    setText('ped-subtitulo', 'Paso 2 de 3 — Previsualización del pedimento');
+}
+
+/* ── Progress bar helpers ────────────────────────── */
+function marcarCompleto(idPaso, idLinea, idSiguiente) {
+    const paso = document.getElementById(idPaso);
+    paso.classList.remove('activo');
+    paso.classList.add('completo');
+    paso.querySelector('.progreso-circulo').innerHTML =
+        '<i data-lucide="check" style="width:14px;height:14px;"></i>';
+    document.getElementById(idLinea).classList.add('completa');
+    document.getElementById(idSiguiente).classList.add('activo');
+}
+
+function desmarcar(idPaso, idLinea, idSiguiente, num) {
+    const paso = document.getElementById(idPaso);
+    paso.classList.add('activo');
+    paso.classList.remove('completo');
+    paso.querySelector('.progreso-circulo').textContent = num;
+    document.getElementById(idLinea).classList.remove('completa');
+    document.getElementById(idSiguiente).classList.remove('activo');
+}
+
+/* ── Cerrar al click fuera ───────────────────────── */
+document.getElementById('modalPedimento')?.addEventListener('click', function(e) {
+    if (e.target === this) cerrarModalPedimento();
+});
+</script>
 </body>
 </html>

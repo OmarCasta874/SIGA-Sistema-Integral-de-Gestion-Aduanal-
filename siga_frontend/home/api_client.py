@@ -23,6 +23,10 @@ def put(request, endpoint, data=None):
     return _requests.put(f'{API_BASE}{endpoint}', json=data or {}, headers=_headers(request), timeout=10)
 
 
+def patch(request, endpoint, data=None):
+    return _requests.patch(f'{API_BASE}{endpoint}', json=data or {}, headers=_headers(request), timeout=10)
+
+
 def delete(request, endpoint):
     return _requests.delete(f'{API_BASE}{endpoint}', headers=_headers(request), timeout=10)
 

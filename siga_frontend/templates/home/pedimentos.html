@@ -117,9 +117,6 @@
             <option value="clave" data-columna="2" data-modo="ascendente">Clave</option>
             <option value="valor" data-columna="3" data-modo="ascendente">Valor total</option>
         </select>
-        <button class="btn-nuevo" onclick="abrirModal('modalPedimento')">
-            <i data-lucide="plus"></i> Nuevo pedimento
-        </button>
     </div>
     <section class="tabla-pedimentos">
     <h3>Lista de pedimentos</h3>
@@ -206,190 +203,21 @@
     </p>
 </section>
 </main>
-<div class="modal-overlay" id="modalPedimento">
-    <div class="modal-box modal-box-lg">
-        <div class="modal-header">
-            <h3>Nuevo pedimento</h3>
-            <button class="modal-cerrar" onclick="cerrarModal('modalPedimento')">
-                <i data-lucide="x"></i>
-            </button>
-        </div>
-
-        <form method="post" action="{% url 'home:pedimentos' %}">
-            {% csrf_token %}
-            <div class="modal-body">
-
-                <!-- Info: campos automáticos -->
-                <div class="form-info">
-                    <i data-lucide="info"></i>
-                    Número de pedimento, semáforo fiscal y fecha de registro
-                    se generan automáticamente al guardar.
-                </div>
-
-                <!-- Operación aduanera — disparador de todo -->
-                <div class="form-group">
-                    <label>{{ form.ope_aduanera.label }}</label>
-                    {{ form.ope_aduanera }}
-                    <span class="form-hint" id="hint-aduana"></span>
-                </div>
-
-                <!-- Tipo detectado automáticamente -->
-                <div class="form-group">
-                    <label>Tipo de operación</label>
-                    <input type="text" id="campo-tipo-operacion"
-                           class="form-input" readonly
-                           placeholder="Se detecta al elegir la operación">
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>{{ form.clave_pedimento.label }}</label>
-                        {{ form.clave_pedimento }}
-                    </div>
-                    <div class="form-group">
-                        <label>{{ form.regimen_adu.label }}</label>
-                        {{ form.regimen_adu }}
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>{{ form.valor_total.label }}</label>
-                        {{ form.valor_total }}
-                        <span class="form-hint">
-                            Calculado desde los productos de la operación.
-                            Puedes ajustarlo si es necesario.
-                        </span>
-                    </div>
-                    <div class="form-group">
-                        <label>{{ form.permiso.label }}</label>
-                        {{ form.permiso }}
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group" id="grupo-importacion">
-                        <label>{{ form.tipo_importacion.label }}</label>
-                        {{ form.tipo_importacion }}
-                    </div>
-                    <div class="form-group" id="grupo-exportacion">
-                        <label>{{ form.tipo_exportacion.label }}</label>
-                        {{ form.tipo_exportacion }}
-                    </div>
-                </div>
-
-                {% if form.errors %}
-                <div class="form-errores">
-                    {% for field in form %}
-                        {% for error in field.errors %}
-                            <p>{{ field.label }}: {{ error }}</p>
-                        {% endfor %}
-                    {% endfor %}
-                </div>
-                {% endif %}
-
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn-cancelar"
-                        onclick="cerrarModal('modalPedimento')">
-                    Cancelar
-                </button>
-                <button type="submit" class="btn-guardar">
-                    Guardar pedimento
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
 <script>
     lucide.createIcons();
-    function abrirModal(id) {
-        document.getElementById(id).classList.add('activo');
-    }
-
-    function cerrarModal(id) {
-        document.getElementById(id).classList.remove('activo');
-    }
 
     function mostrarModalLogout() {
         document.getElementById('modalLogout').classList.add('activo');
     }
-
     function cerrarModalLogout() {
         document.getElementById('modalLogout').classList.remove('activo');
     }
 
     document.querySelectorAll('.modal-overlay').forEach(overlay => {
         overlay.addEventListener('click', function(e) {
-            if (e.target === this) cerrarModal(this.id);
+            if (e.target === this) this.classList.remove('activo');
         });
     });
-
-const inputBuscarPed = document.querySelector('.input-buscar');
-const filasPed       = document.querySelectorAll('table tbody tr');
-
-inputBuscarPed.addEventListener('input', function() {
-    const texto = this.value.toLowerCase().trim();
-    filasPed.forEach(fila => {
-        fila.style.display = fila.textContent.toLowerCase().includes(texto) ? '' : 'none';
-    });
-});
-
-const selectOperacion   = document.getElementById('id_ope_aduanera');
-const campoTipo         = document.getElementById('campo-tipo-operacion');
-const campoValor        = document.getElementById('id_valor_total');
-const grupoImportacion  = document.getElementById('grupo-importacion');
-const grupoExportacion  = document.getElementById('grupo-exportacion');
-const selectImportacion = document.getElementById('id_tipo_importacion');
-const selectExportacion = document.getElementById('id_tipo_exportacion');
-const hintAduana        = document.getElementById('hint-aduana');
-
-selectOperacion.addEventListener('change', async function() {
-    const id = this.value;
-    if (!id) {
-        campoTipo.value = '';
-        campoValor.value = '';
-        resetTipos();
-        return;
-    }
-
-    try {
-        const resp = await fetch(`/api/operacion/?id=${id}`);
-        const data = await resp.json();
-        campoTipo.value = data.tipo_operacion;
-        hintAduana.textContent = `Aduana: ${data.aduana_nombre}`;
-        campoValor.value = data.valor_total;
-        if (data.tipo_operacion === 'Importación') {
-            grupoImportacion.style.opacity = '1';
-            selectImportacion.disabled = false;
-            grupoExportacion.style.opacity = '0.4';
-            selectExportacion.disabled = true;
-            selectExportacion.value = '';
-        } else if (data.tipo_operacion === 'Exportación') {
-            grupoExportacion.style.opacity = '1';
-            selectExportacion.disabled = false;
-            grupoImportacion.style.opacity = '0.4';
-            selectImportacion.disabled = true;
-            selectImportacion.value = '';
-        }
-
-    } catch(e) {
-        console.error('Error al obtener datos de la operación:', e);
-    }
-});
-
-function resetTipos() {
-    grupoImportacion.style.opacity = '0.4';
-    grupoExportacion.style.opacity = '0.4';
-    selectImportacion.disabled = true;
-    selectExportacion.disabled = true;
-}
-resetTipos();
-
-{% if form.errors %}
-document.addEventListener('DOMContentLoaded', function() {
-    abrirModal('modalPedimento');
-});
-{% endif %}
 </script>
 </body>
 </html>

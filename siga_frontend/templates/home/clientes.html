@@ -144,7 +144,7 @@
             {% endif %}
 
         </form>
-        <select class="clientes-select" data-mostrador data-mostrador-target="tbodyClientes" data-mostrador-columna="3">
+        <select class="clientes-select" data-mostrador data-mostrador-target="tbodyClientes" data-mostrador-columna="5">
             <option value="">Todos los estados</option>
             <option value="Activo" data-mostrador-vacio="No hay clientes activos.">Activo</option>
             <option value="Inactivo" data-mostrador-vacio="No hay clientes inactivos.">Inactivo</option>
@@ -175,6 +175,8 @@
                     <th>Cliente</th>
                     <th>RFC</th>
                     <th>Tipo</th>
+                    <th>Teléfono</th>
+                    <th>Correo</th>
                     <th>Estado</th>
                     <th>Acciones</th>
                 </tr>
@@ -189,20 +191,34 @@
                     </td>
                     <td>{{ cliente.RFC }}</td>
                     <td>{{ cliente.tipo_persona }}</td>
-                    <td><span class="clientes-estado-pill estado-activo">Activo</span></td>
+                    <td>{{ cliente.telefono|default:"—" }}</td>
+                    <td>{{ cliente.correo_electronico|default:"—" }}</td>
+                    <td>
+                        {% if cliente.activo %}
+                            <span class="clientes-estado-pill estado-activo">Activo</span>
+                        {% else %}
+                            <span class="clientes-estado-pill estado-inactivo">Inactivo</span>
+                        {% endif %}
+                    </td>
                     <td class="acciones">
-                    <button class="btn-ver"
-                            onclick="abrirDetalleCliente({{ cliente.numero }})">
-                        Ver
-                    </button>
-                    <button class="btn-eliminar-cliente">
-                        Eliminar
-                    </button>
+                        <button class="btn-ver" onclick="abrirDetalleCliente({{ cliente.numero }})">Ver</button>
+                        <button class="btn-ver" style="margin-left:0;"
+                            onclick="abrirEditarCliente({{ cliente.numero }})">
+                            Editar
+                        </button>
+                        <form method="post" style="display:inline; margin:0;">
+                            {% csrf_token %}
+                            <input type="hidden" name="accion" value="toggle_activo_cliente">
+                            <input type="hidden" name="cliente_id" value="{{ cliente.numero }}">
+                            <button type="submit" class="btn-eliminar-cliente">
+                                {% if cliente.activo %}Desactivar{% else %}Activar{% endif %}
+                            </button>
+                        </form>
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="4" style="text-align:center;">
+                    <td colspan="7" style="text-align:center;">
                         No hay clientes registrados.
                     </td>
                 </tr>
@@ -296,6 +312,18 @@
                         {{ form.RFC }}
                     </div>
                 </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Teléfono</label>
+                        <input type="tel" name="telefono" class="form-input" placeholder="Ej. 6641234567"
+                               pattern="[0-9]{10}" minlength="10" maxlength="10"
+                               title="El teléfono debe tener exactamente 10 dígitos" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Correo electrónico</label>
+                        <input type="email" name="correo_electronico" class="form-input" placeholder="correo@ejemplo.com" required>
+                    </div>
+                </div>
 
                 {% if form.errors %}
                     <div class="form-errores">
@@ -361,11 +389,21 @@
                 </div>
             </div>
 
+            <!-- Teléfonos y correos -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:16px;">
+                <div class="detalle-card">
+                    <h3>Teléfonos</h3>
+                    <div id="detalle-telefonos" style="font-size:13.5px; color:#6b7280;">Cargando...</div>
+                </div>
+                <div class="detalle-card">
+                    <h3>Correos electrónicos</h3>
+                    <div id="detalle-correos" style="font-size:13.5px; color:#6b7280;">Cargando...</div>
+                </div>
+            </div>
+
             <!-- Tabla de permisos -->
             <div id="seccion-permisos" style="margin-top:16px;">
-                <h3 style="font-size:14px; font-weight:600; color:#111827; margin-bottom:12px;">
-                    Permisos registrados
-                </h3>
+                <h3 style="font-size:14px; font-weight:600; color:#111827; margin-bottom:12px;">Permisos registrados</h3>
                 <table class="tabla-pedimentos" id="tabla-permisos">
                     <thead>
                         <tr>
@@ -377,16 +415,62 @@
                         </tr>
                     </thead>
                     <tbody id="tbody-permisos">
+                        <tr><td colspan="5" style="text-align:center; color:#9ca3af; padding:20px;">Cargando permisos...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Historial de pedimentos -->
+            <div style="margin-top:16px;">
+                <h3 style="font-size:14px; font-weight:600; color:#111827; margin-bottom:12px;">Historial de pedimentos</h3>
+                <table class="tabla-pedimentos" id="tabla-pedimentos-cliente">
+                    <thead>
                         <tr>
-                            <td colspan="5" style="text-align:center; color:#9ca3af; padding:20px;">
-                                Cargando permisos...
-                            </td>
+                            <th>Número</th>
+                            <th>Fecha</th>
+                            <th>Semáforo</th>
+                            <th>Pago</th>
                         </tr>
+                    </thead>
+                    <tbody id="tbody-pedimentos-cliente">
+                        <tr><td colspan="4" style="text-align:center; color:#9ca3af; padding:20px;">Cargando...</td></tr>
                     </tbody>
                 </table>
             </div>
 
         </div>
+    </div>
+</div>
+
+<!-- ── Modal: Editar contacto cliente ── -->
+<div class="modal-overlay" id="modalEditarCliente">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3>Editar contacto</h3>
+            <button class="modal-cerrar" onclick="cerrarModal('modalEditarCliente')"><i data-lucide="x"></i></button>
+        </div>
+        <form method="post" action="{% url 'home:clientes' %}">
+            {% csrf_token %}
+            <input type="hidden" name="accion" value="editar_contacto">
+            <input type="hidden" name="cliente_id" id="edit_cliente_id">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Teléfono</label>
+                    <input type="tel" name="telefono" id="edit_telefono" class="form-input"
+                           placeholder="Ej. 6641234567" pattern="[0-9]{10}" minlength="10" maxlength="10"
+                           title="El teléfono debe tener exactamente 10 dígitos" required>
+                </div>
+                <div class="form-group">
+                    <label>Correo electrónico</label>
+                    <input type="email" name="correo_electronico" id="edit_correo_cliente" class="form-input"
+                           placeholder="correo@ejemplo.com" required>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancelar" onclick="cerrarModal('modalEditarCliente')">Cancelar</button>
+                <button type="submit" class="btn-guardar">Guardar cambios</button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -538,11 +622,54 @@ async function abrirDetalleCliente(id) {
             lucide.createIcons();
         }
 
+        // Teléfonos
+        const divTels = document.getElementById('detalle-telefonos');
+        divTels.innerHTML = data.telefonos && data.telefonos.length
+            ? data.telefonos.map(t => `<div style="padding:3px 0;">📞 ${t}</div>`).join('')
+            : '<span style="color:#9ca3af;">Sin teléfonos registrados.</span>';
+
+        // Correos
+        const divCorreos = document.getElementById('detalle-correos');
+        divCorreos.innerHTML = data.correos && data.correos.length
+            ? data.correos.map(c => `<div style="padding:3px 0;">✉ ${c}</div>`).join('')
+            : '<span style="color:#9ca3af;">Sin correos registrados.</span>';
+
+        // Pedimentos
+        const tbodyPed = document.getElementById('tbody-pedimentos-cliente');
+        if (!data.pedimentos || data.pedimentos.length === 0) {
+            tbodyPed.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#9ca3af;padding:20px;">Sin pedimentos registrados.</td></tr>`;
+        } else {
+            tbodyPed.innerHTML = data.pedimentos.map(p => `
+                <tr>
+                    <td style="font-weight:500;">${p.numero}</td>
+                    <td>${p.fecha}</td>
+                    <td>${p.semaforo}</td>
+                    <td>${p.con_pago ? '<span style="color:#16a34a;font-weight:600;">Pagado</span>' : '<span style="color:#9ca3af;">Sin pago</span>'}</td>
+                </tr>
+            `).join('');
+        }
+
     } catch(e) {
         console.error('Error al cargar cliente:', e);
         document.getElementById('detalle-nombre').textContent = 'Error al cargar datos';
     }
 }
+
+async function abrirEditarCliente(id) {
+    document.getElementById('edit_cliente_id').value    = id;
+    document.getElementById('edit_telefono').value      = '';
+    document.getElementById('edit_correo_cliente').value = '';
+    abrirModal('modalEditarCliente');
+    try {
+        const resp = await fetch(`/api/cliente/${id}/`);
+        if (resp.ok) {
+            const data = await resp.json();
+            document.getElementById('edit_telefono').value       = (data.telefonos && data.telefonos[0]) || '';
+            document.getElementById('edit_correo_cliente').value = (data.correos   && data.correos[0])   || '';
+        }
+    } catch(e) { console.error('Error al cargar contacto:', e); }
+}
+
 function abrirAgregarPermiso() {
     document.getElementById('permiso-cliente-id').value = clienteActualId;
     document.getElementById('formPermiso').action       = '/clientes/';

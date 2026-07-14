@@ -198,6 +198,58 @@
     color: #dc2626;
 }
 
+/* BOTONES DE ACCIÓN EN TABLA */
+.usuarios-acciones {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.btn-editar-usuario {
+    background: #DBEAFE;
+    color: #2563EB;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-editar-usuario:hover {
+    background: #C5DCFB;
+}
+
+.btn-desactivar-usuario {
+    background: #FEE2E2;
+    color: #DC2626;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-desactivar-usuario:hover {
+    background: #FECACA;
+}
+
+.btn-activar-usuario {
+    background: #DCFCE7;
+    color: #16A34A;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-activar-usuario:hover {
+    background: #BBF7D0;
+}
+
 /* SIDEBAR COLAPSADO (modo mini) */
 
 .sidebar {

@@ -104,8 +104,17 @@
                 <option value="fecha" data-columna="3" data-modo="ascendente">Fecha Alta</option>
                 <option value="rol" data-columna="4" data-modo="alfabetico">Rol</option>
             </select>
-            <button type="button" class="btn-nuevo-usuario" style="margin-left:auto">+ Nuevo usuario</button>
+            <button type="button" class="btn-nuevo-usuario" style="margin-left:auto" onclick="abrirModalNuevo()">+ Nuevo usuario</button>
         </div>
+
+        {% if messages %}
+            {% for msg in messages %}
+                <div class="alerta-{{ msg.tags }}" style="margin-bottom:12px; padding:10px 16px; border-radius:8px; font-size:14px;
+                    {% if msg.tags == 'success' %}background:#dcfce7; color:#16a34a;{% else %}background:#fee2e2; color:#dc2626;{% endif %}">
+                    {{ msg }}
+                </div>
+            {% endfor %}
+        {% endif %}
 
         <table class="usuarios-tabla">
             <thead>
@@ -115,20 +124,47 @@
                     <th>Fecha Alta</th>
                     <th>Correo</th>
                     <th>Rol</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
                 </tr>
             </thead>
             <tbody id="tbodyUsuarios">
                 {% for usuario in usuarios %}
-                <tr>
+                <tr {% if not usuario.activo %}style="opacity:.55;"{% endif %}>
                     <td><a href="#" class="usuarios-id">{{ usuario.ID_usuario }}</a></td>
                     <td>{{ usuario.nombre_pila }} {{ usuario.primer_apell|default:'' }}</td>
                     <td>{{ usuario.fecha_alta }}</td>
                     <td><span class="usuarios-correo">{{ usuario.correo }}</span></td>
-                    <td><span class="pill pill-administrador">{{ usuario.nombre_usuario }}</span></td>
+                    <td>
+                        <span class="pill {% if usuario.rol == 'Administrador' %}pill-administrador{% else %}pill-operador{% endif %}">
+                            {{ usuario.rol }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if usuario.activo %}
+                            <span class="pill" style="background:#dcfce7;color:#16a34a;">Activo</span>
+                        {% else %}
+                            <span class="pill pill-inactivo">Inactivo</span>
+                        {% endif %}
+                    </td>
+                    <td class="usuarios-acciones">
+                        <button class="btn-editar-usuario"
+                            onclick="abrirModalEditar({{ usuario.ID_usuario }}, '{{ usuario.nombre_pila }}', '{{ usuario.primer_apell|default:'' }}', '{{ usuario.seg_apell|default:'' }}', '{{ usuario.correo }}', '{{ usuario.nombre_usuario }}', '{{ usuario.rol }}')">
+                            Editar
+                        </button>
+                        <form method="post" style="margin:0;">
+                            {% csrf_token %}
+                            <input type="hidden" name="accion" value="toggle_activo">
+                            <input type="hidden" name="usuario_id" value="{{ usuario.ID_usuario }}">
+                            <button type="submit" class="{% if usuario.activo %}btn-desactivar-usuario{% else %}btn-activar-usuario{% endif %}">
+                                {% if usuario.activo %}Desactivar{% else %}Activar{% endif %}
+                            </button>
+                        </form>
+                    </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="5" style="text-align:center; color:#9CA3AF; padding:24px 0;">
+                    <td colspan="7" style="text-align:center; color:#9CA3AF; padding:24px 0;">
                         No hay usuarios registrados.
                     </td>
                 </tr>
@@ -173,16 +209,141 @@
     </div>
 </div>
 
+<!-- Modal Nuevo Usuario -->
+<div class="modal-overlay" id="modalNuevo">
+    <div class="modal-box" style="max-width:480px;">
+        <h2 class="modal-titulo">Nuevo usuario</h2>
+        <form method="post" action="{% url 'home:usuarios' %}">
+            {% csrf_token %}
+            <input type="hidden" name="accion" value="nuevo">
+            <div class="modal-grid">
+                <div class="campo-grupo">
+                    <label>Nombre *</label>
+                    <input type="text" name="nombre_pila" class="campo-input" required>
+                </div>
+                <div class="campo-grupo">
+                    <label>Primer apellido *</label>
+                    <input type="text" name="primer_apell" class="campo-input" required>
+                </div>
+                <div class="campo-grupo">
+                    <label>Segundo apellido</label>
+                    <input type="text" name="seg_apell" class="campo-input">
+                </div>
+                <div class="campo-grupo">
+                    <label>Nombre de usuario *</label>
+                    <input type="text" name="nombre_usuario" class="campo-input" required>
+                </div>
+                <div class="campo-grupo" style="grid-column:1/-1;">
+                    <label>Correo electrónico *</label>
+                    <input type="email" name="correo" class="campo-input" required>
+                </div>
+                <div class="campo-grupo">
+                    <label>Contraseña *</label>
+                    <input type="password" name="password" class="campo-input" required minlength="6">
+                </div>
+                <div class="campo-grupo">
+                    <label>Rol *</label>
+                    <select name="rol" class="campo-input">
+                        <option value="Agente Aduanal">Agente Aduanal</option>
+                        <option value="Administrador">Administrador</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-acciones">
+                <button type="button" class="btn-cancelar-modal" onclick="cerrarModal('modalNuevo')">Cancelar</button>
+                <button type="submit" class="btn-filtrar">Crear usuario</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Editar Usuario -->
+<div class="modal-overlay" id="modalEditar">
+    <div class="modal-box" style="max-width:480px;">
+        <h2 class="modal-titulo">Editar usuario</h2>
+        <form method="post" action="{% url 'home:usuarios' %}">
+            {% csrf_token %}
+            <input type="hidden" name="accion" value="editar">
+            <input type="hidden" name="usuario_id" id="edit_usuario_id">
+            <div class="modal-grid">
+                <div class="campo-grupo">
+                    <label>Nombre *</label>
+                    <input type="text" name="nombre_pila" id="edit_nombre_pila" class="campo-input" required>
+                </div>
+                <div class="campo-grupo">
+                    <label>Primer apellido *</label>
+                    <input type="text" name="primer_apell" id="edit_primer_apell" class="campo-input" required>
+                </div>
+                <div class="campo-grupo">
+                    <label>Segundo apellido</label>
+                    <input type="text" name="seg_apell" id="edit_seg_apell" class="campo-input">
+                </div>
+                <div class="campo-grupo">
+                    <label>Nombre de usuario *</label>
+                    <input type="text" name="nombre_usuario" id="edit_nombre_usuario" class="campo-input" required>
+                </div>
+                <div class="campo-grupo" style="grid-column:1/-1;">
+                    <label>Correo electrónico *</label>
+                    <input type="email" name="correo" id="edit_correo" class="campo-input" required>
+                </div>
+                <div class="campo-grupo">
+                    <label>Nueva contraseña <small style="color:#9ca3af;">(dejar vacío para no cambiar)</small></label>
+                    <input type="password" name="password" class="campo-input" minlength="6">
+                </div>
+                <div class="campo-grupo">
+                    <label>Rol *</label>
+                    <select name="rol" id="edit_rol" class="campo-input">
+                        <option value="Agente Aduanal">Agente Aduanal</option>
+                        <option value="Administrador">Administrador</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-acciones">
+                <button type="button" class="btn-cancelar-modal" onclick="cerrarModal('modalEditar')">Cancelar</button>
+                <button type="submit" class="btn-filtrar">Guardar cambios</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.modal-box { background:#fff; border-radius:12px; padding:28px; width:100%; box-shadow:0 8px 32px rgba(0,0,0,.15); }
+.modal-titulo { font-size:18px; font-weight:700; color:#111827; margin-bottom:20px; }
+.modal-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:20px; }
+.campo-grupo { display:flex; flex-direction:column; gap:4px; }
+.campo-grupo label { font-size:13px; font-weight:500; color:#374151; }
+.campo-input { height:38px; padding:0 12px; border:1px solid #d1d5db; border-radius:8px; font-size:14px; color:#111827; background:#fff; }
+.campo-input:focus { outline:none; border-color:#2563eb; }
+select.campo-input { cursor:pointer; background:#f9fafb; }
+.modal-acciones { display:flex; justify-content:flex-end; gap:10px; }
+.btn-cancelar-modal { height:38px; padding:0 18px; border:1px solid #d1d5db; border-radius:8px; background:#fff; color:#374151; font-size:14px; cursor:pointer; }
+.btn-cancelar-modal:hover { background:#f3f4f6; }
+</style>
+
 <script>
     lucide.createIcons();
 
-    function mostrarModalLogout() {
-        document.getElementById('modalLogout').classList.add('activo');
+    function mostrarModalLogout() { document.getElementById('modalLogout').classList.add('activo'); }
+    function cerrarModalLogout()  { document.getElementById('modalLogout').classList.remove('activo'); }
+
+    function abrirModalNuevo() { document.getElementById('modalNuevo').classList.add('activo'); }
+
+    function abrirModalEditar(id, nombre, apell1, apell2, correo, username, rol) {
+        document.getElementById('edit_usuario_id').value    = id;
+        document.getElementById('edit_nombre_pila').value   = nombre;
+        document.getElementById('edit_primer_apell').value  = apell1;
+        document.getElementById('edit_seg_apell').value     = apell2;
+        document.getElementById('edit_correo').value        = correo;
+        document.getElementById('edit_nombre_usuario').value = username;
+        document.getElementById('edit_rol').value           = rol;
+        document.getElementById('modalEditar').classList.add('activo');
     }
 
-    function cerrarModalLogout() {
-        document.getElementById('modalLogout').classList.remove('activo');
-    }
+    function cerrarModal(id) { document.getElementById(id).classList.remove('activo'); }
+
+    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+        overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('activo'); });
+    });
 </script>
 </body>
 </html>

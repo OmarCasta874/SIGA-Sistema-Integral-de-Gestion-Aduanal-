@@ -1,4 +1,5 @@
 import datetime
+import json
 
 from django.contrib import messages
 from django.contrib.auth import login as auth_login, logout as auth_logout
@@ -12,8 +13,8 @@ from .forms import (
     LoginForm,
     NuevoClienteForm,
     NuevaOperacionForm,
-    NuevoPedimentoForm,
     NuevoPermisoForm,
+    CLAVES_PEDIMENTO,
 )
 
 import requests
@@ -58,7 +59,11 @@ def login_view(request):
                     'contrasena': request.POST.get('contrasena', ''),
                 })
                 if resp.status_code == 200:
-                    request.session['api_token'] = resp.json().get('token', '')
+                    data = resp.json()
+                    request.session['api_token']    = data.get('token', '')
+                    usuario_data = data.get('usuario', {})
+                    request.session['usuario_rol']   = usuario_data.get('rol', 'Agente Aduanal')
+                    request.session['usuario_activo'] = usuario_data.get('activo', True)
             except Exception:
                 pass
             return redirect('home:dashboard')
@@ -108,13 +113,39 @@ def clientes_view(request):
         if accion in ('', 'nuevo_cliente'):
             form = NuevoClienteForm(request.POST)
             if form.is_valid():
-                resp = api.post(request, '/clientes/', form.cleaned_data)
+                payload = dict(form.cleaned_data)
+                payload['telefono']          = request.POST.get('telefono', '').strip()
+                payload['correo_electronico'] = request.POST.get('correo_electronico', '').strip()
+                resp = api.post(request, '/clientes/', payload)
                 if resp.status_code == 201:
                     messages.success(request, 'Cliente registrado correctamente.')
                 else:
                     messages.error(request, f'Error al registrar cliente: {api.safe_json(resp).get("RFC", resp.text)}')
             else:
                 messages.error(request, 'Revisa los campos del formulario.')
+            return redirect('home:clientes')
+
+        if accion == 'editar_contacto':
+            cliente_id = request.POST.get('cliente_id')
+            payload = {
+                'telefono':          request.POST.get('telefono', '').strip(),
+                'correo_electronico': request.POST.get('correo_electronico', '').strip(),
+            }
+            resp = api.post(request, f'/clientes/{cliente_id}/contacto/', payload)
+            if resp.status_code == 200:
+                messages.success(request, 'Contacto actualizado correctamente.')
+            else:
+                messages.error(request, f'Error al actualizar contacto: {api.safe_json(resp)}')
+            return redirect('home:clientes')
+
+        if accion == 'toggle_activo_cliente':
+            cliente_id = request.POST.get('cliente_id')
+            resp = api.post(request, f'/clientes/{cliente_id}/toggle-activo/')
+            if resp.status_code == 200:
+                nuevo = 'activado' if api.safe_json(resp).get('activo') else 'desactivado'
+                messages.success(request, f'Cliente {nuevo} correctamente.')
+            else:
+                messages.error(request, 'Error al cambiar estado del cliente.')
             return redirect('home:clientes')
 
         if accion == 'agregar_permiso':
@@ -158,6 +189,8 @@ def clientes_view(request):
             or q in (c.get('primer_apell') or '').lower()
             or q in c.get('RFC', '').lower()
             or q in f"{c.get('nombre', '')} {c.get('primer_apell') or ''}".lower()
+            or q in c.get('telefono', '').lower()
+            or q in c.get('correo_electronico', '').lower()
         ]
 
     paginador          = Paginator(clientes, 5)
@@ -196,7 +229,11 @@ def api_cliente_detalle(request, pk):
             'seg_apell':    data.get('seg_apell') or '',
             'tipo_persona': data.get('tipo_persona'),
             'RFC':          data.get('RFC'),
+            'activo':       data.get('activo', True),
             'permisos':     data.get('permisos', []),
+            'telefonos':    data.get('telefonos', []),
+            'correos':      data.get('correos', []),
+            'pedimentos':   data.get('pedimentos', []),
         })
     return JsonResponse({'error': 'No encontrado'}, status=resp.status_code)
 
@@ -277,9 +314,11 @@ def operacion_nueva_view(request):
             if resp.status_code == 201:
                 pk = resp.json().get('ID_operacion')
                 messages.success(request, 'Operación abierta correctamente. Ahora completa el pedimento.')
-                return redirect('home:operacion_detalle', pk=pk)
+                from django.urls import reverse
+                return redirect(f"{reverse('home:operacion_detalle', args=[pk])}?nuevo=1")
             else:
-                messages.error(request, f'Error al crear operación: {resp.text}')
+                error = api.safe_json(resp).get('error', resp.text)
+                messages.error(request, error)
         else:
             messages.error(request, 'Revisa los campos del formulario.')
     return redirect('home:operaciones')
@@ -297,67 +336,97 @@ def operacion_detalle_view(request, pk):
         messages.error(request, 'No se pudo conectar con la API.')
         return redirect('home:operaciones')
 
-    pedimento = data.get('pedimento')
+    cliente_id = (data.get('cliente') or {}).get('numero')
+    pedimento  = data.get('pedimento')
+    paso       = data.get('paso', 1)
+
+    estado_pedimento = None
+    if pedimento:
+        estado_pedimento = 'Pagado' if paso >= 3 else 'Generado'
+    try:
+        paquetes = api.safe_json(api.get(request, f'/paquetes/?cliente={cliente_id}'), [])
+    except Exception:
+        paquetes = []
+
+    peso_bruto     = round(sum(float(p.get('peso', 0) or 0)     for p in paquetes), 2)
+    valor_estimado = round(sum(float(p.get('subtotal', 0) or 0) for p in paquetes), 2)
+
+    try:
+        regimenes = api.safe_json(api.get(request, '/regimenes/'), [])
+        permisos_raw = api.safe_json(api.get(request, f'/clientes/{cliente_id}/permisos/'), {}) if cliente_id else {}
+        if isinstance(permisos_raw, list):
+            permisos = permisos_raw
+        elif isinstance(permisos_raw, dict):
+            permisos = permisos_raw.get('permisos', [])
+        else:
+            permisos = []
+    except Exception:
+        regimenes = []
+        permisos  = []
+
+    try:
+        all_peds  = api.safe_json(api.get(request, '/pedimentos/'), [])
+        ped_count = len(all_peds) if isinstance(all_peds, list) else 0
+    except Exception:
+        ped_count = 0
+
+    hoy_view       = datetime.date.today()
+    anio_2d        = str(hoy_view.year)[-2:]
+    ultimo_digito  = str(hoy_view.year)[-1:]
+    cod_aduana     = str((data.get('aduana') or {}).get('codigo', '00')).zfill(2)
+    consecutivo    = str(ped_count + 1).zfill(6)
+    next_num_ped   = f'{anio_2d}  {cod_aduana}  3991  {ultimo_digito}  {consecutivo}'
+
+    tipo_op = data.get('tipo_operacion', '')
+    auto_pais_destino = 'México' if tipo_op == 'Importación' else ''
+    auto_pais_origen  = 'México' if tipo_op == 'Exportación' else ''
+    abrir_modal = 'nuevo' in request.GET and not pedimento
     return render(request, 'home/operacion_detalle.html', {
-        'op':        data,
-        'paso':      data.get('paso', 1),
-        'pedimento': pedimento,
+        'op':               data,
+        'paso':             paso,
+        'pedimento':        pedimento,
+        'estado_pedimento': estado_pedimento,
+        'paquetes':         paquetes,
+        'peso_bruto':       peso_bruto,
+        'valor_estimado':   valor_estimado,
+        'regimenes':        regimenes,
+        'regimenes_json':   json.dumps(regimenes, ensure_ascii=False),
+        'permisos':         permisos,
+        'claves_pedimento': CLAVES_PEDIMENTO,
+        'next_num_ped':     next_num_ped,
+        'auto_pais_destino': auto_pais_destino,
+        'auto_pais_origen':  auto_pais_origen,
+        'abrir_modal':      abrir_modal,
     })
 
 
 @login_required
 def operacion_pedimento_view(request, pk):
-    try:
-        resp_op = api.get(request, f'/operaciones/{pk}/')
-        if resp_op.status_code != 200:
-            return redirect('home:operaciones')
-        op = resp_op.json()
-    except Exception:
-        return redirect('home:operaciones')
-
-    if op.get('pedimento'):
-        messages.warning(request, 'Esta operación ya tiene un pedimento generado.')
+    if request.method != 'POST':
         return redirect('home:operacion_detalle', pk=pk)
 
-    if request.method == 'POST':
-        resp = api.post(request, f'/operaciones/{pk}/pedimento/', {
-            'clave_pedimento':  request.POST.get('clave_pedimento', ''),
-            'regimen_adu':      request.POST.get('regimen_adu'),
-            'permiso':          request.POST.get('permiso'),
-            'tipo_importacion': request.POST.get('tipo_importacion') or None,
-            'tipo_exportacion': request.POST.get('tipo_exportacion') or None,
-        })
-        if resp.status_code == 201:
-            data = resp.json()
-            messages.success(
-                request,
-                f'Pedimento {data["numero_pedimento"]} generado. '
-                f'Semáforo: {data["semaforo_resultado"]}'
-            )
-            return redirect('home:operacion_detalle', pk=pk)
-        else:
-            messages.error(request, f'Error al generar pedimento: {resp.text}')
-
-    try:
-        regimenes = api.safe_json(api.get(request, '/regimenes/'), [])
-        permisos  = api.safe_json(
-            api.get(request, f'/clientes/{op["cliente"]["numero"]}/permisos/'), []
-        )
-        tipos_importacion = api.safe_json(api.get(request, '/tipos-importacion/'), [])
-        tipos_exportacion = api.safe_json(api.get(request, '/tipos-exportacion/'), [])
-    except Exception:
-        regimenes = permisos = tipos_importacion = tipos_exportacion = []
-
-    form = NuevoPedimentoForm()
-    return render(request, 'home/operacion_pedimento.html', {
-        'op':               op,
-        'form':             form,
-        'paso':             2,
-        'regimenes':        regimenes,
-        'permisos':         permisos,
-        'tipos_importacion': tipos_importacion,
-        'tipos_exportacion': tipos_exportacion,
+    resp = api.post(request, f'/operaciones/{pk}/pedimento/', {
+        'clave_pedimento':     request.POST.get('clave_pedimento', ''),
+        'regimen_adu':         request.POST.get('regimen_adu'),
+        'permiso':             request.POST.get('permiso'),
+        'medio_transporte':    request.POST.get('medio_transporte') or None,
+        'pais_origen_mercancia': request.POST.get('pais_origen_mercancia') or None,
+        'pais_destino':        request.POST.get('pais_destino') or None,
+        'incoterm':            request.POST.get('incoterm') or None,
+        'tipo_cambio':         request.POST.get('tipo_cambio') or None,
     })
+    if resp.status_code == 201:
+        data = resp.json()
+        messages.success(
+            request,
+            f'Pedimento {data["numero_pedimento"]} generado. '
+            f'Semáforo: {data["semaforo_resultado"]}'
+        )
+    else:
+        error = api.safe_json(resp).get('error', resp.text)
+        messages.error(request, f'Error al generar pedimento: {error}')
+
+    return redirect('home:operacion_detalle', pk=pk)
 
 
 # ── Pedimentos ─────────────────────────────────────────────────────────────────
@@ -494,6 +563,57 @@ def api_datos_operacion(request):
 
 @login_required
 def usuarios_view(request):
+    if request.method == 'POST':
+        accion = request.POST.get('accion', '')
+
+        if accion == 'nuevo':
+            payload = {
+                'nombre_pila':    request.POST.get('nombre_pila', '').strip(),
+                'primer_apell':   request.POST.get('primer_apell', '').strip(),
+                'seg_apell':      request.POST.get('seg_apell', '').strip() or None,
+                'correo':         request.POST.get('correo', '').strip(),
+                'nombre_usuario': request.POST.get('nombre_usuario', '').strip(),
+                'password':       request.POST.get('password', ''),
+                'rol':            request.POST.get('rol', 'Agente Aduanal'),
+            }
+            resp = api.post(request, '/usuarios/', payload)
+            if resp.status_code == 201:
+                messages.success(request, 'Usuario creado correctamente.')
+            else:
+                error = api.safe_json(resp)
+                messages.error(request, f'Error al crear usuario: {error}')
+            return redirect('home:usuarios')
+
+        if accion == 'editar':
+            uid = request.POST.get('usuario_id')
+            payload = {
+                'nombre_pila':    request.POST.get('nombre_pila', '').strip(),
+                'primer_apell':   request.POST.get('primer_apell', '').strip(),
+                'seg_apell':      request.POST.get('seg_apell', '').strip() or None,
+                'correo':         request.POST.get('correo', '').strip(),
+                'nombre_usuario': request.POST.get('nombre_usuario', '').strip(),
+                'rol':            request.POST.get('rol', 'Agente Aduanal'),
+            }
+            password = request.POST.get('password', '').strip()
+            if password:
+                payload['password'] = password
+            resp = api.patch(request, f'/usuarios/{uid}/', payload)
+            if resp.status_code == 200:
+                messages.success(request, 'Usuario actualizado correctamente.')
+            else:
+                messages.error(request, f'Error al editar usuario: {api.safe_json(resp)}')
+            return redirect('home:usuarios')
+
+        if accion == 'toggle_activo':
+            uid = request.POST.get('usuario_id')
+            resp = api.post(request, f'/usuarios/{uid}/toggle-activo/')
+            if resp.status_code == 200:
+                nuevo_estado = 'activado' if api.safe_json(resp).get('activo') else 'desactivado'
+                messages.success(request, f'Usuario {nuevo_estado} correctamente.')
+            else:
+                messages.error(request, 'Error al cambiar estado del usuario.')
+            return redirect('home:usuarios')
+
     query = request.GET.get('q', '')
     try:
         resp     = api.get(request, '/usuarios/')
