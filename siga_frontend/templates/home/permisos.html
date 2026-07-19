@@ -153,13 +153,22 @@
             </thead>
             <tbody id="tbodyPermisos">
                 {% for p in permisos %}
-                    <tr>
+                    <tr {% if p.por_vencer %}style="background:#fff7ed; border-left:3px solid #f97316;"{% endif %}>
                         <td><span class="permisos-clave">{{ p.clave_numerica }}</span></td>
                         <td>{{ p.tipo_permiso }}</td>
                         <td>{{ p.cliente_nombre }}</td>
-                        <td>{{ p.vigencia_fmt }}</td>
                         <td>
-                            {% if p.vigente %}
+                            {{ p.vigencia_fmt }}
+                            {% if p.por_vencer %}
+                                <span style="display:block;font-size:11px;color:#ea580c;font-weight:600;">
+                                    ⚠ Vence en {{ p.dias_restantes }} día{% if p.dias_restantes != 1 %}s{% endif %}
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if p.por_vencer %}
+                                <span class="pill" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;">Por vencer</span>
+                            {% elif p.vigente %}
                                 <span class="pill pill-previos">Vigente</span>
                             {% else %}
                                 <span class="pill pill-restringido">Vencido</span>

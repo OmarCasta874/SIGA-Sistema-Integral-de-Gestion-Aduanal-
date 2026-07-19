@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from datetime import date
 from django.db.models import Sum
+from django.utils import timezone
 
 from home.models import (
     Usuario, Cliente, Aduana, OperacionAduanera, Pedimento,
@@ -37,7 +38,7 @@ class UsuarioCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         password = validated_data.pop('password')
         usuario = Usuario(**validated_data)
-        usuario.fecha_alta = date.today()
+        usuario.fecha_alta = timezone.localdate()
         usuario.set_password(password)
         usuario.save()
         return usuario
@@ -77,7 +78,7 @@ class PermisoResumenSerializer(serializers.ModelSerializer):
         fields = ['clave', 'tipo', 'vigencia', 'vigencia_fmt', 'vigente', 'descripcion']
 
     def get_vigente(self, obj):
-        return obj.vigencia >= date.today()
+        return obj.vigencia >= timezone.localdate()
 
     def get_vigencia_fmt(self, obj):
         return obj.vigencia.strftime('%d/%m/%Y')
@@ -97,7 +98,7 @@ class PermisoListSerializer(serializers.ModelSerializer):
         ]
 
     def get_vigente(self, obj):
-        return obj.vigencia >= date.today()
+        return obj.vigencia >= timezone.localdate()
 
     def get_vigencia_fmt(self, obj):
         return obj.vigencia.strftime('%d/%m/%Y')
@@ -113,8 +114,8 @@ class ClienteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Cliente
-        fields = ['numero', 'nombre', 'primer_apell', 'seg_apell', 'tipo_persona', 'RFC', 'activo',
-                  'telefono', 'correo_electronico']
+        fields = ['numero', 'nombre', 'primer_apell', 'seg_apell', 'tipo_persona', 'RFC',
+                  'curp', 'domicilio', 'activo', 'telefono', 'correo_electronico']
 
     def get_telefono(self, obj):
         t = obj.telefonos.first()
@@ -135,12 +136,12 @@ class ClienteDetalleSerializer(serializers.ModelSerializer):
         model = Cliente
         fields = [
             'numero', 'nombre', 'primer_apell', 'seg_apell',
-            'tipo_persona', 'RFC', 'activo',
+            'tipo_persona', 'RFC', 'curp', 'domicilio', 'activo',
             'permisos', 'telefonos', 'correos', 'pedimentos',
         ]
 
     def get_permisos(self, obj):
-        hoy = date.today()
+        hoy = timezone.localdate()
         return [
             {
                 'clave':       p.clave_numerica,
@@ -165,7 +166,7 @@ class ClienteDetalleSerializer(serializers.ModelSerializer):
                 pedimentos.append({
                     'numero':   p.numero_pedimento,
                     'fecha':    p.fecha_registro.strftime('%d/%m/%Y'),
-                    'semaforo': p.semaforo.resultado,
+                    'semaforo': p.semaforo.resultado if p.semaforo_id else 'Pendiente de pago',
                     'con_pago': p.pagos.exists(),
                 })
         return pedimentos
@@ -243,18 +244,34 @@ class ProductoCategoriaSerializer(serializers.ModelSerializer):
 
 
 class PedimentoSerializer(serializers.ModelSerializer):
-    regimen_adu = RegimenAduaneroSerializer(read_only=True)
-    semaforo = SemaforoFiscalSerializer(read_only=True)
+    regimen_adu    = RegimenAduaneroSerializer(read_only=True)
+    semaforo       = SemaforoFiscalSerializer(read_only=True)
+    operacion_id   = serializers.IntegerField(source='ope_aduanera_id', read_only=True)
+    cliente_rfc    = serializers.SerializerMethodField()
+    cliente_nombre = serializers.SerializerMethodField()
 
     class Meta:
         model = Pedimento
         fields = [
             'numero_pedimento', 'clave_pedimento', 'fecha_registro',
             'valor_total', 'semaforo', 'regimen_adu',
-            'permiso', 'ope_aduanera', 'tipo_exportacion', 'tipo_importacion',
+            'permiso', 'ope_aduanera', 'operacion_id',
+            'cliente_rfc', 'cliente_nombre',
+            'tipo_exportacion', 'tipo_importacion',
             'medio_transporte', 'pais_origen_mercancia', 'pais_destino',
             'incoterm', 'tipo_cambio',
         ]
+
+    def get_cliente_rfc(self, obj):
+        op = obj.ope_aduanera
+        return op.cliente.RFC if op and op.cliente_id else '—'
+
+    def get_cliente_nombre(self, obj):
+        op = obj.ope_aduanera
+        if not op or not op.cliente_id:
+            return '—'
+        c = op.cliente
+        return f'{c.nombre} {c.primer_apell or ""}'.strip()
 
 
 def _calcular_paso(obj):
@@ -270,33 +287,41 @@ class OperacionListSerializer(serializers.ModelSerializer):
     cliente = ClienteSerializer(read_only=True)
     aduana = AduanaSerializer(read_only=True)
     paso = serializers.SerializerMethodField()
+    estado_nombre = serializers.SerializerMethodField()
 
     class Meta:
         model = OperacionAduanera
         fields = [
             'ID_operacion', 'fecha_inicio', 'fecha_final',
-            'tipo_operacion', 'cliente', 'aduana', 'paso',
+            'tipo_operacion', 'cliente', 'aduana', 'paso', 'estado_nombre',
         ]
 
     def get_paso(self, obj):
         return _calcular_paso(obj)
+
+    def get_estado_nombre(self, obj):
+        return obj.estado_ope_aduanera.descripcion if obj.estado_ope_aduanera_id else '—'
 
 
 class OperacionDetalleSerializer(serializers.ModelSerializer):
     cliente = ClienteSerializer(read_only=True)
     aduana = AduanaSerializer(read_only=True)
     paso = serializers.SerializerMethodField()
+    estado_nombre = serializers.SerializerMethodField()
     pedimento = serializers.SerializerMethodField()
 
     class Meta:
         model = OperacionAduanera
         fields = [
             'ID_operacion', 'fecha_inicio', 'fecha_final',
-            'tipo_operacion', 'cliente', 'aduana', 'paso', 'pedimento',
+            'tipo_operacion', 'cliente', 'aduana', 'paso', 'estado_nombre', 'pedimento',
         ]
 
     def get_paso(self, obj):
         return _calcular_paso(obj)
+
+    def get_estado_nombre(self, obj):
+        return obj.estado_ope_aduanera.descripcion if obj.estado_ope_aduanera_id else '—'
 
     def get_pedimento(self, obj):
         ped = (
@@ -311,13 +336,15 @@ class OperacionDetalleSerializer(serializers.ModelSerializer):
 class PagoSerializer(serializers.ModelSerializer):
     estado = serializers.SerializerMethodField()
     pedimento_num = serializers.SerializerMethodField()
+    operacion_id = serializers.SerializerMethodField()
+    cliente_nombre = serializers.SerializerMethodField()
 
     class Meta:
         model = Pago
         fields = [
             'no_transaccion', 'numero_pago', 'concepto',
             'monto', 'saldo_final', 'fecha_pago',
-            'pedimento_num', 'estado',
+            'pedimento_num', 'operacion_id', 'cliente_nombre', 'estado',
         ]
 
     def get_estado(self, obj):
@@ -325,6 +352,18 @@ class PagoSerializer(serializers.ModelSerializer):
 
     def get_pedimento_num(self, obj):
         return obj.pedimento_id or '—'
+
+    def get_operacion_id(self, obj):
+        if obj.pedimento_id and obj.pedimento.ope_aduanera_id:
+            return obj.pedimento.ope_aduanera_id
+        return None
+
+    def get_cliente_nombre(self, obj):
+        if obj.pedimento_id and obj.pedimento.ope_aduanera_id:
+            c = obj.pedimento.ope_aduanera.cliente
+            if c:
+                return f'{c.nombre} {c.primer_apell or ""}'.strip()
+        return '—'
 
 
 class FacturaSerializer(serializers.ModelSerializer):
@@ -349,9 +388,17 @@ class SancionSerializer(serializers.ModelSerializer):
 
 
 class ProductoSerializer(serializers.ModelSerializer):
+    igi_importe = serializers.SerializerMethodField()
+
     class Meta:
         model = Producto
-        fields = ['codigo', 'nombre', 'descripcion', 'peso', 'valor_unitario', 'cantidad']
+        fields = ['codigo', 'nombre', 'descripcion', 'peso', 'valor_unitario', 'cantidad', 'igi_importe']
+
+    def get_igi_importe(self, obj):
+        rel = obj.categorias_rel.select_related('categorias').first()
+        if rel and rel.categorias.IGI:
+            return float(obj.valor_unitario * rel.categorias.IGI / 100)
+        return 0.0
 
 
 class ProductoCreateSerializer(serializers.ModelSerializer):
@@ -361,11 +408,14 @@ class ProductoCreateSerializer(serializers.ModelSerializer):
 
 
 class InspeccionSerializer(serializers.ModelSerializer):
-    semaforo_resultado = serializers.CharField(source='semaforo.resultado', read_only=True)
+    semaforo_resultado = serializers.SerializerMethodField()
 
     class Meta:
         model = Inspeccion
         fields = ['numero', 'fecha_inspeccion', 'hora_inicio', 'semaforo', 'semaforo_resultado', 'resultado']
+
+    def get_semaforo_resultado(self, obj):
+        return obj.semaforo.resultado if obj.semaforo_id else None
 
 
 class PaqueteSerializer(serializers.ModelSerializer):

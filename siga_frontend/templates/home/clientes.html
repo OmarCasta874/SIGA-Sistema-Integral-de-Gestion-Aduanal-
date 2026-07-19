@@ -311,6 +311,14 @@
                         <label>{{ form.RFC.label }}</label>
                         {{ form.RFC }}
                     </div>
+                    <div class="form-group" id="grupo-curp">
+                        <label>{{ form.curp.label }}</label>
+                        {{ form.curp }}
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>{{ form.domicilio.label }}</label>
+                    {{ form.domicilio }}
                 </div>
                 <div class="form-row">
                     <div class="form-group">
@@ -746,6 +754,20 @@ function aplicarTipoPersona() {
     }
 
     if (tipo) campoNombre.disabled = false;
+}
+
+// ── Auto-fill RFC desde CURP (solo Persona Física) ──────
+// Los primeros 10 chars del RFC coinciden con CURP[0:10]
+// La homoclave (3 chars finales) la completa el usuario
+const campoCURP = document.getElementById('id_curp');
+
+if (campoCURP) {
+    campoCURP.addEventListener('input', function () {
+        if (tipoPersona.value !== 'Física') return;
+        const base = this.value.toUpperCase().slice(0, 10);
+        const homoclave = campoRFC.value.slice(10); // preserva lo que el usuario haya escrito en los últimos 3
+        campoRFC.value = base + homoclave;
+    });
 }
 
 tipoPersona.addEventListener('change', aplicarTipoPersona);

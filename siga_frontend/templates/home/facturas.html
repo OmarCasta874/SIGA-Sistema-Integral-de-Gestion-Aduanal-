@@ -110,7 +110,6 @@
             <option value="descendente">Mayor a menor</option>
             <option value="fecha" data-columna="2" data-modo="ascendente">Fecha Factura</option>
         </select>
-        <button type="button" class="btn-facturas btn-facturas-nuevo" style="margin-left:auto"> + Nueva Factura </button>
     </div>
     <div class="facturas-card">
         <h2 class="facturas-card-titulo">Operaciones Recientes</h2>
@@ -130,13 +129,15 @@
                 {% for factura in facturas %}
                 <tr>
                     <td>{{ factura.codigo }}</td>
-                    <td>{{ factura.folio_fiscal }}</td>
-                    <td>{{ factura.fecha_factura }}</td>
+                    <td style="font-family:monospace;font-size:11px;">{{ factura.folio_fiscal|truncatechars:20 }}</td>
+                    <td>{{ factura.fecha_factura|date:"d/m/Y" }}</td>
                     <td>${{ factura.total }}</td>
                     <td>{{ factura.operacion_id }}</td>
                     <td>
-                        <a href="#" class="btn-accion btn-accion-ver">Ver</a>
-                        <a href="#" class="btn-accion btn-accion-editar">Editar</a>
+                        <a href="{% url 'home:api_factura_pdf' codigo=factura.codigo %}"
+                           class="btn-accion btn-accion-ver">
+                            Descargar PDF
+                        </a>
                     </td>
                 </tr>
                 {% empty %}

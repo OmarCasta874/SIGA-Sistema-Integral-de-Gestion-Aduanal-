@@ -101,7 +101,7 @@
         <form method="get" action="{% url 'home:pedimentos' %}" style="display:flex; gap:10px; flex:1;">
             <input type="text" name="q" value="{{ query }}"
                 class="input-buscar" placeholder="Buscar pedimento..."
-                data-buscador-target="tbodyPedimentos" data-buscador-colspan="4">
+                data-buscador-target="tbodyPedimentos" data-buscador-colspan="6">
             <button type="submit" class="btn-filtrar">
                 <i data-lucide="filter"></i> Filtrar
             </button>
@@ -124,8 +124,8 @@
         <thead>
             <tr>
                 <th>Número</th>
-                <th>Régimen</th>
-                <th>Clave</th>
+                <th>Cliente</th>
+                <th>Clave / Régimen</th>
                 <th>Valor total</th>
                 <th>Semáforo</th>
                 <th>Acciones</th>
@@ -134,22 +134,34 @@
         <tbody id="tbodyPedimentos">
             {% for ped in pedimentos %}
             <tr>
-                <td>{{ ped.numero_pedimento }}</td>
-                <td>{{ ped.regimen_adu.descripcion }}</td>
-                <td>{{ ped.clave_pedimento }}</td>
+                <td style="font-family:monospace;font-size:12px;font-weight:600;">{{ ped.numero_pedimento }}</td>
+                <td>{{ ped.cliente_nombre|default:"—" }}</td>
+                <td>
+                    <span style="font-weight:600;">{{ ped.clave_pedimento }}</span>
+                    {% if ped.regimen_adu.descripcion %}
+                        <span style="display:block;font-size:11px;color:#9CA3AF;">{{ ped.regimen_adu.descripcion }}</span>
+                    {% endif %}
+                </td>
                 <td>${{ ped.valor_total }}</td>
                 <td>
-                    {% if 'Verde' in ped.semaforo.resultado %}
-                        <span class="estado estado-pagado">Verde</span>
-                    {% elif 'Rojo' in ped.semaforo.resultado %}
-                        <span class="estado estado-transmitido">Rojo</span>
+                    {% if ped.semaforo %}
+                        {% if 'Verde' in ped.semaforo.resultado %}
+                            <span class="estado estado-pagado">Verde</span>
+                        {% elif 'Rojo' in ped.semaforo.resultado %}
+                            <span class="estado estado-transmitido">Rojo</span>
+                        {% else %}
+                            <span class="estado estado-pendiente">{{ ped.semaforo.resultado }}</span>
+                        {% endif %}
                     {% else %}
-                        <span class="estado estado-pendiente">—</span>
+                        <span class="estado estado-pendiente">Pendiente de pago</span>
                     {% endif %}
                 </td>
                 <td class="acciones">
-                    <button class="btn-ver">Ver</button>
-                    <button class="btn-editar">Editar</button>
+                    {% if ped.operacion_id %}
+                        <a href="{% url 'home:pedimento_detalle' ped.operacion_id %}" class="btn-ver">Ver</a>
+                    {% else %}
+                        <button class="btn-ver" disabled>Ver</button>
+                    {% endif %}
                 </td>
             </tr>
             {% empty %}

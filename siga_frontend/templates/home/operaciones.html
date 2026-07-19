@@ -156,7 +156,7 @@
                     <th>Cliente asociado</th>
                     <th>Aduana</th>
                     <th>Fecha de apertura</th>
-                    <th>Paso</th>
+                    <th>Estado</th>
                     <th>Acciones</th>
                 </tr>
             </thead>
@@ -171,12 +171,22 @@
                 <td>{{ operacion.op.aduana }}</td>
                 <td>{{ operacion.op.fecha_inicio|date:"d/m/Y" }}</td>
                 <td>
-                    {% if operacion.paso == 1 %}
-                        <span style="color:#d97706;font-weight:600;">Pedimento pendiente</span>
-                    {% elif operacion.paso == 2 %}
-                        <span style="color:#2563eb;font-weight:600;">Pendiente de pago</span>
+                    {% if operacion.estado_nombre and operacion.estado_nombre != '—' %}
+                        {% if operacion.paso == 1 %}
+                            <span style="color:#d97706;font-weight:600;">{{ operacion.estado_nombre }}</span>
+                        {% elif operacion.paso == 2 %}
+                            <span style="color:#2563eb;font-weight:600;">{{ operacion.estado_nombre }}</span>
+                        {% else %}
+                            <span style="color:#16a34a;font-weight:600;">{{ operacion.estado_nombre }}</span>
+                        {% endif %}
                     {% else %}
-                        <span style="color:#16a34a;font-weight:600;">Completada</span>
+                        {% if operacion.paso == 1 %}
+                            <span style="color:#d97706;font-weight:600;">Pedimento pendiente</span>
+                        {% elif operacion.paso == 2 %}
+                            <span style="color:#2563eb;font-weight:600;">Pendiente de pago</span>
+                        {% else %}
+                            <span style="color:#16a34a;font-weight:600;">Completada</span>
+                        {% endif %}
                     {% endif %}
                 </td>
                 <td>

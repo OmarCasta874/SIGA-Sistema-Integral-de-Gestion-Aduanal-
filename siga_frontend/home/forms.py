@@ -123,6 +123,25 @@ class NuevoClienteForm(forms.Form):
             'maxlength': '13',
         }),
     )
+    curp = forms.CharField(
+        max_length=18,
+        required=False,
+        label='CURP',
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Ej. MALC850312HBCRMN05',
+            'maxlength': '18',
+        }),
+    )
+    domicilio = forms.CharField(
+        max_length=250,
+        required=False,
+        label='Domicilio fiscal',
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Calle, número, colonia, ciudad, C.P.',
+        }),
+    )
 
 
 # ── Operación ──────────────────────────────────────────────────────────────────

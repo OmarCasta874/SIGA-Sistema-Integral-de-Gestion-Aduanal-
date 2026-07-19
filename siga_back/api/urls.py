@@ -33,5 +33,7 @@ urlpatterns = [
         name='api-permiso-delete',
     ),
     path('dashboard/', DashboardAPIView.as_view(), name='dashboard'),
+    path('facturas/crear/', views.factura_crear, name='factura-crear'),
+    path('facturas/<int:codigo>/pdf/', views.factura_pdf, name='factura-pdf'),
     path('', include(router.urls)),
 ]

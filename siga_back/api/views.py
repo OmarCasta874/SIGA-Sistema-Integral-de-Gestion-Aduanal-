@@ -4,11 +4,12 @@ import random
 
 from django.contrib.auth import authenticate
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 
 from django.db import models
 from rest_framework import viewsets, status
 from rest_framework.authentication import TokenAuthentication
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, authentication_classes, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -19,7 +20,7 @@ from home.models import (
     Permiso, Bitacora, CategoriaProductos, CategoriasProductosRel,
     RegimenAduanero, SemaforoFiscal, TipoImportaciones, TipoExportaciones,
     Paquete, Producto, Pago, Factura, Sancion,
-    EstadoOpeAduanera, Inspeccion, TipoEmbalaje,
+    EstadoOpeAduanera, EstadoPago, Inspeccion, TipoEmbalaje,
     Telefono, CorreoElectronico,
 )
 from .serializers import (
@@ -61,7 +62,7 @@ def _parse_date(value):
 
 
 def _generar_folio_permiso(autoridad):
-    anio = date.today().year
+    anio = timezone.localdate().year
     prefijo = f'PERM-{autoridad}-{anio}-'
     claves = Permiso.objects.filter(tipo_permiso=autoridad).values_list('clave_numerica', flat=True)
     max_num = 0
@@ -75,7 +76,7 @@ def _generar_folio_permiso(autoridad):
 
 
 def _generar_numero_pedimento(codigo_aduana):
-    hoy = date.today()
+    hoy = timezone.localdate()
     anio_2d = str(hoy.year)[-2:]
     ultimo_digito = str(hoy.year)[-1:]
     patente = '3991'
@@ -89,7 +90,7 @@ def _generar_numero_pedimento(codigo_aduana):
 def _registrar_bitacora(usuario, modulo, tipo_accion, descripcion):
     Bitacora.objects.create(
         descripcion=descripcion,
-        fecha=date.today(),
+        fecha=timezone.localdate(),
         hora=datetime.now().time(),
         usuario=usuario,
         modulo=modulo,
@@ -225,7 +226,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
         cliente = self.get_object()
 
         if request.method == 'GET':
-            hoy = date.today()
+            hoy = timezone.localdate()
             data = []
             for p in cliente.permisos.all():
                 vig = _parse_date(p.vigencia)
@@ -259,7 +260,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
             existente.vigencia = vigencia_date
             existente.descripcion = descripcion
             existente.save(update_fields=['vigencia', 'descripcion'])
-            hoy = date.today()
+            hoy = timezone.localdate()
             return Response(
                 {
                     'clave':       existente.clave_numerica,
@@ -281,7 +282,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
             descripcion=descripcion,
             cliente=cliente,
         )
-        hoy = date.today()
+        hoy = timezone.localdate()
         return Response(
             {
                 'clave':       folio,
@@ -322,7 +323,7 @@ class AduanaViewSet(viewsets.ReadOnlyModelViewSet):
 # ── Operaciones ────────────────────────────────────────────────────────────────
 
 class OperacionViewSet(viewsets.ModelViewSet):
-    queryset = OperacionAduanera.objects.select_related('cliente', 'aduana').order_by('-ID_operacion')
+    queryset = OperacionAduanera.objects.select_related('cliente', 'aduana', 'estado_ope_aduanera').order_by('-ID_operacion')
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
@@ -348,7 +349,7 @@ class OperacionViewSet(viewsets.ModelViewSet):
 
         bitacora = Bitacora.objects.create(
             descripcion=f'Apertura de operación aduanera | Tipo: {tipo_operacion} | Cliente: {cliente}',
-            fecha=date.today(),
+            fecha=timezone.localdate(),
             hora=datetime.now().time(),
             usuario=request.user,
             modulo='Operaciones',
@@ -360,7 +361,7 @@ class OperacionViewSet(viewsets.ModelViewSet):
             aduana=aduana,
             usuario=request.user,
             bitacora=bitacora,
-            fecha_inicio=date.today(),
+            fecha_inicio=timezone.localdate(),
             estado_ope_aduanera=estado,
         )
         return Response(
@@ -404,7 +405,6 @@ class OperacionViewSet(viewsets.ModelViewSet):
         regimen = get_object_or_404(RegimenAduanero, num_regimen=regimen_adu_id)
         permiso = get_object_or_404(Permiso, clave_numerica=permiso_clave)
 
-        semaforo = _generar_semaforo()
         numero_pedimento = _generar_numero_pedimento(op.aduana_id)
 
         valor_total = (
@@ -416,9 +416,8 @@ class OperacionViewSet(viewsets.ModelViewSet):
         ped = Pedimento.objects.create(
             numero_pedimento=numero_pedimento,
             clave_pedimento=clave_pedimento,
-            fecha_registro=date.today(),
+            fecha_registro=timezone.localdate(),
             valor_total=valor_total,
-            semaforo=semaforo,
             regimen_adu=regimen,
             permiso=permiso,
             ope_aduanera=op,
@@ -436,9 +435,8 @@ class OperacionViewSet(viewsets.ModelViewSet):
 
         return Response(
             {
-                'numero_pedimento':   ped.numero_pedimento,
-                'semaforo_resultado': semaforo.resultado,
-                'valor_total':        float(ped.valor_total),
+                'numero_pedimento': ped.numero_pedimento,
+                'valor_total':      float(ped.valor_total),
             },
             status=status.HTTP_201_CREATED,
         )
@@ -560,14 +558,358 @@ class PermisoViewSet(viewsets.ReadOnlyModelViewSet):
 
 # ── Pagos ──────────────────────────────────────────────────────────────────────
 
-class PagoViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Pago.objects.select_related('estado_pago').order_by('-fecha_pago')
+class PagoViewSet(viewsets.ModelViewSet):
+    queryset = Pago.objects.select_related('estado_pago', 'pedimento__ope_aduanera__cliente').order_by('-fecha_pago')
     serializer_class = PagoSerializer
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
+    http_method_names = ['get', 'post', 'head', 'options']
+
+    def create(self, request, *args, **kwargs):
+        import uuid
+        pedimento_num = request.data.get('pedimento')
+        monto         = request.data.get('monto')
+        concepto      = request.data.get('concepto', 'Pago de pedimento')
+
+        if not pedimento_num:
+            return Response({'error': 'El número de pedimento es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not monto:
+            return Response({'error': 'El monto es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        ped = get_object_or_404(Pedimento, numero_pedimento=pedimento_num)
+
+        if ped.pagos.exists():
+            return Response({'error': 'Este pedimento ya tiene un pago registrado.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # RF33: generar semáforo al registrar el pago
+        semaforo = _generar_semaforo()
+        ped.semaforo = semaforo
+        ped.save(update_fields=['semaforo'])
+
+        # RF51: si semáforo rojo → generar inspección automática
+        if 'Rojo' in semaforo.resultado:
+            Inspeccion.objects.create(
+                fecha_inspeccion=timezone.localdate(),
+                hora_inicio=datetime.now().time(),
+                semaforo=semaforo,
+            )
+
+        estado_pagado = get_object_or_404(EstadoPago, codigo=1)
+        num_pago      = Pago.objects.count() + 1
+        no_transaccion = f'TXN-{uuid.uuid4().hex[:10].upper()}'
+
+        pago = Pago.objects.create(
+            no_transaccion=no_transaccion,
+            numero_pago=num_pago,
+            concepto=concepto,
+            monto=monto,
+            saldo_final=0,
+            fecha_pago=timezone.localdate(),
+            pedimento=ped,
+            estado_pago=estado_pagado,
+        )
+
+        # RF40: Verde → Completada. Rojo → sigue En proceso (va a inspección)
+        op = ped.ope_aduanera
+        if 'Verde' in semaforo.resultado:
+            estado_completada = get_object_or_404(EstadoOpeAduanera, codigo=2)
+            op.estado_ope_aduanera = estado_completada
+            op.fecha_final = timezone.localdate()
+            op.save(update_fields=['estado_ope_aduanera', 'fecha_final'])
+
+        return Response(
+            {
+                'no_transaccion':    pago.no_transaccion,
+                'numero_pedimento':  ped.numero_pedimento,
+                'semaforo_resultado': semaforo.resultado,
+                'inspeccion_creada': 'Rojo' in semaforo.resultado,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 # ── Facturas ───────────────────────────────────────────────────────────────────
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def factura_crear(request):
+    import uuid as _uuid
+    no_transaccion = request.data.get('no_transaccion')
+    if not no_transaccion:
+        return Response({'error': 'El número de transacción es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    pago = get_object_or_404(
+        Pago.objects.select_related('pedimento__ope_aduanera'),
+        no_transaccion=no_transaccion,
+    )
+
+    if not pago.pedimento_id or not pago.pedimento.ope_aduanera_id:
+        return Response({'error': 'El pago no tiene una operación aduanera asociada.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    op = pago.pedimento.ope_aduanera
+    existente = op.facturas.first()
+    if existente:
+        return Response(FacturaSerializer(existente).data, status=status.HTTP_200_OK)
+
+    total    = float(pago.monto)
+    iva      = round(total * 0.16 / 1.16, 2)
+    subtotal = round(total - iva, 2)
+
+    factura = Factura.objects.create(
+        IVA=iva,
+        subtotal=subtotal,
+        total=total,
+        folio_fiscal=str(_uuid.uuid4()).upper(),
+        fecha_factura=timezone.localdate(),
+        ID_operacion=op,
+    )
+
+    return Response(FacturaSerializer(factura).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def factura_pdf(request, codigo):
+    from io import BytesIO
+    from django.http import HttpResponse
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import cm
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+    from reportlab.platypus import (
+        SimpleDocTemplate, Table, TableStyle,
+        Paragraph, Spacer, HRFlowable
+    )
+
+    factura = get_object_or_404(
+        Factura.objects.select_related('ID_operacion__cliente'),
+        codigo=codigo,
+    )
+    op      = factura.ID_operacion
+    cliente = op.cliente if op else None
+
+    ped  = op.pedimentos.first() if op else None
+    pago = ped.pagos.first() if ped else None
+
+    PRIMARY    = colors.HexColor('#1e3a5f')
+    ACCENT     = colors.HexColor('#2563eb')
+    LIGHT_BG   = colors.HexColor('#eff6ff')
+    GRAY_LINE  = colors.HexColor('#e5e7eb')
+    GRAY_TEXT  = colors.HexColor('#6b7280')
+    WHITE      = colors.white
+    BLACK      = colors.HexColor('#111827')
+
+    def style(name, **kw):
+        base = {'fontName': 'Helvetica', 'fontSize': 10, 'textColor': BLACK, 'leading': 14}
+        base.update(kw)
+        return ParagraphStyle(name, **base)
+
+    S_HEADER    = style('header',    fontSize=20, textColor=WHITE,     fontName='Helvetica-Bold', alignment=TA_LEFT,   leading=24)
+    S_SUB       = style('sub',       fontSize=9,  textColor=colors.HexColor('#93c5fd'), alignment=TA_LEFT,   leading=12)
+    S_FOLIO     = style('folio',     fontSize=8,  textColor=GRAY_TEXT, alignment=TA_LEFT,   leading=11, fontName='Helvetica')
+    S_FOLIO_VAL = style('foliov',    fontSize=8,  textColor=BLACK,     alignment=TA_LEFT,   leading=11, fontName='Helvetica-Bold')
+    S_LABEL     = style('label',     fontSize=8,  textColor=GRAY_TEXT, alignment=TA_LEFT,   leading=11)
+    S_VALUE     = style('value',     fontSize=9,  textColor=BLACK,     alignment=TA_LEFT,   leading=13, fontName='Helvetica-Bold')
+    S_TH        = style('th',        fontSize=9,  textColor=WHITE,     alignment=TA_CENTER, leading=12, fontName='Helvetica-Bold')
+    S_TD        = style('td',        fontSize=9,  textColor=BLACK,     alignment=TA_LEFT,   leading=12)
+    S_TD_R      = style('tdr',       fontSize=9,  textColor=BLACK,     alignment=TA_RIGHT,  leading=12)
+    S_TOTAL_LBL = style('totlbl',    fontSize=10, textColor=GRAY_TEXT, alignment=TA_RIGHT,  leading=14)
+    S_TOTAL_VAL = style('totval',    fontSize=10, textColor=BLACK,     alignment=TA_RIGHT,  leading=14, fontName='Helvetica-Bold')
+    S_GRAND_LBL = style('grandlbl',  fontSize=12, textColor=WHITE,     alignment=TA_RIGHT,  leading=16, fontName='Helvetica-Bold')
+    S_GRAND_VAL = style('grandval',  fontSize=14, textColor=WHITE,     alignment=TA_RIGHT,  leading=18, fontName='Helvetica-Bold')
+    S_FOOTER    = style('footer',    fontSize=7,  textColor=GRAY_TEXT, alignment=TA_CENTER, leading=10)
+
+    PAGE_W = A4[0] - 4 * cm
+    buffer  = BytesIO()
+    doc     = SimpleDocTemplate(
+        buffer, pagesize=A4,
+        topMargin=0, bottomMargin=2*cm,
+        leftMargin=2*cm, rightMargin=2*cm,
+    )
+
+    story = []
+
+    # ── Cabecera azul ────────────────────────────────────────────────
+    nombre_cliente = ''
+    rfc_cliente    = '—'
+    if cliente:
+        nombre_cliente = f'{cliente.nombre} {cliente.primer_apell or ""}'.strip()
+        rfc_cliente    = cliente.RFC or '—'
+
+    num_visible = pago.numero_pago if pago else factura.codigo
+
+    header_data = [[
+        Paragraph('SIGA', S_HEADER),
+        Paragraph(
+            f'<b>FACTURA ELECTRÓNICA</b><br/>'
+            f'<font color="#93c5fd" size="8">No. {num_visible}</font>',
+            ParagraphStyle('hr', fontSize=14, textColor=WHITE, fontName='Helvetica-Bold',
+                           alignment=TA_RIGHT, leading=20),
+        ),
+    ]]
+    sub_data = [[
+        Paragraph('Sistema Integral de Gestión Aduanal', S_SUB),
+        Paragraph(
+            f'<font color="#93c5fd">Fecha:</font> '
+            f'<font color="white">{factura.fecha_factura.strftime("%d/%m/%Y")}</font>',
+            ParagraphStyle('ds', fontSize=9, textColor=WHITE, alignment=TA_RIGHT, leading=12),
+        ),
+    ]]
+
+    header_tbl = Table(header_data, colWidths=[PAGE_W * 0.5, PAGE_W * 0.5])
+    header_tbl.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), PRIMARY),
+        ('TOPPADDING',    (0, 0), (-1, -1), 18),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 16),
+        ('RIGHTPADDING',  (0, 0), (-1, -1), 16),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    sub_tbl = Table(sub_data, colWidths=[PAGE_W * 0.5, PAGE_W * 0.5])
+    sub_tbl.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), PRIMARY),
+        ('TOPPADDING',    (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 16),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 16),
+        ('RIGHTPADDING',  (0, 0), (-1, -1), 16),
+    ]))
+    story += [header_tbl, sub_tbl, Spacer(1, 0.5*cm)]
+
+    # ── Folio fiscal ────────────────────────────────────────────────
+    folio_data = [[
+        Paragraph('FOLIO FISCAL (UUID)', S_FOLIO),
+        Paragraph(factura.folio_fiscal, S_FOLIO_VAL),
+    ]]
+    folio_tbl = Table(folio_data, colWidths=[PAGE_W * 0.28, PAGE_W * 0.72])
+    folio_tbl.setStyle(TableStyle([
+        ('BACKGROUND',    (0, 0), (-1, -1), LIGHT_BG),
+        ('TOPPADDING',    (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 12),
+        ('RIGHTPADDING',  (0, 0), (-1, -1), 12),
+        ('ROUNDEDCORNERS', [6]),
+    ]))
+    story += [folio_tbl, Spacer(1, 0.5*cm)]
+
+    # ── Emisor / Receptor ───────────────────────────────────────────
+    def info_block(title, rows):
+        items = [Paragraph(f'<b>{title}</b>', ParagraphStyle(
+            'blk', fontSize=8, textColor=ACCENT, fontName='Helvetica-Bold',
+            leading=12, spaceBefore=0, spaceAfter=4,
+        ))]
+        for lbl, val in rows:
+            items.append(Paragraph(lbl, S_LABEL))
+            items.append(Paragraph(val or '—', S_VALUE))
+        return items
+
+    emisor_rows   = [('Razón social', 'SIGA Agencia Aduanal S.A. de C.V.'),
+                     ('RFC Emisor',   'SAA000101XXX')]
+    receptor_rows = [('Razón social', nombre_cliente or '—'),
+                     ('RFC Receptor', rfc_cliente)]
+
+    emit_col = Table([[p] for p in info_block('EMISOR', emisor_rows)],
+                     colWidths=[PAGE_W * 0.45])
+    recv_col = Table([[p] for p in info_block('RECEPTOR', receptor_rows)],
+                     colWidths=[PAGE_W * 0.45])
+    emit_col.setStyle(TableStyle([('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0),
+                                   ('TOPPADDING',(0,0),(-1,-1),2),('BOTTOMPADDING',(0,0),(-1,-1),2)]))
+    recv_col.setStyle(TableStyle([('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0),
+                                   ('TOPPADDING',(0,0),(-1,-1),2),('BOTTOMPADDING',(0,0),(-1,-1),2)]))
+
+    two_col = Table([[emit_col, recv_col]], colWidths=[PAGE_W * 0.5, PAGE_W * 0.5])
+    two_col.setStyle(TableStyle([
+        ('VALIGN',        (0, 0), (-1, -1), 'TOP'),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING',  (0, 0), (-1, -1), 0),
+        ('LINEAFTER',     (0, 0), (0, -1),  0.5, GRAY_LINE),
+    ]))
+    story += [two_col, Spacer(1, 0.5*cm),
+              HRFlowable(width='100%', thickness=1, color=GRAY_LINE), Spacer(1, 0.4*cm)]
+
+    # ── Tabla de conceptos ──────────────────────────────────────────
+    concepto_texto = (pago.concepto if pago else None) or f'Servicios de despacho aduanal — Pedimento {ped.numero_pedimento if ped else "—"}'
+    pedimento_num  = ped.numero_pedimento if ped else '—'
+
+    thead = [Paragraph(t, S_TH) for t in ['DESCRIPCIÓN', 'PEDIMENTO', 'IMPORTE']]
+    trow  = [
+        Paragraph(concepto_texto, S_TD),
+        Paragraph(pedimento_num,  ParagraphStyle('mono', fontSize=8, fontName='Helvetica',
+                                                  leading=11, alignment=TA_LEFT)),
+        Paragraph(f'${float(factura.subtotal):,.2f}', S_TD_R),
+    ]
+    concept_tbl = Table([thead, trow],
+                        colWidths=[PAGE_W * 0.50, PAGE_W * 0.28, PAGE_W * 0.22])
+    concept_tbl.setStyle(TableStyle([
+        ('BACKGROUND',    (0, 0), (-1, 0), ACCENT),
+        ('ROWBACKGROUNDS',(0, 1), (-1, -1), [WHITE, LIGHT_BG]),
+        ('TOPPADDING',    (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 10),
+        ('RIGHTPADDING',  (0, 0), (-1, -1), 10),
+        ('GRID',          (0, 0), (-1, -1), 0.5, GRAY_LINE),
+        ('ALIGN',         (2, 0), (2, -1), 'RIGHT'),
+    ]))
+    story += [concept_tbl, Spacer(1, 0.4*cm)]
+
+    # ── Totales ─────────────────────────────────────────────────────
+    totals_data = [
+        [Paragraph('Subtotal', S_TOTAL_LBL), Paragraph(f'${float(factura.subtotal):,.2f}', S_TOTAL_VAL)],
+        [Paragraph('IVA (16%)', S_TOTAL_LBL), Paragraph(f'${float(factura.IVA):,.2f}', S_TOTAL_VAL)],
+    ]
+    totals_tbl = Table(totals_data, colWidths=[PAGE_W * 0.78, PAGE_W * 0.22])
+    totals_tbl.setStyle(TableStyle([
+        ('TOPPADDING',    (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING',  (0, 0), (-1, -1), 10),
+        ('LINEBELOW',     (0, -1), (-1, -1), 0.5, GRAY_LINE),
+    ]))
+
+    grand_data = [[
+        Paragraph('TOTAL', S_GRAND_LBL),
+        Paragraph(f'${float(factura.total):,.2f}', S_GRAND_VAL),
+    ]]
+    grand_tbl = Table(grand_data, colWidths=[PAGE_W * 0.78, PAGE_W * 0.22])
+    grand_tbl.setStyle(TableStyle([
+        ('BACKGROUND',    (0, 0), (-1, -1), PRIMARY),
+        ('TOPPADDING',    (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING',  (0, 0), (-1, -1), 10),
+    ]))
+
+    # right-align totals block
+    totals_wrap = Table([[totals_tbl]], colWidths=[PAGE_W])
+    totals_wrap.setStyle(TableStyle([('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0),
+                                      ('TOPPADDING',(0,0),(-1,-1),0),('BOTTOMPADDING',(0,0),(-1,-1),0)]))
+    grand_wrap = Table([[grand_tbl]], colWidths=[PAGE_W])
+    grand_wrap.setStyle(TableStyle([('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0),
+                                     ('TOPPADDING',(0,0),(-1,-1),0),('BOTTOMPADDING',(0,0),(-1,-1),0)]))
+
+    story += [totals_wrap, grand_wrap, Spacer(1, 1*cm)]
+
+    # ── Footer ──────────────────────────────────────────────────────
+    story.append(HRFlowable(width='100%', thickness=0.5, color=GRAY_LINE))
+    story.append(Spacer(1, 0.3*cm))
+    story.append(Paragraph(
+        'Este documento es una representación impresa de un Comprobante Fiscal Digital por Internet (CFDI). '
+        f'Folio fiscal: {factura.folio_fiscal}',
+        S_FOOTER,
+    ))
+
+    doc.build(story)
+    buffer.seek(0)
+
+    primer_nombre = (nombre_cliente.split()[0] if nombre_cliente else 'cliente').encode('ascii', 'ignore').decode() or 'cliente'
+    filename      = f'factura-{primer_nombre}-{num_visible}.pdf'
+
+    http_resp = HttpResponse(buffer.read(), content_type='application/pdf')
+    http_resp['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return http_resp
+
 
 class FacturaViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Factura.objects.select_related('ID_operacion').order_by('-fecha_factura')
@@ -603,7 +945,7 @@ class DashboardAPIView(APIView):
                 "cliente": str(p.ope_aduanera.cliente),
                 "regimen": str(p.regimen_adu),
                 "estado": p.ope_aduanera.tipo_operacion,
-                "semaforo": p.semaforo.resultado,
+                "semaforo": p.semaforo.resultado if p.semaforo_id else 'Pendiente de pago',
                 "fecha_limite": p.fecha_limite,
                 "por_vencer": por_vencer,
             })
@@ -689,6 +1031,9 @@ class PaqueteViewSet(viewsets.ModelViewSet):
         cliente_id = self.request.query_params.get('cliente')
         if cliente_id:
             qs = qs.filter(cliente_id=cliente_id)
+        operacion_id = self.request.query_params.get('operacion')
+        if operacion_id:
+            qs = qs.filter(pedimento__ope_aduanera_id=operacion_id)
         return qs
 
     def get_serializer_class(self):
@@ -735,13 +1080,13 @@ class PaqueteViewSet(viewsets.ModelViewSet):
             return Response(ser.data, status=status.HTTP_201_CREATED)
         return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
     
-class SemaforoFiscalViewSet(viewsets.ModelViewSet):
+class SemaforoFiscalViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = SemaforoFiscal.objects.all().order_by('-ID')
     serializer_class = SemaforoFiscalSerializer
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
-class InspeccionViewSet(viewsets.ModelViewSet):
+class InspeccionViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Inspeccion.objects.all().order_by('-numero')
     serializer_class = InspeccionSerializer
     authentication_classes = [TokenAuthentication]

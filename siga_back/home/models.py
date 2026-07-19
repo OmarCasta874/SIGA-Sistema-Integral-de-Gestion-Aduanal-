@@ -79,6 +79,8 @@ class Cliente(models.Model):
     seg_apell = models.CharField(max_length=40, blank=True, null=True, db_column='seg_apell')
     tipo_persona = models.CharField(max_length=20, db_column='tipo_persona')
     RFC = models.CharField(max_length=13, unique=True, db_column='RFC')
+    curp = models.CharField(max_length=18, blank=True, null=True, db_column='curp')
+    domicilio = models.CharField(max_length=250, blank=True, null=True, db_column='domicilio')
     activo = models.BooleanField(default=True, db_column='activo')
 
     class Meta:
@@ -585,7 +587,8 @@ class Pedimento(models.Model):
     valor_total = models.DecimalField(max_digits=12, decimal_places=2, db_column='valor_total')
     semaforo = models.ForeignKey(
         SemaforoFiscal, on_delete=models.CASCADE,
-        db_column='semaforo', related_name='pedimentos'
+        db_column='semaforo', related_name='pedimentos',
+        null=True, blank=True
     )
     regimen_adu = models.ForeignKey(
         RegimenAduanero, on_delete=models.CASCADE,

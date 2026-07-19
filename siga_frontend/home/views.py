@@ -2,6 +2,7 @@ import datetime
 import json
 
 from django.contrib import messages
+from django.utils import timezone
 from django.contrib.auth import login as auth_login, logout as auth_logout
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
@@ -114,8 +115,10 @@ def clientes_view(request):
             form = NuevoClienteForm(request.POST)
             if form.is_valid():
                 payload = dict(form.cleaned_data)
-                payload['telefono']          = request.POST.get('telefono', '').strip()
+                payload['telefono']           = request.POST.get('telefono', '').strip()
                 payload['correo_electronico'] = request.POST.get('correo_electronico', '').strip()
+                payload['curp']               = form.cleaned_data.get('curp', '') or None
+                payload['domicilio']          = form.cleaned_data.get('domicilio', '') or None
                 resp = api.post(request, '/clientes/', payload)
                 if resp.status_code == 201:
                     messages.success(request, 'Cliente registrado correctamente.')
@@ -201,7 +204,7 @@ def clientes_view(request):
         'total_clientes': len(clientes),
         'form':           form,
         'query':          query,
-        'hoy':            datetime.date.today(),
+        'hoy':            timezone.localdate(),
     })
 
 
@@ -218,6 +221,7 @@ def api_categoria_productos(request, pk):
     return JsonResponse([], safe=False)
 
 
+@login_required
 def api_cliente_detalle(request, pk):
     resp = api.get(request, f'/clientes/{pk}/')
     if resp.status_code == 200:
@@ -269,7 +273,7 @@ def operaciones_view(request):
         ]
 
     ops_con_estado = [
-        {'op': _build_op_ctx(o), 'paso': o.get('paso', 1)}
+        {'op': _build_op_ctx(o), 'paso': o.get('paso', 1), 'estado_nombre': o.get('estado_nombre', '—')}
         for o in ops_raw
     ]
 
@@ -301,7 +305,7 @@ def operaciones_view(request):
         'tipos_importacion': tipos_importacion,
         'tipos_exportacion': tipos_exportacion,
         'regimenes':         regimenes,
-        'hoy':               datetime.date.today(),
+        'hoy':               timezone.localdate(),
     })
 
 
@@ -350,6 +354,14 @@ def operacion_detalle_view(request, pk):
 
     peso_bruto     = round(sum(float(p.get('peso', 0) or 0)     for p in paquetes), 2)
     valor_estimado = round(sum(float(p.get('subtotal', 0) or 0) for p in paquetes), 2)
+    igi_total      = round(sum(
+        float(prod.get('igi_importe', 0))
+        for p in paquetes
+        for prod in p.get('productos', [])
+    ), 2)
+    dta_estimado   = round(valor_estimado * 0.008, 2)
+    iva_estimado   = round(valor_estimado * 0.16, 2)
+    total_estimado = round(valor_estimado + dta_estimado + igi_total + iva_estimado, 2)
 
     try:
         regimenes = api.safe_json(api.get(request, '/regimenes/'), [])
@@ -370,7 +382,7 @@ def operacion_detalle_view(request, pk):
     except Exception:
         ped_count = 0
 
-    hoy_view       = datetime.date.today()
+    hoy_view       = timezone.localdate()
     anio_2d        = str(hoy_view.year)[-2:]
     ultimo_digito  = str(hoy_view.year)[-1:]
     cod_aduana     = str((data.get('aduana') or {}).get('codigo', '00')).zfill(2)
@@ -389,6 +401,10 @@ def operacion_detalle_view(request, pk):
         'paquetes':         paquetes,
         'peso_bruto':       peso_bruto,
         'valor_estimado':   valor_estimado,
+        'igi_total':        igi_total,
+        'dta_estimado':     dta_estimado,
+        'iva_estimado':     iva_estimado,
+        'total_estimado':   total_estimado,
         'regimenes':        regimenes,
         'regimenes_json':   json.dumps(regimenes, ensure_ascii=False),
         'permisos':         permisos,
@@ -402,26 +418,32 @@ def operacion_detalle_view(request, pk):
 
 @login_required
 def operacion_pedimento_view(request, pk):
+    from django.http import JsonResponse
     if request.method != 'POST':
         return redirect('home:operacion_detalle', pk=pk)
 
+    es_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
     resp = api.post(request, f'/operaciones/{pk}/pedimento/', {
-        'clave_pedimento':     request.POST.get('clave_pedimento', ''),
-        'regimen_adu':         request.POST.get('regimen_adu'),
-        'permiso':             request.POST.get('permiso'),
-        'medio_transporte':    request.POST.get('medio_transporte') or None,
+        'clave_pedimento':       request.POST.get('clave_pedimento', ''),
+        'regimen_adu':           request.POST.get('regimen_adu'),
+        'permiso':               request.POST.get('permiso'),
+        'medio_transporte':      request.POST.get('medio_transporte') or None,
         'pais_origen_mercancia': request.POST.get('pais_origen_mercancia') or None,
-        'pais_destino':        request.POST.get('pais_destino') or None,
-        'incoterm':            request.POST.get('incoterm') or None,
-        'tipo_cambio':         request.POST.get('tipo_cambio') or None,
+        'pais_destino':          request.POST.get('pais_destino') or None,
+        'incoterm':              request.POST.get('incoterm') or None,
+        'tipo_cambio':           request.POST.get('tipo_cambio') or None,
     })
+
+    if es_ajax:
+        if resp.status_code == 201:
+            return JsonResponse(resp.json(), status=201)
+        error = api.safe_json(resp).get('error', resp.text)
+        return JsonResponse({'error': error}, status=resp.status_code)
+
     if resp.status_code == 201:
         data = resp.json()
-        messages.success(
-            request,
-            f'Pedimento {data["numero_pedimento"]} generado. '
-            f'Semáforo: {data["semaforo_resultado"]}'
-        )
+        messages.success(request, f'Pedimento {data["numero_pedimento"]} generado.')
     else:
         error = api.safe_json(resp).get('error', resp.text)
         messages.error(request, f'Error al generar pedimento: {error}')
@@ -429,7 +451,108 @@ def operacion_pedimento_view(request, pk):
     return redirect('home:operacion_detalle', pk=pk)
 
 
+@login_required
+def factura_pdf_view(request, codigo):
+    from django.http import HttpResponse
+    resp = api.get(request, f'/facturas/{codigo}/pdf/')
+    if resp.status_code == 200:
+        http_resp = HttpResponse(resp.content, content_type='application/pdf')
+        http_resp['Content-Disposition'] = resp.headers.get(
+            'Content-Disposition', f'attachment; filename="factura_{codigo}.pdf"'
+        )
+        return http_resp
+    return HttpResponse(status=resp.status_code)
+
+
+@login_required
+def factura_crear_view(request):
+    import json
+    from django.http import JsonResponse
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido.'}, status=405)
+    try:
+        body = json.loads(request.body)
+    except Exception:
+        return JsonResponse({'error': 'JSON inválido.'}, status=400)
+    resp = api.post(request, '/facturas/crear/', body)
+    return JsonResponse(resp.json(), status=resp.status_code)
+
+
+@login_required
+def pago_crear_view(request):
+    from django.http import JsonResponse
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido.'}, status=405)
+
+    resp = api.post(request, '/pagos/', {
+        'pedimento': request.POST.get('pedimento'),
+        'monto':     request.POST.get('monto'),
+        'concepto':  request.POST.get('concepto') or 'Pago de pedimento',
+    })
+
+    if resp.status_code == 201:
+        return JsonResponse(resp.json(), status=201)
+    error = api.safe_json(resp).get('error', resp.text)
+    return JsonResponse({'error': error}, status=resp.status_code)
+
+
 # ── Pedimentos ─────────────────────────────────────────────────────────────────
+
+@login_required
+def pedimento_detalle_view(request, operacion_id):
+    try:
+        op_resp = api.get(request, f'/operaciones/{operacion_id}/')
+        if op_resp.status_code != 200:
+            messages.error(request, 'Operación no encontrada.')
+            return redirect('home:pedimentos')
+        op = api.safe_json(op_resp, {})
+    except Exception:
+        messages.error(request, 'Error al obtener el pedimento.')
+        return redirect('home:pedimentos')
+
+    pedimento = op.get('pedimento') or {}
+    if not pedimento:
+        messages.error(request, 'Esta operación no tiene pedimento generado.')
+        return redirect('home:pedimentos')
+
+    paquetes = []
+    permisos = []
+    cliente_id = (op.get('cliente') or {}).get('numero')
+    if cliente_id:
+        try:
+            paquetes = api.safe_json(api.get(request, f'/paquetes/?cliente={cliente_id}'), [])
+        except Exception:
+            pass
+        try:
+            permisos_raw = api.safe_json(api.get(request, f'/clientes/{cliente_id}/permisos/'), {})
+            permisos = permisos_raw if isinstance(permisos_raw, list) else permisos_raw.get('permisos', [])
+        except Exception:
+            pass
+
+    peso_bruto     = round(sum(float(p.get('peso', 0) or 0)     for p in paquetes), 2)
+    valor_estimado = round(sum(float(p.get('subtotal', 0) or 0) for p in paquetes), 2)
+    igi_total      = round(sum(
+        float(prod.get('igi_importe', 0))
+        for p in paquetes
+        for prod in p.get('productos', [])
+    ), 2)
+    dta_estimado   = round(valor_estimado * 0.008, 2)
+    iva_estimado   = round(valor_estimado * 0.16,  2)
+    total_estimado = round(valor_estimado + dta_estimado + igi_total + iva_estimado, 2)
+
+    return render(request, 'home/pedimento_detalle.html', {
+        'pedimento':      pedimento,
+        'op':             op,
+        'paquetes':       paquetes,
+        'permisos':       permisos,
+        'peso_bruto':     peso_bruto,
+        'valor_estimado': valor_estimado,
+        'igi_total':      igi_total,
+        'dta_estimado':   dta_estimado,
+        'iva_estimado':   iva_estimado,
+        'total_estimado': total_estimado,
+    })
+
 
 @login_required
 def pedimentos_view(request):
@@ -449,6 +572,8 @@ def pedimentos_view(request):
             if q in p.get('numero_pedimento', '').lower()
             or q in (p.get('regimen_adu') or {}).get('descripcion', '').lower()
             or q in p.get('clave_pedimento', '').lower()
+            or q in p.get('cliente_rfc', '').lower()
+            or q in p.get('cliente_nombre', '').lower()
         ]
 
     paginador            = Paginator(pedimentos, 5)
@@ -659,6 +784,7 @@ def pagos_view(request):
             or q in p.get('concepto', '').lower()
             or q in p.get('estado', '').lower()
             or q in (p.get('pedimento_num') or '').lower()
+            or q in (p.get('cliente_nombre') or '').lower()
         ]
 
     paginador      = Paginator(pagos, 5)
@@ -722,6 +848,19 @@ def permisos_view(request):
             or q in p.get('tipo_permiso', '').lower()
             or q in p.get('cliente_nombre', '').lower()
         ]
+
+    from django.utils import timezone as tz
+    from datetime import date as _date
+    hoy = tz.localdate()
+    for p in permisos:
+        try:
+            vigencia_date = _date.fromisoformat(p['vigencia'])
+            dias = (vigencia_date - hoy).days
+            p['dias_restantes'] = dias
+            p['por_vencer']     = 0 <= dias <= 30
+        except Exception:
+            p['dias_restantes'] = None
+            p['por_vencer']     = False
 
     paginador          = Paginator(permisos, 5)
     permisos_paginados = paginador.get_page(request.GET.get('pagina', 1))
