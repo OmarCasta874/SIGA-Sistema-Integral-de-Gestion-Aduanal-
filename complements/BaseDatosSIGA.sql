@@ -18,6 +18,8 @@ CREATE TABLE cliente (
     seg_apell    VARCHAR(40)  NULL,
     tipo_persona VARCHAR(20)  NOT NULL,
     RFC          VARCHAR(13)  NOT NULL,
+    curp         VARCHAR(18)  NULL,
+    domicilio    VARCHAR(250) NULL,
     PRIMARY KEY (numero),
     UNIQUE KEY uq_cliente_rfc (RFC)
 ) ENGINE=InnoDB;
@@ -230,7 +232,7 @@ CREATE TABLE pedimento (
     clave_pedimento  VARCHAR(10)   NOT NULL,
     fecha_registro   DATE          NOT NULL,
     valor_total      DECIMAL(12,2) NOT NULL,
-    semaforo         INT           NOT NULL,
+    semaforo         INT           NULL,
     regimen_adu      INT           NOT NULL,
     permiso          VARCHAR(30)   NOT NULL,
     ope_aduanera     INT           NOT NULL,
