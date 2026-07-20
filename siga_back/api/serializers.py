@@ -23,6 +23,10 @@ class UsuarioSerializer(serializers.ModelSerializer):
             'primer_apell', 'seg_apell', 'correo', 'fecha_alta',
             'nombre_completo', 'rol', 'activo',
         ]
+        
+        read_only_fields = [
+            'ID_usuario', 'nombre_usuario', 'fecha_alta', 'nombre_completo','rol', 'activo',
+        ]
 
     def get_nombre_completo(self, obj):
         return obj.get_full_name()

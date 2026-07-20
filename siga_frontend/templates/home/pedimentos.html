@@ -9,11 +9,13 @@
     <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
     <link rel="stylesheet" href="{% static 'home/css/operaciones.css' %}">
     <link rel="stylesheet" href="{% static 'home/css/pedimentos.css' %}">
+    <link rel="stylesheet" href="{% static 'home/css/toasts.css' %}">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script src="{% static 'home/js/buscador.js' %}"></script>
     <script src="{% static 'home/js/ordenador.js' %}"></script>
     <script src="{% static 'home/js/mostrador.js' %}"></script>
     <script defer src="{% static 'home/js/sidebar.js' %}"></script>
+    <script defer src="{% static 'home/js/toasts.js' %}"></script>
 </head>
 <body>
 <aside class="sidebar">
@@ -215,6 +217,7 @@
     </p>
 </section>
 </main>
+{% include "components/toasts.html" %}
 <script>
     lucide.createIcons();
 

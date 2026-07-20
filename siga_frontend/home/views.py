@@ -876,7 +876,40 @@ def permisos_view(request):
 
 @login_required
 def perfilusuario_view(request):
-    return render(request, 'home/perfil_usuario.html')
+    if request.method == "POST":
+        datos = {
+            "nombre_pila": request.POST.get("nombre_pila"),
+            "primer_apell": request.POST.get("primer_apell"),
+            "seg_apell": request.POST.get("seg_apell"),
+            "correo": request.POST.get("correo"),
+        }
+        respuesta = api.put(request, "/perfil/", datos)
+        
+        if respuesta.status_code == 200:
+            messages.success(
+                request,
+                "Perfil actualizado correctamente. "
+            )
+        else:
+            print(respuesta.status_code)
+            print(respuesta.text)
+            messages.error(
+                request,
+                f"Error: {respuesta.text}"
+            )
+    
+    try:
+        usuario = api.get(request, "/perfil/").json()
+        
+    except Exception as e:
+        usuario = None
+        messages.error(request, f"Error al obtener el perfil: {e}")
+        
+    return render(request, 'home/perfil_usuario.html', {
+        'usuario': usuario,
+    })
+    
+
 
 @login_required
 def semaforofiscal_view(request):
