@@ -69,6 +69,7 @@ class AduanaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Aduana
         fields = ['codigo', 'ciudad', 'nombre']
+        read_only_fields = ['codigo']
 
 
 class PermisoResumenSerializer(serializers.ModelSerializer):
