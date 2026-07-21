@@ -153,6 +153,8 @@ class NuevaOperacionForm(forms.ModelForm):
         }
         widgets = {
             'tipo_operacion': forms.Select(
+
+
                 choices=[
                     ('', 'Selecciona...'),
                     ('Importación', 'Importación'),
