@@ -20,11 +20,9 @@ class UsuarioManager(BaseUserManager):
 
 class Usuario(AbstractBaseUser):
     ROL_ADMINISTRADOR = 'Administrador'
-    ROL_AGENTE = 'Agente Aduanal'
     ROL_INSPECTOR = 'Inspector'
     ROLES = [
         (ROL_ADMINISTRADOR, 'Administrador'),
-        (ROL_AGENTE, 'Agente Aduanal'),
         (ROL_INSPECTOR, 'Inspector'),
     ]
 
@@ -37,7 +35,7 @@ class Usuario(AbstractBaseUser):
     correo = models.EmailField(max_length=80, unique=True, db_column='correo')
     contrasena = models.CharField(max_length=100, db_column='contrasena')
     bitacora = models.IntegerField(db_column='bitacora', null=True, blank=True)
-    rol = models.CharField(max_length=20, choices=ROLES, default=ROL_AGENTE, db_column='rol')
+    rol = models.CharField(max_length=20, choices=ROLES, default=ROL_ADMINISTRADOR, db_column='rol')
     activo = models.BooleanField(default=True, db_column='activo')
 
     objects = UsuarioManager()

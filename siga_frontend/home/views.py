@@ -64,7 +64,7 @@ def login_view(request):
                     data = resp.json()
                     request.session['api_token']    = data.get('token', '')
                     usuario_data = data.get('usuario', {})
-                    request.session['usuario_rol']   = usuario_data.get('rol', 'Agente Aduanal')
+                    request.session['usuario_rol']   = usuario_data.get('rol', 'Administrador')
                     request.session['usuario_activo'] = usuario_data.get('activo', True)
             except Exception:
                 pass
@@ -775,7 +775,7 @@ def usuarios_view(request):
                 'correo':         request.POST.get('correo', '').strip(),
                 'nombre_usuario': request.POST.get('nombre_usuario', '').strip(),
                 'password':       request.POST.get('password', ''),
-                'rol':            request.POST.get('rol', 'Agente Aduanal'),
+                'rol':            request.POST.get('rol', 'Administrador'),
             }
             resp = api.post(request, '/usuarios/', payload)
             if resp.status_code == 201:
@@ -793,7 +793,7 @@ def usuarios_view(request):
                 'seg_apell':      request.POST.get('seg_apell', '').strip() or None,
                 'correo':         request.POST.get('correo', '').strip(),
                 'nombre_usuario': request.POST.get('nombre_usuario', '').strip(),
-                'rol':            request.POST.get('rol', 'Agente Aduanal'),
+                'rol':            request.POST.get('rol', 'Administrador'),
             }
             password = request.POST.get('password', '').strip()
             if password:
