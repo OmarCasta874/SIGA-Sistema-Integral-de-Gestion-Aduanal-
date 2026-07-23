@@ -1159,12 +1159,90 @@ def inspecciones_view(request):
         inspecciones = []
         messages.error(request, 'No fue posible obtener las inspecciones.')
 
-    paginador = Paginator(inspecciones, 5)
+    q = request.GET.get('q', '').lower()
+    if q:
+        inspecciones = [i for i in inspecciones if
+                        q in str(i.get('numero', '')).lower() or
+                        q in (i.get('pedimento_num') or '').lower() or
+                        q in (i.get('cliente_nombre') or '').lower()]
+
+    total           = len(inspecciones)
+    en_revision     = sum(1 for i in inspecciones if not i.get('resultado'))
+    con_incidencias = sum(1 for i in inspecciones if i.get('resultado') == 'Con incidencias')
+    segunda_sol     = sum(1 for i in inspecciones if i.get('resultado') == 'Segunda inspección solicitada')
+
+    import json as _json
+    paginador = Paginator(inspecciones, 10)
+    page      = paginador.get_page(request.GET.get('pagina', 1))
     return render(
         request,
         'home/inspecciones.html',
         {
-            "inspecciones":       paginador.get_page(request.GET.get('pagina', 1)),
-            "total_inspecciones": len(inspecciones),
+            "inspecciones":       page,
+            "inspecciones_json":  _json.dumps(list(page.object_list)),
+            "total_inspecciones": total,
+            "en_revision":        en_revision,
+            "con_incidencias":    con_incidencias,
+            "segunda_sol":        segunda_sol,
+            "query":              request.GET.get('q', ''),
+            "rol":                request.user.rol,
+            "es_inspector":       request.user.rol == 'Inspector',
+            "es_admin":           request.user.rol == 'Administrador',
         }
     )
+
+
+@login_required
+def api_inspeccion_resultado(request, pk):
+    import json
+    if request.method != 'PATCH':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    try:
+        body = json.loads(request.body)
+        resp = api.patch(request, f'/inspecciones/{pk}/resultado/', body)
+        return JsonResponse(resp.json(), status=resp.status_code)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def api_inspeccion_incidencias(request, pk):
+    import json
+    if request.method == 'GET':
+        try:
+            resp = api.get(request, f'/inspecciones/{pk}/incidencias/')
+            return JsonResponse(resp.json(), safe=False, status=resp.status_code)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    elif request.method == 'POST':
+        try:
+            body = json.loads(request.body)
+            resp = api.post(request, f'/inspecciones/{pk}/incidencias/', body)
+            return JsonResponse(resp.json(), status=resp.status_code)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+
+@login_required
+def api_incidencia_sancion(request, pk):
+    import json
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    try:
+        body = json.loads(request.body)
+        resp = api.post(request, f'/incidencias/{pk}/sancion/', body)
+        return JsonResponse(resp.json(), status=resp.status_code)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def api_segunda_inspeccion(request, pk):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    try:
+        resp = api.post(request, f'/inspecciones/{pk}/segunda-inspeccion/', {})
+        return JsonResponse(resp.json(), status=resp.status_code)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

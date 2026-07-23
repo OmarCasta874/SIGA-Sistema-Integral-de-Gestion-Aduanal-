@@ -21,9 +21,11 @@ class UsuarioManager(BaseUserManager):
 class Usuario(AbstractBaseUser):
     ROL_ADMINISTRADOR = 'Administrador'
     ROL_AGENTE = 'Agente Aduanal'
+    ROL_INSPECTOR = 'Inspector'
     ROLES = [
         (ROL_ADMINISTRADOR, 'Administrador'),
         (ROL_AGENTE, 'Agente Aduanal'),
+        (ROL_INSPECTOR, 'Inspector'),
     ]
 
     ID_usuario = models.AutoField(primary_key=True, db_column='ID_usuario')

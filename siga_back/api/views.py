@@ -21,7 +21,7 @@ from home.models import (
     RegimenAduanero, SemaforoFiscal, TipoImportaciones, TipoExportaciones,
     Paquete, Producto, Pago, Factura, Sancion,
     EstadoOpeAduanera, EstadoPago, Inspeccion, TipoEmbalaje,
-    Telefono, CorreoElectronico,
+    Telefono, CorreoElectronico, Incidencia, SegundaInspeccion,
 )
 from .serializers import (
     UsuarioSerializer, UsuarioCreateSerializer, UsuarioUpdateSerializer,
@@ -36,7 +36,7 @@ from .serializers import (
     PermisoListSerializer, SancionSerializer,
     PaqueteSerializer, PaqueteCreateSerializer, ProductoCreateSerializer,
     ProductoCategoriaSerializer, SemaforoFiscalSerializer, InspeccionSerializer,
-    TipoEmbalajeSerializer,
+    TipoEmbalajeSerializer, IncidenciaSerializer, SegundaInspeccionSerializer,
 )
 
 
@@ -1002,7 +1002,7 @@ class DashboardAPIView(APIView):
         return Response(data)
     
 # -- Sanción --------------------------------------------------------------------
-class SancionViewSet(viewsets.ReadOnlyModelViewSet):
+class SancionViewSet(viewsets.ModelViewSet):
     queryset = Sancion.objects.select_related(
         'incidencia'
     ).order_by('-num_sancion')
@@ -1086,11 +1086,68 @@ class SemaforoFiscalViewSet(viewsets.ReadOnlyModelViewSet):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
-class InspeccionViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Inspeccion.objects.all().order_by('-numero')
+class InspeccionViewSet(viewsets.ModelViewSet):
+    queryset = Inspeccion.objects.prefetch_related(
+        'incidencias__sanciones', 'segundas_inspecciones'
+    ).select_related('semaforo').order_by('-numero')
     serializer_class = InspeccionSerializer
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
+
+    @action(detail=True, methods=['patch'], url_path='resultado')
+    def actualizar_resultado(self, request, pk=None):
+        inspeccion = self.get_object()
+        resultado = request.data.get('resultado', '').strip()
+        if not resultado:
+            return Response({'error': 'El campo resultado es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
+        inspeccion.resultado = resultado
+        inspeccion.save(update_fields=['resultado'])
+        return Response(InspeccionSerializer(inspeccion).data)
+
+    @action(detail=True, methods=['get', 'post'], url_path='incidencias')
+    def incidencias(self, request, pk=None):
+        inspeccion = self.get_object()
+        if request.method == 'GET':
+            qs = inspeccion.incidencias.prefetch_related('sanciones').all()
+            return Response(IncidenciaSerializer(qs, many=True).data)
+        ser = IncidenciaSerializer(data={**request.data, 'inspeccion': inspeccion.pk})
+        if ser.is_valid():
+            ser.save()
+            return Response(ser.data, status=status.HTTP_201_CREATED)
+        return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post'], url_path='segunda-inspeccion')
+    def segunda_inspeccion(self, request, pk=None):
+        inspeccion = self.get_object()
+        if inspeccion.segundas_inspecciones.exists():
+            return Response({'error': 'Ya existe una segunda inspección para esta inspección.'}, status=status.HTTP_400_BAD_REQUEST)
+        id_revision = 1
+        segunda = SegundaInspeccion.objects.create(
+            ID_revision=id_revision,
+            inspeccion_FK=inspeccion,
+            fecha_inspeccion=timezone.localdate(),
+            hora_inicio=datetime.now().time(),
+            resultado=None,
+        )
+        inspeccion.resultado = 'Segunda inspección autorizada'
+        inspeccion.save(update_fields=['resultado'])
+        return Response(SegundaInspeccionSerializer(segunda).data, status=status.HTTP_201_CREATED)
+
+
+class IncidenciaViewSet(viewsets.ModelViewSet):
+    queryset = Incidencia.objects.prefetch_related('sanciones').all().order_by('-codigo')
+    serializer_class = IncidenciaSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    @action(detail=True, methods=['post'], url_path='sancion')
+    def registrar_sancion(self, request, pk=None):
+        incidencia = self.get_object()
+        ser = SancionSerializer(data={**request.data, 'incidencia': incidencia.pk})
+        if ser.is_valid():
+            ser.save()
+            return Response(ser.data, status=status.HTTP_201_CREATED)
+        return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class PerfilAPIView(APIView):
     authentication_classes = [TokenAuthentication]

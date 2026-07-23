@@ -25,7 +25,7 @@
     <nav>
         <p class="nav-section-label">Principal</p>
         <a href="{% url 'home:dashboard' %}" class="nav-item" title="Dashboard">
-            <i data-lucide="layout-grid" class="nav-icon"></i> <span class="nav-label">Dashboard</span> 
+            <i data-lucide="layout-grid" class="nav-icon"></i> <span class="nav-label">Dashboard</span>
         </a>
         <a href="{% url 'home:usuarios' %}" class="nav-item" title="Usuarios">
             <i data-lucide="user" class="nav-icon"></i> <span class="nav-label">Usuarios</span>
@@ -84,74 +84,108 @@
         </a>
     </div>
 </aside>
+
 <main class="main">
     <header class="inspecciones-header">
         <h1>Inspecciones</h1>
+        {% if es_inspector %}<span class="rol-badge">Vista Inspector</span>{% endif %}
+        {% if es_admin %}<span class="rol-badge rol-badge-admin">Vista Administrador</span>{% endif %}
     </header>
 
     <section class="inspecciones-stats">
         <div class="stat-card">
-            <p class="stat-label">Total de Inspecciones</p>
+            <p class="stat-label">Total Inspecciones</p>
             <p class="stat-value stat-value-blue">{{ total_inspecciones }}</p>
         </div>
         <div class="stat-card">
-            <p class="stat-label">Aprobadas</p>
-            <p class="stat-value stat-value-green">50</p>
+            <p class="stat-label">En revisión</p>
+            <p class="stat-value stat-value-amber">{{ en_revision }}</p>
         </div>
         <div class="stat-card">
-            <p class="stat-label">Segunda Inspección</p>
-            <p class="stat-value stat-value-amber">20</p>
+            <p class="stat-label">Con incidencias</p>
+            <p class="stat-value stat-value-red">{{ con_incidencias }}</p>
         </div>
         <div class="stat-card">
-            <p class="stat-label">Restringidas</p>
-            <p class="stat-value stat-value-red">30</p>
+            <p class="stat-label">2ª Inspección solicitada</p>
+            <p class="stat-value stat-value-amber">{{ segunda_sol }}</p>
         </div>
     </section>
 
     <section class="inspecciones-toolbar">
-        <div class="inspecciones-search">
-            <i data-lucide="search" class="inspecciones-search-icon"></i>
-            <input type="text" name="q" value="{{ query }}" placeholder="Buscar inspección..."
-            data-buscador-target="tbodyInspecciones" data-buscador-colspan="4">
-        </div>
+        <form method="get" action="{% url 'home:inspecciones' %}" class="tabla-search-form">
+            <div class="inspecciones-search">
+                <i data-lucide="search" class="inspecciones-search-icon"></i>
+                <input type="text" name="q" value="{{ query }}" placeholder="Buscar por número, pedimento o cliente...">
+            </div>
+            <button type="submit" class="btn-filtrar">Filtrar</button>
+            {% if query %}
+                <a href="{% url 'home:inspecciones' %}" class="btn-limpiar">✕ Limpiar</a>
+            {% endif %}
+        </form>
         <select class="inspecciones-select" data-ordenador data-ordenador-target="tbodyInspecciones" data-ordenador-columna="0">
             <option value="">Ordenar por</option>
-            <option value="alfabetico">Alfabético (A-Z)</option>
-            <option value="ascendente">Menor a mayor</option>
-            <option value="descendente">Mayor a menor</option>
-            <option value="fecha" data-columna="1" data-modo="ascendente">Fecha</option>
-            <option value="hora" data-columna="2" data-modo="ascendente">Hora</option>
+            <option value="ascendente">Número ↑</option>
+            <option value="descendente">Número ↓</option>
+            <option value="fecha" data-columna="2" data-modo="ascendente">Fecha</option>
         </select>
-        <button type="button" class="btn-nueva-inspeccion">
-            <i data-lucide="plus" class="nav-icon"></i> Nueva Inspección
-        </button>
     </section>
 
     <section class="inspecciones-tabla-wrapper">
         <table class="inspecciones-tabla">
             <thead>
                 <tr>
-                    <th>Numero</th>
+                    <th>No.</th>
+                    <th>Pedimento</th>
                     <th>Fecha</th>
-                    <th>Hora</th>
-                    <th>Resultado</th>
+                    <th>Cliente</th>
                     <th>Semáforo</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
                 </tr>
             </thead>
             <tbody id="tbodyInspecciones">
-            {% for inspeccion in inspecciones %}
+            {% for insp in inspecciones %}
                 <tr>
-                    <td>{{ inspeccion.numero }}</td>
-                    <td>{{ inspeccion.fecha_inspeccion }}</td>
-                    <td>{{ inspeccion.hora_inicio }}</td>
-                    <td>{{ inspeccion.resultado }}</td>
-                    <td>{{ inspeccion.semaforo }}</td>
+                    <td>{{ insp.numero }}</td>
+                    <td>{{ insp.pedimento_num|default:"—" }}</td>
+                    <td>{{ insp.fecha_inspeccion }}</td>
+                    <td>{{ insp.cliente_nombre|default:"—" }}</td>
+                    <td>
+                        {% if insp.semaforo_resultado == "Rojo" %}
+                            <span class="semaforo-badge semaforo-rojo">🔴 Rojo</span>
+                        {% else %}
+                            <span class="semaforo-badge semaforo-verde">🟢 Verde</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if insp.resultado == "Aprobado" %}
+                            <span class="estado-badge estado-aprobado">Aprobado</span>
+                        {% elif insp.resultado == "Con incidencias" %}
+                            <span class="estado-badge estado-incidencia">Con incidencias</span>
+                        {% elif insp.resultado == "Segunda inspección solicitada" %}
+                            <span class="estado-badge estado-segunda">2ª Solicitada</span>
+                        {% elif insp.resultado == "Segunda inspección autorizada" %}
+                            <span class="estado-badge estado-autorizada">2ª Autorizada</span>
+                        {% else %}
+                            <span class="estado-badge estado-revision">En revisión</span>
+                        {% endif %}
+                    </td>
+                    <td class="acciones">
+                        <button type="button" class="btn-ver"
+                            onclick="abrirDetalle({{ insp.numero }})">
+                            Ver
+                        </button>
+                        {% if es_admin and insp.resultado == "Segunda inspección solicitada" %}
+                            <button type="button" class="btn-autorizar"
+                                onclick="autorizarSegunda({{ insp.numero }})">
+                                Autorizar 2ª
+                            </button>
+                        {% endif %}
+                    </td>
                 </tr>
             {% empty %}
                 <tr>
-                    <td colspan="4" style="text-align:center;">
-                        No hay inspecciones registradas.
-                    </td>
+                    <td colspan="7" style="text-align:center;">No hay inspecciones registradas.</td>
                 </tr>
             {% endfor %}
             </tbody>
@@ -160,7 +194,7 @@
         {% if inspecciones.has_other_pages %}
         <div class="tabla-paginacion">
             {% if inspecciones.has_previous %}
-                <a href="?pagina={{ inspecciones.previous_page_number }}" class="pagina-btn pagina-flecha">
+                <a href="?pagina={{ inspecciones.previous_page_number }}{% if query %}&q={{ query }}{% endif %}" class="pagina-btn pagina-flecha">
                     <i data-lucide="chevron-left"></i>
                 </a>
             {% else %}
@@ -171,12 +205,12 @@
                 {% if inspecciones.number == num %}
                     <button class="pagina-btn pagina-activa">{{ num }}</button>
                 {% elif num >= inspecciones.number|add:"-2" and num <= inspecciones.number|add:"2" %}
-                    <a href="?pagina={{ num }}" class="pagina-btn">{{ num }}</a>
+                    <a href="?pagina={{ num }}{% if query %}&q={{ query }}{% endif %}" class="pagina-btn">{{ num }}</a>
                 {% endif %}
             {% endfor %}
 
             {% if inspecciones.has_next %}
-                <a href="?pagina={{ inspecciones.next_page_number }}" class="pagina-btn pagina-flecha">
+                <a href="?pagina={{ inspecciones.next_page_number }}{% if query %}&q={{ query }}{% endif %}" class="pagina-btn pagina-flecha">
                     <i data-lucide="chevron-right"></i>
                 </a>
             {% else %}
@@ -187,29 +221,360 @@
     </section>
 </main>
 
-<div class="modal-overlay" id="modalLogout">
-    <div class="modal-logout-box">
-        <img src="{% static 'home/img/siga_logo.png' %}" alt="SIGA" class="modal-logout-logo">
-        <p class="modal-logout-texto"> ¿Estás seguro de cerrar sesión? </p>
-        <div class="modal-logout-acciones">
-            <a href="{% url 'home:logout' %}" class="modal-logout-si">Sí</a>
-            <button type="button" class="modal-logout-cancelar" onclick="cerrarModalLogout()"> Cancelar </button>
+<!-- ══════════════════════════════════════════════════════════
+     MODAL DETALLE / CHECKLIST
+══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modalDetalle">
+    <div class="modal-box modal-box-lg">
+        <div class="modal-header">
+            <h2>Inspección <span id="det-numero"></span></h2>
+            <button class="modal-close" onclick="cerrarDetalle()"><i data-lucide="x"></i></button>
+        </div>
+        <div class="modal-body">
+            <!-- Info -->
+            <div class="det-info-grid">
+                <div><span class="det-label">Pedimento</span><span id="det-pedimento" class="det-value"></span></div>
+                <div><span class="det-label">Cliente</span><span id="det-cliente" class="det-value"></span></div>
+                <div><span class="det-label">Fecha</span><span id="det-fecha" class="det-value"></span></div>
+                <div><span class="det-label">Semáforo</span><span id="det-semaforo" class="det-value"></span></div>
+            </div>
+
+            <!-- Checklist (solo inspector, cuando está en revisión) -->
+            <div id="seccion-checklist" class="checklist-section">
+                <h3>Checklist de revisión</h3>
+                <ul class="checklist">
+                    <li><label><input type="checkbox"> Verificación de documentos (pedimento, factura, permisos)</label></li>
+                    <li><label><input type="checkbox"> Inspección física de mercancía</label></li>
+                    <li><label><input type="checkbox"> Verificación de peso y medidas</label></li>
+                    <li><label><input type="checkbox"> Verificación de etiquetado y marcado</label></li>
+                    <li><label><input type="checkbox"> Revisión de embalaje</label></li>
+                    <li><label><input type="checkbox"> Constatación con documentos presentados</label></li>
+                    <li><label><input type="checkbox"> Verificación de número de serie (si aplica)</label></li>
+                </ul>
+                <div class="campo-formulario" style="margin-top:12px;">
+                    <label>Resultado de la inspección</label>
+                    <select id="sel-resultado">
+                        <option value="">Seleccionar resultado...</option>
+                        <option value="Aprobado">Aprobado</option>
+                        <option value="Con incidencias">Con incidencias</option>
+                        <option value="Segunda inspección solicitada">Solicitar segunda inspección</option>
+                    </select>
+                </div>
+                <button type="button" class="btn-guardar" style="margin-top:8px;" onclick="guardarResultado()">
+                    Guardar resultado
+                </button>
+            </div>
+
+            <!-- Estado actual (cuando ya tiene resultado) -->
+            <div id="seccion-estado" style="display:none;">
+                <p>Estado: <strong id="det-estado"></strong></p>
+            </div>
+
+            <!-- Incidencias existentes -->
+            <div id="seccion-incidencias" style="margin-top:16px; display:none;">
+                <h3>Incidencias registradas</h3>
+                <table class="inspecciones-tabla" style="margin-top:8px;">
+                    <thead>
+                        <tr><th>Cód.</th><th>Gravedad</th><th>Descripción</th><th>Sanciones</th><th>Acción</th></tr>
+                    </thead>
+                    <tbody id="tbodyIncidencias"></tbody>
+                </table>
+            </div>
+
+            <!-- Acciones del inspector -->
+            <div id="acciones-inspector" style="margin-top:16px; display:none; gap:8px; flex-wrap:wrap;">
+                <button type="button" class="btn-nueva-inspeccion" onclick="abrirModalIncidencia()">
+                    <i data-lucide="plus"></i> Registrar incidencia
+                </button>
+            </div>
         </div>
     </div>
 </div>
+
+<!-- ══════════════════════════════════════════════════════════
+     MODAL REGISTRAR INCIDENCIA
+══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modalIncidencia">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h2>Registrar incidencia</h2>
+            <button class="modal-close" onclick="cerrarModalIncidencia()"><i data-lucide="x"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="campo-formulario">
+                <label>Gravedad</label>
+                <select id="inc-gravedad">
+                    <option value="">Seleccionar...</option>
+                    <option value="Leve">Leve</option>
+                    <option value="Grave">Grave</option>
+                    <option value="Muy grave">Muy grave</option>
+                </select>
+            </div>
+            <div class="campo-formulario">
+                <label>Descripción</label>
+                <textarea id="inc-descripcion" rows="3" placeholder="Describe la irregularidad encontrada..."></textarea>
+            </div>
+        </div>
+        <div class="modal-botones">
+            <button type="button" class="btn-cancelar" onclick="cerrarModalIncidencia()">Cancelar</button>
+            <button type="button" class="btn-guardar" onclick="guardarIncidencia()">Registrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     MODAL REGISTRAR SANCIÓN
+══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modalSancion">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h2>Registrar sanción</h2>
+            <button class="modal-close" onclick="cerrarModalSancion()"><i data-lucide="x"></i></button>
+        </div>
+        <div class="modal-body">
+            <p style="font-size:0.85rem; color:#666; margin-bottom:12px;">
+                Incidencia: <strong id="san-incidencia-info"></strong>
+            </p>
+            <div class="campo-formulario">
+                <label>Monto de la multa ($)</label>
+                <input type="number" id="san-monto" step="0.01" min="0" placeholder="0.00">
+            </div>
+            <div class="campo-formulario">
+                <label>Fundamento legal</label>
+                <textarea id="san-fundamento" rows="3" placeholder="Artículo o disposición legal aplicable..."></textarea>
+            </div>
+        </div>
+        <div class="modal-botones">
+            <button type="button" class="btn-cancelar" onclick="cerrarModalSancion()">Cancelar</button>
+            <button type="button" class="btn-guardar" onclick="guardarSancion()">Registrar sanción</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal logout -->
+<div class="modal-overlay" id="modalLogout">
+    <div class="modal-logout-box">
+        <img src="{% static 'home/img/siga_logo.png' %}" alt="SIGA" class="modal-logout-logo">
+        <p class="modal-logout-texto">¿Estás seguro de cerrar sesión?</p>
+        <div class="modal-logout-acciones">
+            <a href="{% url 'home:logout' %}" class="modal-logout-si">Sí</a>
+            <button type="button" class="modal-logout-cancelar" onclick="cerrarModalLogout()">Cancelar</button>
+        </div>
+    </div>
+</div>
+
 {% include "components/toasts.html" %}
+
 <script>
+lucide.createIcons();
+
+const INSPECCIONES  = {{ inspecciones_json|safe }};
+const ES_INSPECTOR  = {{ es_inspector|yesno:"true,false" }};
+const ES_ADMIN      = {{ es_admin|yesno:"true,false" }};
+const CSRF          = '{{ csrf_token }}';
+
+let inspeccionActual = null;
+let incidenciaActual = null;
+
+// ── helpers ──────────────────────────────────────────────────────────
+
+function getCsrf() { return CSRF; }
+
+function mostrarModalLogout() { document.getElementById('modalLogout').classList.add('activo'); }
+function cerrarModalLogout()  { document.getElementById('modalLogout').classList.remove('activo'); }
+
+function showToast(msg, tipo='success') {
+    if (typeof window.mostrarToast === 'function') { window.mostrarToast(msg, tipo); return; }
+    alert(msg);
+}
+
+// ── detalle ───────────────────────────────────────────────────────────
+
+function abrirDetalle(num) {
+    const insp = INSPECCIONES.find(i => i.numero === num);
+    if (!insp) return;
+    inspeccionActual = insp;
+
+    document.getElementById('det-numero').textContent    = insp.numero;
+    document.getElementById('det-pedimento').textContent = insp.pedimento_num || '—';
+    document.getElementById('det-cliente').textContent   = insp.cliente_nombre || '—';
+    document.getElementById('det-fecha').textContent     = insp.fecha_inspeccion || '—';
+    document.getElementById('det-semaforo').textContent  = insp.semaforo_resultado || '—';
+
+    const resultado = insp.resultado || '';
+    const enRevision = !resultado;
+
+    // checklist — solo inspector y sin resultado aún
+    document.getElementById('seccion-checklist').style.display =
+        (ES_INSPECTOR && enRevision) ? 'block' : 'none';
+    document.getElementById('sel-resultado').value = '';
+
+    // estado actual
+    const secEstado = document.getElementById('seccion-estado');
+    if (!enRevision) {
+        secEstado.style.display = 'block';
+        document.getElementById('det-estado').textContent = resultado;
+    } else {
+        secEstado.style.display = 'none';
+    }
+
+    // incidencias
+    renderIncidencias(insp.incidencias || []);
+
+    // botón registrar incidencia — inspector cuando ya tiene resultado (con incidencias) o admin
+    const accionesInsp = document.getElementById('acciones-inspector');
+    accionesInsp.style.display =
+        (ES_INSPECTOR && (resultado === 'Con incidencias' || resultado === 'Segunda inspección autorizada')) ? 'flex' : 'none';
+
+    document.getElementById('modalDetalle').classList.add('activo');
     lucide.createIcons();
- 
-    function mostrarModalLogout() {
-        document.getElementById('modalLogout').classList.add('activo');
+}
+
+function cerrarDetalle() {
+    document.getElementById('modalDetalle').classList.remove('activo');
+    inspeccionActual = null;
+}
+
+function renderIncidencias(incidencias) {
+    const sec = document.getElementById('seccion-incidencias');
+    const tbody = document.getElementById('tbodyIncidencias');
+    tbody.innerHTML = '';
+    if (!incidencias || incidencias.length === 0) { sec.style.display = 'none'; return; }
+    sec.style.display = 'block';
+    incidencias.forEach(inc => {
+        const sanciones = (inc.sanciones || []).map(s =>
+            `$${parseFloat(s.monto_multa).toFixed(2)}`).join(', ') || '—';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${inc.codigo}</td>
+            <td><span class="gravedad-badge gravedad-${inc.gravedad.toLowerCase().replace(' ','')}">${inc.gravedad}</span></td>
+            <td>${inc.descripcion}</td>
+            <td>${sanciones}</td>
+            <td>${ES_INSPECTOR ? `<button class="btn-ver" onclick="abrirModalSancion(${inc.codigo}, '${inc.gravedad}')">Sancionar</button>` : ''}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+    lucide.createIcons();
+}
+
+// ── guardar resultado ─────────────────────────────────────────────────
+
+async function guardarResultado() {
+    if (!inspeccionActual) return;
+    const resultado = document.getElementById('sel-resultado').value;
+    if (!resultado) { showToast('Selecciona un resultado.', 'error'); return; }
+
+    const resp = await fetch(`/api/inspeccion/${inspeccionActual.numero}/resultado/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body: JSON.stringify({ resultado }),
+    });
+    const data = await resp.json();
+    if (resp.ok) {
+        showToast('Resultado guardado correctamente.');
+        // actualizar local y recargar
+        inspeccionActual.resultado = resultado;
+        cerrarDetalle();
+        setTimeout(() => location.reload(), 800);
+    } else {
+        showToast(data.error || 'Error al guardar resultado.', 'error');
     }
- 
-    function cerrarModalLogout() {
-        document.getElementById('modalLogout').classList.remove('activo');
+}
+
+// ── modal incidencia ──────────────────────────────────────────────────
+
+function abrirModalIncidencia() {
+    document.getElementById('inc-gravedad').value    = '';
+    document.getElementById('inc-descripcion').value = '';
+    document.getElementById('modalIncidencia').classList.add('activo');
+}
+
+function cerrarModalIncidencia() {
+    document.getElementById('modalIncidencia').classList.remove('activo');
+}
+
+async function guardarIncidencia() {
+    if (!inspeccionActual) return;
+    const gravedad    = document.getElementById('inc-gravedad').value.trim();
+    const descripcion = document.getElementById('inc-descripcion').value.trim();
+    if (!gravedad || !descripcion) { showToast('Completa todos los campos.', 'error'); return; }
+
+    const resp = await fetch(`/api/inspeccion/${inspeccionActual.numero}/incidencias/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body: JSON.stringify({ gravedad, descripcion }),
+    });
+    const data = await resp.json();
+    if (resp.ok) {
+        showToast('Incidencia registrada.');
+        cerrarModalIncidencia();
+        // agregar a la lista local y re-renderizar
+        if (!inspeccionActual.incidencias) inspeccionActual.incidencias = [];
+        inspeccionActual.incidencias.push({ ...data, sanciones: [] });
+        renderIncidencias(inspeccionActual.incidencias);
+    } else {
+        showToast(JSON.stringify(data), 'error');
     }
+}
+
+// ── modal sanción ─────────────────────────────────────────────────────
+
+function abrirModalSancion(incidenciaCodigo, gravedadLabel) {
+    incidenciaActual = incidenciaCodigo;
+    document.getElementById('san-incidencia-info').textContent = `#${incidenciaCodigo} — ${gravedadLabel}`;
+    document.getElementById('san-monto').value      = '';
+    document.getElementById('san-fundamento').value = '';
+    document.getElementById('modalSancion').classList.add('activo');
+}
+
+function cerrarModalSancion() {
+    document.getElementById('modalSancion').classList.remove('activo');
+    incidenciaActual = null;
+}
+
+async function guardarSancion() {
+    if (!incidenciaActual) return;
+    const monto_multa      = document.getElementById('san-monto').value;
+    const fundamento_legal = document.getElementById('san-fundamento').value.trim();
+    if (!monto_multa || !fundamento_legal) { showToast('Completa todos los campos.', 'error'); return; }
+
+    const resp = await fetch(`/api/incidencia/${incidenciaActual}/sancion/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body: JSON.stringify({ monto_multa: parseFloat(monto_multa), fundamento_legal }),
+    });
+    const data = await resp.json();
+    if (resp.ok) {
+        showToast('Sanción registrada correctamente.');
+        cerrarModalSancion();
+        // actualizar sanción en la incidencia local
+        if (inspeccionActual) {
+            const inc = (inspeccionActual.incidencias || []).find(i => i.codigo === incidenciaActual);
+            if (inc) { if (!inc.sanciones) inc.sanciones = []; inc.sanciones.push(data); }
+            renderIncidencias(inspeccionActual.incidencias);
+        }
+    } else {
+        showToast(JSON.stringify(data), 'error');
+    }
+}
+
+// ── autorizar segunda inspección (admin) ──────────────────────────────
+
+async function autorizarSegunda(num) {
+    if (!confirm('¿Autorizar la segunda inspección para la inspección #' + num + '?')) return;
+    const resp = await fetch(`/api/inspeccion/${num}/segunda/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body: JSON.stringify({}),
+    });
+    const data = await resp.json();
+    if (resp.ok) {
+        showToast('Segunda inspección autorizada.');
+        setTimeout(() => location.reload(), 800);
+    } else {
+        showToast(data.error || 'Error al autorizar.', 'error');
+    }
+}
 </script>
- 
 </body>
 </html>
- 

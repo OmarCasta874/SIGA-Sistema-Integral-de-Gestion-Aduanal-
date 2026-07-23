@@ -8,7 +8,7 @@ from home.models import (
     Permiso, Bitacora, CategoriaProductos,
     RegimenAduanero, SemaforoFiscal, TipoImportaciones, TipoExportaciones,
     Pago, Factura, Sancion, Paquete, Producto, EstadoPago, Inspeccion,
-    TipoEmbalaje,
+    TipoEmbalaje, Incidencia, SegundaInspeccion,
 )
 
 
@@ -382,6 +382,10 @@ class FacturaSerializer(serializers.ModelSerializer):
         ]
 
 class SancionSerializer(serializers.ModelSerializer):
+    incidencia_gravedad = serializers.CharField(source='incidencia.gravedad', read_only=True)
+    incidencia_descripcion = serializers.CharField(source='incidencia.descripcion', read_only=True)
+    inspeccion_num = serializers.IntegerField(source='incidencia.inspeccion_id', read_only=True)
+
     class Meta:
         model = Sancion
         fields = [
@@ -389,7 +393,24 @@ class SancionSerializer(serializers.ModelSerializer):
             'monto_multa',
             'fundamento_legal',
             'incidencia',
+            'incidencia_gravedad',
+            'incidencia_descripcion',
+            'inspeccion_num',
         ]
+
+
+class IncidenciaSerializer(serializers.ModelSerializer):
+    sanciones = SancionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Incidencia
+        fields = ['codigo', 'gravedad', 'descripcion', 'inspeccion', 'sanciones']
+
+
+class SegundaInspeccionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SegundaInspeccion
+        fields = ['ID_revision', 'inspeccion_FK', 'fecha_inspeccion', 'hora_inicio', 'resultado']
 
 
 class ProductoSerializer(serializers.ModelSerializer):
@@ -414,13 +435,55 @@ class ProductoCreateSerializer(serializers.ModelSerializer):
 
 class InspeccionSerializer(serializers.ModelSerializer):
     semaforo_resultado = serializers.SerializerMethodField()
+    pedimento_num      = serializers.SerializerMethodField()
+    operacion_id       = serializers.SerializerMethodField()
+    cliente_nombre     = serializers.SerializerMethodField()
+    incidencias        = serializers.SerializerMethodField()
+    tiene_segunda      = serializers.SerializerMethodField()
+    estado_display     = serializers.SerializerMethodField()
 
     class Meta:
         model = Inspeccion
-        fields = ['numero', 'fecha_inspeccion', 'hora_inicio', 'semaforo', 'semaforo_resultado', 'resultado']
+        fields = [
+            'numero', 'fecha_inspeccion', 'hora_inicio', 'semaforo',
+            'semaforo_resultado', 'resultado', 'estado_display',
+            'pedimento_num', 'operacion_id', 'cliente_nombre',
+            'incidencias', 'tiene_segunda',
+        ]
 
     def get_semaforo_resultado(self, obj):
         return obj.semaforo.resultado if obj.semaforo_id else None
+
+    def get_pedimento_num(self, obj):
+        ped = obj.semaforo.pedimentos.first() if obj.semaforo_id else None
+        return ped.numero_pedimento if ped else None
+
+    def get_operacion_id(self, obj):
+        ped = obj.semaforo.pedimentos.first() if obj.semaforo_id else None
+        return ped.ope_aduanera_id if ped else None
+
+    def get_cliente_nombre(self, obj):
+        ped = obj.semaforo.pedimentos.first() if obj.semaforo_id else None
+        if ped and ped.ope_aduanera_id:
+            try:
+                op = ped.ope_aduanera
+                c  = op.cliente
+                return f'{c.nombre} {c.primer_apell or ""}'.strip()
+            except Exception:
+                pass
+        return None
+
+    def get_incidencias(self, obj):
+        return IncidenciaSerializer(obj.incidencias.all(), many=True).data
+
+    def get_tiene_segunda(self, obj):
+        return obj.segundas_inspecciones.exists()
+
+    def get_estado_display(self, obj):
+        r = obj.resultado or ''
+        if not r:
+            return 'En revisión'
+        return r
 
 
 class PaqueteSerializer(serializers.ModelSerializer):
