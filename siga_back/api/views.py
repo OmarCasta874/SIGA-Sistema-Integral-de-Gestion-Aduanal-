@@ -313,7 +313,7 @@ class PermisoDeleteView(APIView):
 
 # ── Aduanas ────────────────────────────────────────────────────────────────────
 
-class AduanaViewSet(viewsets.ReadOnlyModelViewSet):
+class AduanaViewSet(viewsets.ModelViewSet):
     queryset = Aduana.objects.all().order_by('-codigo')
     serializer_class = AduanaSerializer
     authentication_classes = [TokenAuthentication]

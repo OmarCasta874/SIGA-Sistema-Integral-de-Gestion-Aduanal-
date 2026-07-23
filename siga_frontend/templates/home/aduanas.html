@@ -8,11 +8,13 @@
     <link rel="icon" type="image/x-icon" href="{% static 'home/img/siga_logo.png' %}">
     <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
     <link rel="stylesheet" href="{% static 'home/css/aduanas.css' %}">
+    <link rel="stylesheet" href="{% static 'home/css/toasts.css' %}">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script src="{% static 'home/js/buscador.js' %}"></script>
     <script src="{% static 'home/js/ordenador.js' %}"></script>
     <script src="{% static 'home/js/mostrador.js' %}"></script>
     <script defer src="{% static 'home/js/sidebar.js' %}"></script>
+    <script defer src="{% static 'home/js/toasts.js' %}"></script>
 </head>
 <body>
 <!-- SIDEBAR -->
@@ -131,7 +133,7 @@
             <option value="descendente">Mayor a menor</option>
             <option value="clave" data-columna="1" data-modo="alfabetico">Clave</option>
         </select>
-        <button type="button" class="btn-nueva-aduana" style="margin-left:auto">
+        <button type="button" class="btn-nueva-aduana" style="margin-left:auto" onclick="abrirModalNuevaAduana()">
             <i data-lucide="plus"></i> Nueva aduana
         </button>
     </div>
@@ -144,6 +146,7 @@
                     <th>Clave</th>
                     <th>Ciudad</th>
                     <th>Estado</th>
+                    <th>Acciones</th>
                 </tr>
             </thead>
             <tbody id="tbodyAduanas">
@@ -153,10 +156,18 @@
                     <td>{{ aduana.codigo }}</td>
                     <td>{{ aduana.ciudad }}</td>
                     <td><span class="estado estado-activa">Activa</span></td>
+                    <td class="acciones">
+                        <button type="button" class="btn-ver" onclick="abrirModalDetalle('{{ aduana.codigo }}')">
+                             Ver
+                        </button>
+                        <button type="button" class="btn-editar" onclick="abrirModalEditar('{{ aduana.codigo }}')">
+                            Editar
+                        </button>
+                    </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="4" style="text-align:center;">
+                    <td colspan="5" style="text-align:center;">
                         No hay aduanas registradas.
                     </td>
                 </tr>
@@ -191,7 +202,75 @@
         </div>
     </section>
 </main>
+<!-- Modales Nueva Aduana, Ver y Editar-->
+<div class="modal-overlay" id="modalNuevaAduana">
+    <div class="modal-box">
+        <h2>Nueva Aduana</h2>
+        <form method="post">
+            {% csrf_token %}
+            <div class="campo-formulario">
+                <label>Nombre</label>
+                <input type="text" name="nombre" maxlength="100" required>
+            </div>
+            <div class="campo-formulario">
+                <label>Ciudad</label>
+                <input type="text" name="ciudad" maxlength="60" required>
+            </div>
+            <div class="modal-botones">
+                <button type="button" class="btn-cancelar" onclick="cerrarModalNuevaAduana()">Cancelar</button>
+                <button type="submit" class="btn-guardar">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="modal-overlay" id="modalDetalleAduana">
+    <div class="modal-box">
+        <h2>Detalle de Aduana</h2>
+        <div class="detalle-item">
+            <strong>Código</strong>
+            <p id="detalleCodigo">-</p>
+        </div>
+        <div class="detalle-item">
+            <strong>Nombre</strong>
+            <p id="detalleNombre">-</p>
+        </div>
+        <div class="detalle-item">
+            <strong>Ciudad</strong>
+            <p id="detalleCiudad">-</p>
+        </div>
+        <div class="modal-botones">
+            <button type="button" class="btn-cancelar" onclick="cerrarModalDetalle()">
+                Cerrar
+            </button>
+        </div>
+    </div>
+</div>
+<div class="modal-overlay" id="modalEditarAduana">
+    <div class="modal-box">
+        <h2>Editar Aduana</h2>
+        <form id="formEditarAduana">
+            {% csrf_token %}
+            <input type="hidden" id="editarCodigo">
+            <div class="campo-formulario">
+                <label>Nombre</label>
+                <input type="text" name="nombre" id="editarNombre" maxlength="100" required>
+            </div>
+            <div class="campo-formulario">
+                <label>Ciudad</label>
+                <input type="text" name="ciudad" id="editarCiudad" maxlength="60" required>
+            </div>
+            <div class="modal-botones">
+                <button type="button" class="btn-cancelar" onclick="cerrarModalEditar()">
+                    Cancelar
+                </button>
+                <button type="submit" class="btn-guardar">Guardar cambios</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% include "components/toasts.html" %}
 <script>
+
     lucide.createIcons();
 
     function mostrarModalLogout() {
@@ -201,6 +280,81 @@
     function cerrarModalLogout() {
         document.getElementById('modalLogout').classList.remove('activo');
     }
+
+    function abrirModalNuevaAduana() {
+        document.getElementById('modalNuevaAduana').classList.add('activo');
+    }
+
+    function cerrarModalNuevaAduana() {
+        document.getElementById('modalNuevaAduana').classList.remove('activo');
+    }
+
+    function abrirModalDetalle(codigo) {
+        fetch(`/aduanas/${codigo}/detalle/`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('detalleCodigo').textContent = data.codigo;
+                document.getElementById('detalleNombre').textContent = data.nombre;
+                document.getElementById('detalleCiudad').textContent = data.ciudad;
+
+                document.getElementById('modalDetalleAduana').classList.add('activo');
+            })
+            .catch(error => {
+                console.error(error);
+                alert("No fue posible obtener la información");
+            });
+    }
+
+    function cerrarModalDetalle() {
+        document.getElementById('modalDetalleAduana').classList.remove('activo');
+    }
+
+    function abrirModalEditar(codigo) {
+        fetch(`/aduanas/${codigo}/detalle/`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('editarCodigo').value = data.codigo;
+                document.getElementById('editarNombre').value = data.nombre;
+                document.getElementById('editarCiudad').value = data.ciudad;
+
+                document.getElementById('modalEditarAduana').classList.add('activo');
+            })
+            .catch(error => {
+                console.error(error);
+                alert("No fue posible obtener la información");
+            });
+    }
+
+    function cerrarModalEditar() {
+        document.getElementById('modalEditarAduana').classList.remove('activo');
+    }
+
+    document.getElementById("formEditarAduana")
+    .addEventListener("submit", function(e){
+
+        e.preventDefault();
+
+        const codigo = document.getElementById("editarCodigo").value;
+        const form = document.getElementById("formEditarAduana");
+
+        const formData = new FormData(form);
+
+        fetch(`/aduanas/${codigo}/editar/`, {
+            method: "POST",
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+
+            if (data.success) {
+                location.reload();
+            } else {
+                alert("No fue posible actualizar la aduana.");
+            }
+
+        })
+        .catch(error => console.error(error));
+    });
 </script>
 </body>
 </html>
