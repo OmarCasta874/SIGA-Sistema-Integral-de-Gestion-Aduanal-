@@ -23,6 +23,12 @@
         <button class="sidebar-toggle" title="Colapsar menú"><i data-lucide="panel-left"></i></button>
     </div>
     <nav>
+        {% if es_inspector %}
+        <p class="nav-section-label">Fiscalización</p>
+        <a href="{% url 'home:inspecciones' %}" class="nav-item active" title="Mis Inspecciones">
+            <i data-lucide="search" class="nav-icon"></i> <span class="nav-label">Mis Inspecciones</span>
+        </a>
+        {% else %}
         <p class="nav-section-label">Principal</p>
         <a href="{% url 'home:dashboard' %}" class="nav-item" title="Dashboard">
             <i data-lucide="layout-grid" class="nav-icon"></i> <span class="nav-label">Dashboard</span>
@@ -73,15 +79,18 @@
         <a href="{% url 'home:bitacora' %}" class="nav-item" title="Bitácora">
             <i data-lucide="history" class="nav-icon"></i> <span class="nav-label">Bitácora</span>
         </a>
+        {% endif %}
     </nav>
 
     <div class="sidebar-footer">
         <button type="button" class="btn-sidebar btn-sidebar-salir" onclick="mostrarModalLogout()" title="Salir">
             <i data-lucide="log-out" class="nav-icon"></i> <span class="nav-label">Salir</span>
         </button>
+        {% if not es_inspector %}
         <a href="{% url 'home:perfilusuario' %}" class="btn-sidebar btn-sidebar-usuario" title="Usuario">
             <i data-lucide="user" class="nav-icon"></i> <span class="nav-label">Usuario</span>
         </a>
+        {% endif %}
     </div>
 </aside>
 

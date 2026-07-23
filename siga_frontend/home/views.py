@@ -20,6 +20,20 @@ from .forms import (
 )
 
 import requests
+from functools import wraps
+
+
+# ── Control de acceso por rol ──────────────────────────────────────────────────
+
+def solo_admin(view_func):
+    """Redirige a inspecciones si el usuario logueado es Inspector."""
+    @wraps(view_func)
+    @login_required
+    def wrapper(request, *args, **kwargs):
+        if getattr(request.user, 'rol', '') == 'Inspector':
+            return redirect('home:inspecciones')
+        return view_func(request, *args, **kwargs)
+    return wrapper
 
 
 # ── Helpers de conversión para compatibilidad con templates ────────────────────
@@ -68,6 +82,8 @@ def login_view(request):
                     request.session['usuario_activo'] = usuario_data.get('activo', True)
             except Exception:
                 pass
+            if getattr(form.get_user(), 'rol', '') == 'Inspector':
+                return redirect('home:inspecciones')
             return redirect('home:dashboard')
     else:
         form = LoginForm(request)
@@ -86,7 +102,7 @@ def logout_view(request):
     return redirect('home:login')
 
 
-@login_required
+@solo_admin
 def dashboard_view(request):
     try:
         response = api.get(request, '/dashboard/')
@@ -107,7 +123,7 @@ def dashboard_view(request):
 
 # ── Clientes ───────────────────────────────────────────────────────────────────
 
-@login_required
+@solo_admin
 def clientes_view(request):
     if request.method == 'POST':
         accion = request.POST.get('accion', '')
@@ -254,7 +270,7 @@ def api_permiso_eliminar(request, pk, clave):
 
 # ── Operaciones ────────────────────────────────────────────────────────────────
 
-@login_required
+@solo_admin
 def operaciones_view(request):
     query = request.GET.get('q', '')
 
@@ -310,7 +326,7 @@ def operaciones_view(request):
     })
 
 
-@login_required
+@solo_admin
 def operacion_nueva_view(request):
     if request.method == 'POST':
         form = NuevaOperacionForm(request.POST)
@@ -329,7 +345,7 @@ def operacion_nueva_view(request):
     return redirect('home:operaciones')
 
 
-@login_required
+@solo_admin
 def operacion_detalle_view(request, pk):
     try:
         resp = api.get(request, f'/operaciones/{pk}/')
@@ -417,7 +433,7 @@ def operacion_detalle_view(request, pk):
     })
 
 
-@login_required
+@solo_admin
 def operacion_pedimento_view(request, pk):
     from django.http import JsonResponse
     if request.method != 'POST':
@@ -499,7 +515,7 @@ def pago_crear_view(request):
 
 # ── Pedimentos ─────────────────────────────────────────────────────────────────
 
-@login_required
+@solo_admin
 def pedimento_detalle_view(request, operacion_id):
     try:
         op_resp = api.get(request, f'/operaciones/{operacion_id}/')
@@ -555,7 +571,7 @@ def pedimento_detalle_view(request, operacion_id):
     })
 
 
-@login_required
+@solo_admin
 def pedimentos_view(request):
     query = request.GET.get('q', '')
 
@@ -588,7 +604,7 @@ def pedimentos_view(request):
 
 # ── Aduanas ────────────────────────────────────────────────────────────────────
 
-@login_required
+@solo_admin
 def aduanas_view(request):
     if request.method == "POST":
         form = AduanaForm(request.POST)
@@ -643,7 +659,7 @@ def aduanas_view(request):
         'query':         query,
     })
 
-@login_required
+@solo_admin
 def detalle_aduana(request, codigo):
     
     try:
@@ -663,7 +679,7 @@ def detalle_aduana(request, codigo):
             status=500
         )
         
-@login_required
+@solo_admin
 def editar_aduana(request, codigo):
     if request.method != "POST":
         return JsonResponse({"error": "Método no permitido."}, status=405)
@@ -689,7 +705,7 @@ def editar_aduana(request, codigo):
 
 # ── Categorías ─────────────────────────────────────────────────────────────────
 
-@login_required
+@solo_admin
 def categorias_view(request):
     query = request.GET.get('q', '')
     try:
@@ -715,7 +731,7 @@ def categorias_view(request):
 
 # ── Bitácora ───────────────────────────────────────────────────────────────────
 
-@login_required
+@solo_admin
 def bitacora_view(request):
     query = request.GET.get('q', '')
     try:
@@ -762,7 +778,7 @@ def api_datos_operacion(request):
 
 # ── Secciones stub ─────────────────────────────────────────────────────────────
 
-@login_required
+@solo_admin
 def usuarios_view(request):
     if request.method == 'POST':
         accion = request.POST.get('accion', '')
@@ -842,7 +858,7 @@ def usuarios_view(request):
     })
 
 
-@login_required
+@solo_admin
 def pagos_view(request):
     query = request.GET.get('q', '')
     try:
@@ -872,7 +888,7 @@ def pagos_view(request):
     })
 
 
-@login_required
+@solo_admin
 def facturas_view(request):
     query = request.GET.get('q', '')
     try:
@@ -899,7 +915,7 @@ def facturas_view(request):
     })
 
 
-@login_required
+@solo_admin
 def permisos_view(request):
     query       = request.GET.get('q', '')
     tipo_filtro = request.GET.get('tipo', '')
@@ -950,7 +966,7 @@ def permisos_view(request):
     })
 
 
-@login_required
+@solo_admin
 def perfilusuario_view(request):
     if request.method == "POST":
         datos = {
@@ -987,7 +1003,7 @@ def perfilusuario_view(request):
     
 
 
-@login_required
+@solo_admin
 def semaforofiscal_view(request):
     try:
         response = api.get(request, "/semaforos/")
@@ -1017,7 +1033,7 @@ def semaforofiscal_view(request):
 
     return render(request, 'home/semaforo_fiscal.html', context)
 
-@login_required
+@solo_admin
 def sanciones_view(request):
     query = request.GET.get('q', '')
     try:
@@ -1039,7 +1055,7 @@ def sanciones_view(request):
         'query':     query,
     })
 
-@login_required
+@solo_admin
 def paquetes_view(request):
     if request.method == 'POST':
         resp = api.post(request, '/paquetes/', {
@@ -1096,7 +1112,7 @@ def paquetes_view(request):
     })
 
 
-@login_required
+@solo_admin
 def paquete_detalle_view(request, pk):
     if request.method == 'POST':
         resp = api.post(request, f'/paquetes/{pk}/productos/', {
