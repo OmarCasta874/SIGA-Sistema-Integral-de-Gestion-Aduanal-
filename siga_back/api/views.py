@@ -313,7 +313,7 @@ class PermisoDeleteView(APIView):
 
 # ── Aduanas ────────────────────────────────────────────────────────────────────
 
-class AduanaViewSet(viewsets.ReadOnlyModelViewSet):
+class AduanaViewSet(viewsets.ModelViewSet):
     queryset = Aduana.objects.all().order_by('-codigo')
     serializer_class = AduanaSerializer
     authentication_classes = [TokenAuthentication]
@@ -1091,3 +1091,31 @@ class InspeccionViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = InspeccionSerializer
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
+    
+class PerfilAPIView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        serializer = UsuarioSerializer(request.user)
+        return Response(serializer.data)
+    
+    def put(self, request):
+        serializer = UsuarioSerializer(
+            request.user,
+            data=request.data,
+            partial=True
+        )
+        if serializer.is_valid():
+            serializer.save()
+            return Response(
+                UsuarioSerializer(request.user).data,
+                status=status.HTTP_200_OK
+            )
+        
+        print(serializer.errors)
+        
+        return Response(
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST
+        )

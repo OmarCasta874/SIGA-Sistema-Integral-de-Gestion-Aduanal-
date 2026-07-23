@@ -214,3 +214,22 @@ class NuevoPermisoForm(forms.Form):
             'placeholder': 'Descripción breve del permiso...',
         }),
     )
+    
+class AduanaForm(forms.Form):
+    nombre = forms.CharField(
+        label="Nombre",
+        max_length=100,
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Nombre de la aduana",
+        })
+    )
+    
+    ciudad = forms.CharField(
+        label="Ciudad",
+        max_length=60,
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Nombre de la ciudad",
+        })
+    )

@@ -16,6 +16,7 @@ from .forms import (
     NuevaOperacionForm,
     NuevoPermisoForm,
     CLAVES_PEDIMENTO,
+    AduanaForm,
 )
 
 import requests
@@ -589,6 +590,38 @@ def pedimentos_view(request):
 
 @login_required
 def aduanas_view(request):
+    if request.method == "POST":
+        form = AduanaForm(request.POST)
+        
+        if form.is_valid():
+            data = {
+                "nombre": form.cleaned_data["nombre"],
+                "ciudad": form.cleaned_data["ciudad"],
+            }
+            
+            if not data["nombre"] or not data["ciudad"]:
+                messages.error(request, "Todos los campos son obligatorios. ")
+                return redirect("home:aduanas")
+                
+            try:
+                response = api.post(request, "/aduanas/", data)
+                
+                if response.status_code == 201:
+                    messages.success(request, "La aduana fue creada correctamente. ")
+                    return redirect("home:aduanas")
+                else:
+                    try:
+                        error = response.json()
+                    except Exception:
+                        error = response.text
+                        
+                    messages.error(request, f"Error al crear la aduana: {error}")
+                    
+            except Exception:
+                messages.error(request, "No fue posible conectar con la API.")
+                
+            return redirect("home:aduanas")
+        
     query = request.GET.get('q', '')
     try:
         resp    = api.get(request, '/aduanas/')
@@ -610,6 +643,49 @@ def aduanas_view(request):
         'query':         query,
     })
 
+@login_required
+def detalle_aduana(request, codigo):
+    
+    try:
+        response = api.get(request, f"/aduanas/{codigo}")
+        
+        if response.status_code == 200:
+            return JsonResponse(api.safe_json(response, {}))
+        
+        return JsonResponse(
+            {"error": "No se encontró la aduana. "},
+            status=response.status_code
+        )
+        
+    except Exception:
+        return JsonResponse(
+            {"error": "No fue posible conectar con la API. "},
+            status=500
+        )
+        
+@login_required
+def editar_aduana(request, codigo):
+    if request.method != "POST":
+        return JsonResponse({"error": "Método no permitido."}, status=405)
+    
+    data = {
+        "nombre": request.POST.get("nombre", "").strip(),
+        "ciudad": request.POST.get("ciudad", "").strip(),
+    }
+    
+    try:
+        response = api.put(request, f"/aduanas/{codigo}/", data)
+        
+        if response.status_code == 200:
+            return JsonResponse({"success": True})
+        
+        return JsonResponse(api.safe_json(response, {}), status=response.status_code)
+    
+    except Exception:
+        return JsonResponse(
+            {"error": "No fue posible conectar con la API. "},
+            status=500
+        )
 
 # ── Categorías ─────────────────────────────────────────────────────────────────
 
@@ -876,7 +952,40 @@ def permisos_view(request):
 
 @login_required
 def perfilusuario_view(request):
-    return render(request, 'home/perfil_usuario.html')
+    if request.method == "POST":
+        datos = {
+            "nombre_pila": request.POST.get("nombre_pila"),
+            "primer_apell": request.POST.get("primer_apell"),
+            "seg_apell": request.POST.get("seg_apell"),
+            "correo": request.POST.get("correo"),
+        }
+        respuesta = api.put(request, "/perfil/", datos)
+        
+        if respuesta.status_code == 200:
+            messages.success(
+                request,
+                "Perfil actualizado correctamente. "
+            )
+        else:
+            print(respuesta.status_code)
+            print(respuesta.text)
+            messages.error(
+                request,
+                f"Error: {respuesta.text}"
+            )
+    
+    try:
+        usuario = api.get(request, "/perfil/").json()
+        
+    except Exception as e:
+        usuario = None
+        messages.error(request, f"Error al obtener el perfil: {e}")
+        
+    return render(request, 'home/perfil_usuario.html', {
+        'usuario': usuario,
+    })
+    
+
 
 @login_required
 def semaforofiscal_view(request):

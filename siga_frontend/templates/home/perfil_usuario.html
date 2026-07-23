@@ -8,9 +8,11 @@
     <link rel="icon" type="image/x-icon" href="{% static 'home/img/siga_logo.png' %}">
     <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
     <link rel="stylesheet" href="{% static 'home/css/perfil_usuario.css' %}">
+    <link rel="stylesheet" href="{% static 'home/css/toasts.css' %}">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script src="{% static 'home/js/buscador.js' %}"></script>
     <script defer src="{% static 'home/js/sidebar.js' %}"></script>
+    <script defer src="{% static 'home/js/toasts.js' %}"></script>
 </head>
 <body>
 <aside class="sidebar">
@@ -84,8 +86,8 @@
     <div class="perfil-encabezado">
         <img src="{% static 'home/img/warehouse_worker.jpg' %}" alt="Roberto Salinas" class="perfil-foto">
         <div class="perfil-encabezado-texto">
-            <h1 class="perfil-nombre">ROBERTO SALINAS</h1>
-            <p class="perfil-rol">Administrador</p>
+            <h1 class="perfil-nombre">{{ usuario.nombre_completo|upper }}</h1>
+            <p class="perfil-rol">{{ usuario.rol }}</p>
         </div>
     </div>
 
@@ -93,16 +95,20 @@
         <h2 class="perfil-seccion-titulo">Datos personales: </h2>
 
         <label class="perfil-label">Nombre completo: </label>
-        <input type="text" class="perfil-input perfil-input-ancho" value="Roberto Salinas" readonly>
+        <input type="text" class="perfil-input perfil-input-ancho" value="{{ usuario.nombre_completo }}" readonly>
 
         <div class="perfil-fila">
             <div class="perfil-campo">
                 <label class="perfil-label">Correo: </label>
-                <input type="email" class="perfil-input" value="rsalinas@siga.mx" readonly>
+                <input type="email" class="perfil-input" value="{{ usuario.correo }}" readonly>
+            </div>
+            <div class="perfil-campo">
+                <label class="perfil-label">Estado: </label>
+                <input type="text" class="perfil-input" value="{% if usuario.activo %} Activo {% else %} Inactivo {% endif %}" readonly>
             </div>
             <div class="perfil-campo">
                 <label class="perfil-label">Fecha de alta: </label>
-                <input type="text" class="perfil-input" value="10 - 06 - 2026" readonly>
+                <input type="text" class="perfil-input" value="{{ usuario.fecha_alta }}" readonly>
             </div>
         </div>
     </div>
@@ -111,23 +117,20 @@
         <h2 class="perfil-seccion-titulo">Permiso asignado: </h2>
         <div class="perfil-fila perfil-fila-3">
             <div class="perfil-campo">
-                <label class="perfil-label">Tipo de permiso: </label>
-                <input type="text" class="perfil-input" value="Admin" readonly>
-            </div>
-            <div class="perfil-campo">
-                <label class="perfil-label">Clave: </label>
-                <input type="text" class="perfil-input" value="AD - RSCR" readonly>
-            </div>
-            <div class="perfil-campo">
-                <label class="perfil-label">Vigencia del permiso: </label>
-                <input type="text" class="perfil-input" value="2 años" readonly>
+                <label class="perfil-label">Rol </label>
+                <input type="text" class="perfil-input" value="{{ usuario.rol }}" readonly>
             </div>
         </div>
     </div>
 
     <div class="perfil-acciones">
-        <button type="button" class="btn-perfil">Editar perfil</button>
-        <button type="button" class="btn-perfil">Cambiar de cuenta</button>
+        <button type="button" class="btn-perfil" onclick="mostrarModalEditarPerfil()">Editar perfil</button>
+        <form action="{% url 'home:logout' %}" method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn-perfil">
+                Cambiar de cuenta
+            </button>
+        </form>
         <button type="button" class="btn-perfil" onclick="mostrarModalLogout()">Cerrar Sesión</button>
     </div>
 </main>
@@ -141,6 +144,45 @@
         </div>
     </div>
 </div>
+<div class="modal-overlay" id="modalEditarPerfil">
+    <div class="modal-editar-box">
+        <h2 class="modal-editar-titulo"> Editar Perfil </h2>
+        <form method="post" id="formEditarPerfil">
+            {% csrf_token %}
+            <div class="modal-editar-campo">
+                <label>Nombre:* </label>
+                <input type="text" id="nombre_pila" name="nombre_pila" value="{{ usuario.nombre_pila }}" required>
+            </div>
+            <div class="modal-editar-campo">
+                <label>Primer apellido:* </label>
+                <input type="text" id="primer_apell" name="primer_apell" value="{{ usuario.primer_apell }}" required>
+            </div>
+            <div class="modal-editar-campo">
+                <label>Segundo apellido: </label>
+                <input type="text" id="seg_apell" name="seg_apell" value="{{ usuario.seg_apell }}">
+            </div>
+            <div class="modal-editar-campo">
+                <label>Correo electrónico: </label>
+                <input type="email" id="correo" name="correo" value="{{ usuario.correo }}" required>
+            </div>
+            <div class="modal-editar-campo">
+                <label>Rol: </label>
+                <input type="text" value="{{ usuario.rol }}" readonly>
+            </div>
+            <div class="modal-editar-campo">
+                <label>Fecha de alta: </label>
+                <input type="text" value="{{ usuario.fecha_alta }}" readonly>
+            </div>
+            <div class="modal-editar-acciones">
+                <button type="button" class="btn-cancelar" onclick="cerrarModalEditarPerfil()">
+                    Cancelar
+                </button>
+                <button type="submit" class="btn-guardar">Guardar cambios</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% include "components/toasts.html" %}
 <script>
     lucide.createIcons();
 
@@ -150,6 +192,14 @@
 
     function cerrarModalLogout() {
         document.getElementById('modalLogout').classList.remove('activo');
+    }
+
+    function mostrarModalEditarPerfil() {
+        document.getElementById("modalEditarPerfil").classList.add('activo');
+    }
+
+    function cerrarModalEditarPerfil() {
+        document.getElementById("modalEditarPerfil").classList.remove('activo');
     }
 </script>
 </body>

@@ -119,6 +119,105 @@
     background: #DBEAFE;
 }
 
+.modal-editar-box {
+    background: #FFFFFF;
+    width: 100%;
+    max-width: 620px;
+    border-radius: 14px;
+    padding: 28px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+}
+
+.modal-editar-titulo {
+    margin: 0 0 22px;
+    text-align: center;
+    color: #123C7C;
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.modal-editar-campo {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 18px;
+}
+
+.modal-editar-campo label {
+    margin-bottom: 6px;
+    color: #123C7C;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.modal-editar-campo input {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1px solid #CFD8E3;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    transition: 0.2s;
+    box-sizing: border-box;
+}
+
+.modal-editar-campo input:focus {
+    outline: none;
+    border-color: #123C7C;
+    box-shadow: 0 0 0 3px rgba(18, 60, 124, 0.15);
+}
+
+.modal-editar-campo input[readonly] {
+    background: #F3F5F8;
+    color: #666;
+    cursor: not-allowed;
+}
+
+.modal-editar-acciones {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+.btn-cancelar,
+.btn-guardar {
+    border: none;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.btn-cancelar {
+    background: #D9D9D9;
+    color: #333;
+}
+
+.btn-cancelar:hover {
+    background: #C8C8C8;
+}
+
+.btn-guardar {
+    background: #123C7C;
+    color: #FFF;
+}
+
+.btn-guardar:hover {
+    background: #0F3267;
+}
+
+@keyframes aparecerModal {
+    from {
+        opacity: 0;
+        transform: translateY(-12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 /* SIDEBAR COLAPSADO (modo mini) */
 
 .sidebar {

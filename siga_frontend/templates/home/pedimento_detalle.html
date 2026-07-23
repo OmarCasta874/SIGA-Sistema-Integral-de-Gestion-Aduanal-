@@ -6,9 +6,11 @@
     <title>Pedimento {{ pedimento.numero_pedimento }} — SIGA</title>
     <link rel="icon" type="image/x-icon" href="{% static 'home/img/siga_logo.png' %}">
     <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'home/css/toasts.css' %}">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
     <script defer src="{% static 'home/js/sidebar.js' %}"></script>
+    <script defer src="{% static 'home/js/toasts.js' %}"></script>
     <style>
         .btn-volver { display:inline-flex; align-items:center; gap:6px; color:#6B7280; font-size:14px; text-decoration:none; margin-bottom:20px; }
         .btn-volver:hover { color:#111827; }
@@ -365,6 +367,7 @@
 
 </main>
 
+{% include "components/toasts.html" %}
 <script>
 lucide.createIcons();
 
