@@ -137,6 +137,7 @@ class Inspeccion(models.Model):
     fecha_inspeccion = models.DateField(db_column='fecha_inspeccion')
     hora_inicio = models.TimeField(db_column='hora_inicio')
     resultado = models.CharField(max_length=100, blank=True, null=True, db_column='resultado')
+    motivo_segunda = models.CharField(max_length=500, blank=True, null=True, db_column='motivo_segunda')
     semaforo = models.ForeignKey(
         SemaforoFiscal, on_delete=models.CASCADE,
         db_column='semaforo', related_name='inspecciones'
@@ -156,10 +157,10 @@ class Inspeccion(models.Model):
 # Modelo SEGUNDA_INSPECCION
 # ──────────────────────────────────────────────────────────────────
 class SegundaInspeccion(models.Model):
-    ID_revision = models.IntegerField(db_column='ID_revision')
+    ID_revision = models.AutoField(primary_key=True, db_column='ID_revision')
     inspeccion_FK = models.ForeignKey(
         Inspeccion, on_delete=models.CASCADE,
-        db_column='inspeccion_FK', related_name='segundas_inspecciones'
+        db_column='inspeccion', related_name='segundas_inspecciones'
     )
     fecha_inspeccion = models.DateField(db_column='fecha_inspeccion')
     hora_inicio = models.TimeField(db_column='hora_inicio')
@@ -170,7 +171,6 @@ class SegundaInspeccion(models.Model):
         db_table = 'segunda_inspeccion'
         verbose_name = 'Segunda inspección'
         verbose_name_plural = 'Segundas inspecciones'
-        unique_together = (('ID_revision', 'inspeccion_FK'),)
 
     def __str__(self):
         return f'Segunda inspección {self.ID_revision} (de inspección {self.inspeccion_FK_id})'

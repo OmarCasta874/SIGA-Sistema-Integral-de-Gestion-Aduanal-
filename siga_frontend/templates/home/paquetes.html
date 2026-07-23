@@ -145,7 +145,8 @@
             </div>
             <div class="paq-modal-footer">
                 <button type="button" class="btn-paq-cancelar" onclick="cerrarModalPaquete()">Cancelar</button>
-                <button type="submit" class="btn-paq-guardar">Registrar</button>
+                <button type="submit" class="btn-paq-guardar"
+                        onclick="this.disabled=true; this.form.submit();">Registrar</button>
             </div>
         </form>
     </div>

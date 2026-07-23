@@ -89,33 +89,33 @@
 
     <section class="semaforo-stats">
         <div class="stat-card">
-            <p class="stat-label">Total de Fracciones</p>
+            <p class="stat-label">Total registros</p>
             <p class="stat-value stat-value-blue">{{ total_semaforos }}</p>
         </div>
         <div class="stat-card">
-            <p class="stat-label">Importaciones</p>
-            <p class="stat-value stat-value-green">842</p>
+            <p class="stat-label">Semáforo Verde</p>
+            <p class="stat-value stat-value-green">{{ total_verde }}</p>
         </div>
         <div class="stat-card">
-            <p class="stat-label">Exportaciones</p>
-            <p class="stat-value stat-value-amber">442</p>
-        </div>
-        <div class="stat-card">
-            <p class="stat-label">Más utilizada</p>
-            <p class="stat-value stat-value-red">8471.30.01</p>
+            <p class="stat-label">Semáforo Rojo</p>
+            <p class="stat-value stat-value-red">{{ total_rojo }}</p>
         </div>
     </section>
     <section class="semaforo-toolbar">
-        <div class="semaforo-search">
-            <i data-lucide="search" class="semaforo-search-icon"></i>
-            <input type="text" name="q" value="{{ query }}" placeholder="Buscar en el Semáforo Fiscal..." 
-            data-buscador-target="tbodySemaforos" data-buscador-colspan="4">
-        </div>
+        <form method="get" action="{% url 'home:semaforo_fiscal' %}" style="display:contents;">
+            <div class="semaforo-search">
+                <i data-lucide="search" class="semaforo-search-icon"></i>
+                <input type="text" name="q" value="{{ query }}" placeholder="Buscar por pedimento o cliente...">
+            </div>
+            <button type="submit" class="semaforo-select" style="cursor:pointer;">Filtrar</button>
+            {% if query %}
+                <a href="{% url 'home:semaforo_fiscal' %}" style="font-size:13px;color:#6B7280;text-decoration:none;">✕ Limpiar</a>
+            {% endif %}
+        </form>
         <select class="semaforo-select" data-ordenador data-ordenador-target="tbodySemaforos" data-ordenador-columna="0">
             <option value="">Ordenar por</option>
-            <option value="alfabetico">Alfabético (A-Z)</option>
-            <option value="ascendente">Menor a mayor</option>
-            <option value="descendente">Mayor a menor</option>
+            <option value="ascendente">ID ↑</option>
+            <option value="descendente">ID ↓</option>
             <option value="hora" data-columna="1" data-modo="ascendente">Hora</option>
         </select>
     </section>
@@ -124,8 +124,10 @@
         <table class="semaforo-tabla">
             <thead>
                 <tr>
-                    <th>Código</th>
+                    <th>ID</th>
                     <th>Hora</th>
+                    <th>Pedimento</th>
+                    <th>Cliente</th>
                     <th>Resultado</th>
                 </tr>
             </thead>
@@ -134,17 +136,17 @@
                 <tr>
                     <td>{{ semaforo.ID }}</td>
                     <td>{{ semaforo.hora }}</td>
-
+                    <td style="font-family:monospace;font-size:12px;">{{ semaforo.pedimento_num|default:"—" }}</td>
+                    <td>{{ semaforo.cliente_nombre|default:"—" }}</td>
                     <td>
                         <span class="pill {{ semaforo.clase_css }}">
                             {{ semaforo.resultado }}
                         </span>
                     </td>
-
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="3" style="text-align:center;">
+                    <td colspan="5" style="text-align:center;">
                         No hay registros disponibles.
                     </td>
                 </tr>

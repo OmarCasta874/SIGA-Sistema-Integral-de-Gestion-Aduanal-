@@ -37,6 +37,7 @@ urlpatterns = [
     path('api/inspeccion/<int:pk>/incidencias/', views.api_inspeccion_incidencias, name='api_inspeccion_incidencias'),
     path('api/incidencia/<int:pk>/sancion/', views.api_incidencia_sancion, name='api_incidencia_sancion'),
     path('api/inspeccion/<int:pk>/segunda/', views.api_segunda_inspeccion, name='api_segunda_inspeccion'),
+    path('api/inspeccion/<int:pk>/rechazar-segunda/', views.api_rechazar_segunda, name='api_rechazar_segunda'),
     path('sanciones/', views.sanciones_view, name='sanciones'),
     path('paquetes/', views.paquetes_view, name='paquetes'),
     path('paquetes/<int:pk>/', views.paquete_detalle_view, name='paquete_detalle'),

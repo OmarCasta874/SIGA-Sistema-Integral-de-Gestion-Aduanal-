@@ -194,6 +194,29 @@ class SemaforoFiscalSerializer(serializers.ModelSerializer):
         fields = ['ID', 'hora', 'resultado']
 
 
+class SemaforoFiscalDetalleSerializer(serializers.ModelSerializer):
+    pedimento_num  = serializers.SerializerMethodField()
+    cliente_nombre = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SemaforoFiscal
+        fields = ['ID', 'hora', 'resultado', 'pedimento_num', 'cliente_nombre']
+
+    def get_pedimento_num(self, obj):
+        ped = obj.pedimentos.first()
+        return ped.numero_pedimento if ped else None
+
+    def get_cliente_nombre(self, obj):
+        ped = obj.pedimentos.first()
+        if ped and ped.ope_aduanera_id:
+            try:
+                c = ped.ope_aduanera.cliente
+                return f'{c.nombre} {c.primer_apell or ""}'.strip()
+            except Exception:
+                pass
+        return None
+
+
 class RegimenAduaneroSerializer(serializers.ModelSerializer):
     class Meta:
         model = RegimenAduanero
@@ -444,6 +467,18 @@ class ProductoCreateSerializer(serializers.ModelSerializer):
         fields = ['nombre', 'descripcion', 'peso', 'valor_unitario', 'cantidad', 'paquete']
 
 
+class InspeccionResumenSerializer(serializers.ModelSerializer):
+    """Versión ligera para anidar en PaqueteSerializer (sin queries encadenadas)."""
+    estado_display = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Inspeccion
+        fields = ['numero', 'fecha_inspeccion', 'resultado', 'estado_display']
+
+    def get_estado_display(self, obj):
+        return obj.resultado or 'En revisión'
+
+
 class InspeccionSerializer(serializers.ModelSerializer):
     semaforo_resultado = serializers.SerializerMethodField()
     pedimento_num      = serializers.SerializerMethodField()
@@ -457,7 +492,7 @@ class InspeccionSerializer(serializers.ModelSerializer):
         model = Inspeccion
         fields = [
             'numero', 'fecha_inspeccion', 'hora_inicio', 'semaforo',
-            'semaforo_resultado', 'resultado', 'estado_display',
+            'semaforo_resultado', 'resultado', 'motivo_segunda', 'estado_display',
             'pedimento_num', 'operacion_id', 'cliente_nombre',
             'incidencias', 'tiene_segunda',
         ]
@@ -506,7 +541,7 @@ class PaqueteSerializer(serializers.ModelSerializer):
     peso_disponible = serializers.SerializerMethodField()
     peso_porcentaje = serializers.SerializerMethodField()
     productos = ProductoSerializer(many=True, read_only=True)
-    inspeccion = InspeccionSerializer(read_only=True)
+    inspeccion = InspeccionResumenSerializer(read_only=True)
     tipo_embalaje = TipoEmbalajeSerializer(read_only=True)
 
     class Meta:

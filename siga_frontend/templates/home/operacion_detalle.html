@@ -81,6 +81,11 @@
         .btn-guardar:hover  { background:#1D4ED8; }
         .btn-cancelar:hover { background:#E5E7EB; }
 
+        /* ── Método de pago ── */
+        .metodo-pago-card { display:flex; flex-direction:column; align-items:center; gap:6px; padding:12px 8px; border:2px solid #E5E7EB; border-radius:10px; cursor:pointer; font-size:12px; font-weight:600; color:#6B7280; transition:border-color .15s, color .15s, background .15s; }
+        .metodo-pago-card:hover { border-color:#93C5FD; color:#2563EB; }
+        .metodo-pago-card.activo { border-color:#2563EB; color:#2563EB; background:#EFF6FF; }
+
         /* ── Progress bar ── */
         .progreso-barra   { display:flex; align-items:center; padding:16px 24px; gap:0; }
         .progreso-paso    { display:flex; flex-direction:column; align-items:center; gap:4px; }
@@ -205,11 +210,15 @@
             </span>
         </div>
         {% else %}
-        <div style="margin-bottom:14px;">
+        <div style="margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
             <span style="display:inline-flex;align-items:center;gap:8px;padding:8px 20px;border-radius:20px;font-weight:700;font-size:13px;background:#FEF3C7;color:#92400E;">
                 <i data-lucide="clock" style="width:16px;height:16px;"></i>
-                Pendiente de pago — semáforo sin asignar
+                Pendiente de pago
             </span>
+            <button type="button" class="btn-generar" onclick="reanudarPago()" style="padding:8px 18px;font-size:13px;display:inline-flex;align-items:center;gap:6px;">
+                <i data-lucide="play" style="width:14px;height:14px;"></i>
+                Continuar pago
+            </button>
         </div>
         {% endif %}
 
@@ -743,12 +752,12 @@
                                 </td>
                             </tr>
 
-                            <!-- Bultos y tasas -->
+                            <!-- Paquetes y tasas -->
                             <tr>
                                 <td colspan="4">
-                                    <span class="sat-lbl">MARCAS, NÚMEROS Y TOTAL DE BULTOS</span>
+                                    <span class="sat-lbl">MARCAS, NÚMEROS Y TOTAL DE PAQUETES</span>
                                     <span class="sat-val">
-                                        {{ paquetes|length }} BULTO{% if paquetes|length != 1 %}S{% endif %}
+                                        {{ paquetes|length }} PAQUETE{% if paquetes|length != 1 %}S{% endif %}
                                         {% for pq in paquetes %}
                                             {% if pq.tipo_embalaje %}
                                                 — {{ pq.tipo_embalaje.nombre }}
@@ -922,6 +931,28 @@
                         </div>
                     </div>
 
+                    <!-- Método de pago -->
+                    <div style="margin-bottom:14px;">
+                        <label style="font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:8px;">Método de pago</label>
+                        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+                            <label class="metodo-pago-card activo" onclick="seleccionarMetodo(this)">
+                                <input type="radio" name="metodo_pago" value="tarjeta" checked style="display:none;">
+                                <i data-lucide="credit-card" style="width:20px;height:20px;"></i>
+                                <span>Tarjeta</span>
+                            </label>
+                            <label class="metodo-pago-card" onclick="seleccionarMetodo(this)">
+                                <input type="radio" name="metodo_pago" value="paypal" style="display:none;">
+                                <i data-lucide="wallet" style="width:20px;height:20px;"></i>
+                                <span>PayPal</span>
+                            </label>
+                            <label class="metodo-pago-card" onclick="seleccionarMetodo(this)">
+                                <input type="radio" name="metodo_pago" value="transferencia" style="display:none;">
+                                <i data-lucide="building-2" style="width:20px;height:20px;"></i>
+                                <span>Transferencia</span>
+                            </label>
+                        </div>
+                    </div>
+
                     <!-- Campos del pago -->
                     <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:6px;">
                         <div class="form-group" style="margin-bottom:0;">
@@ -943,9 +974,12 @@
                     </p>
                     <div id="pago-error" style="color:#DC2626;font-size:13px;margin-top:6px;display:none;"></div>
                 </div>
-                <div class="modal-footer">
+                <div class="modal-footer" style="gap:8px;">
+                    <button type="button" class="btn-cancelar" onclick="pagarDespues()" style="flex:1;justify-content:center;">
+                        Pagar después
+                    </button>
                     <button type="button" id="btn-registrar-pago" class="btn-guardar" onclick="pedRegistrarPago()"
-                            style="background:#16A34A;width:100%;justify-content:center;font-size:15px;padding:12px;">
+                            style="background:#16A34A;flex:2;justify-content:center;font-size:15px;padding:12px;">
                         <i data-lucide="circle-dollar-sign" style="width:18px;height:18px;"></i>
                         Confirmar pago
                     </button>
@@ -1515,6 +1549,43 @@ function desmarcar(idPaso, idLinea, idSiguiente, num) {
     paso.querySelector('.progreso-circulo').textContent = num;
     document.getElementById(idLinea).classList.remove('completa');
     document.getElementById(idSiguiente).classList.remove('activo');
+}
+
+/* ── Reanudar pago (pedimento ya generado, sin pagar) ── */
+function reanudarPago() {
+    const numPed    = '{{ pedimento.numero_pedimento|default:"" }}';
+    const valorBase = {{ valor_estimado|default:0 }};
+    const dta   = (valorBase * 0.008).toFixed(2);
+    const iva   = (valorBase * 0.16).toFixed(2);
+    const igi   = {{ igi_total|default:0 }};
+    const total = (valorBase + parseFloat(dta) + parseFloat(iva) + igi).toFixed(2);
+
+    document.getElementById('pago-num-pedimento').textContent = numPed;
+    document.getElementById('pago-concepto').value = `Pago de pedimento ${numPed}`;
+    setText('pago-dta-display',   `$${dta}`);
+    setText('pago-iva-display',   `$${iva}`);
+    setText('pago-total-display', `$${total}`);
+    document.getElementById('pago-monto').value = total;
+
+    ['ped-paso-1','ped-paso-2','ped-paso-4'].forEach(id => {
+        document.getElementById(id).style.display = 'none';
+    });
+    document.getElementById('ped-paso-3').style.display = '';
+    marcarCompleto('ped-prog-1', 'ped-linea-1', 'ped-prog-2');
+    marcarCompleto('ped-prog-2', 'ped-linea-2', 'ped-prog-3');
+    setText('ped-subtitulo', 'Paso 3 de 4 — Registrar pago');
+    abrirModalPedimento();
+    lucide.createIcons();
+}
+
+function pagarDespues() {
+    cerrarModalPedimento();
+}
+
+function seleccionarMetodo(el) {
+    document.querySelectorAll('.metodo-pago-card').forEach(c => c.classList.remove('activo'));
+    el.classList.add('activo');
+    el.querySelector('input[type=radio]').checked = true;
 }
 
 /* ── Cerrar al click fuera ───────────────────────── */

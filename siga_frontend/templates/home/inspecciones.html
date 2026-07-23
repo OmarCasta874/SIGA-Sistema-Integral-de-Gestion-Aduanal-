@@ -160,7 +160,7 @@
                     <td>{{ insp.fecha_inspeccion }}</td>
                     <td>{{ insp.cliente_nombre|default:"—" }}</td>
                     <td>
-                        {% if insp.semaforo_resultado == "Rojo" %}
+                        {% if insp.semaforo_resultado and "Rojo" in insp.semaforo_resultado %}
                             <span class="semaforo-badge semaforo-rojo">🔴 Rojo</span>
                         {% else %}
                             <span class="semaforo-badge semaforo-verde">🟢 Verde</span>
@@ -175,6 +175,8 @@
                             <span class="estado-badge estado-segunda">2ª Solicitada</span>
                         {% elif insp.resultado == "Segunda inspección autorizada" %}
                             <span class="estado-badge estado-autorizada">2ª Autorizada</span>
+                        {% elif not insp.resultado and insp.semaforo_resultado and "Verde" in insp.semaforo_resultado %}
+                            <span class="estado-badge estado-aprobado">Aprobado</span>
                         {% else %}
                             <span class="estado-badge estado-revision">En revisión</span>
                         {% endif %}
@@ -184,12 +186,7 @@
                             onclick="abrirDetalle({{ insp.numero }})">
                             Ver
                         </button>
-                        {% if es_admin and insp.resultado == "Segunda inspección solicitada" %}
-                            <button type="button" class="btn-autorizar"
-                                onclick="autorizarSegunda({{ insp.numero }})">
-                                Autorizar 2ª
-                            </button>
-                        {% endif %}
+                        {# btn autorizar 2ª desactivado por ahora #}
                     </td>
                 </tr>
             {% empty %}
@@ -262,12 +259,20 @@
                 </ul>
                 <div class="campo-formulario" style="margin-top:12px;">
                     <label>Resultado de la inspección</label>
-                    <select id="sel-resultado">
+                    <select id="sel-resultado" onchange="toggleMotivoSegunda(this.value)">
                         <option value="">Seleccionar resultado...</option>
                         <option value="Aprobado">Aprobado</option>
                         <option value="Con incidencias">Con incidencias</option>
-                        <option value="Segunda inspección solicitada">Solicitar segunda inspección</option>
+                        <!-- <option value="Segunda inspección solicitada">Solicitar segunda inspección</option> -->
                     </select>
+                </div>
+                <div id="div-motivo-segunda" style="display:none; margin-top:10px;">
+                    <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:6px;">
+                        Motivo de la segunda inspección <span style="color:#DC2626;">*</span>
+                    </label>
+                    <textarea id="txt-motivo-segunda" rows="3"
+                        placeholder="Describe el motivo por el que se solicita una segunda inspección..."
+                        style="width:100%;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;resize:vertical;box-sizing:border-box;"></textarea>
                 </div>
                 <button type="button" class="btn-guardar" style="margin-top:8px;" onclick="guardarResultado()">
                     Guardar resultado
@@ -277,6 +282,23 @@
             <!-- Estado actual (cuando ya tiene resultado) -->
             <div id="seccion-estado" style="display:none;">
                 <p>Estado: <strong id="det-estado"></strong></p>
+            </div>
+
+            <!-- Sección admin: solicitud de segunda inspección pendiente -->
+            <div id="seccion-segunda-admin" style="display:none; margin-top:14px; padding:14px; background:#FFF7ED; border:1px solid #FED7AA; border-radius:10px;">
+                <h4 style="margin:0 0 6px; font-size:14px; color:#92400E;">Solicitud de segunda inspección</h4>
+                <p style="font-size:12px;color:#6B7280;margin-bottom:8px;">Motivo indicado por el inspector:</p>
+                <p id="det-motivo-segunda" style="font-size:13px;color:#374151;background:#fff;padding:8px 10px;border-radius:6px;border:1px solid #FED7AA;margin-bottom:12px;"></p>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button type="button" class="btn-guardar" style="background:#16A34A;"
+                            onclick="autorizarSegunda(inspeccionActual.numero)">
+                        <i data-lucide="check-circle-2" style="width:14px;height:14px;"></i> Aprobar 2ª revisión
+                    </button>
+                    <button type="button" style="background:#FEE2E2;color:#DC2626;border:1px solid #FECACA;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;"
+                            onclick="rechazarSegunda(inspeccionActual.numero)">
+                        <i data-lucide="x-circle" style="width:14px;height:14px;"></i> Rechazar solicitud
+                    </button>
+                </div>
             </div>
 
             <!-- Incidencias existentes -->
@@ -435,6 +457,16 @@ function abrirDetalle(num) {
     accionesInsp.style.display =
         (ES_INSPECTOR && (resultado === 'Con incidencias' || resultado === 'Segunda inspección autorizada')) ? 'flex' : 'none';
 
+    // sección admin para aprobar/rechazar segunda inspección
+    const secAdmin = document.getElementById('seccion-segunda-admin');
+    if (ES_ADMIN && resultado === 'Segunda inspección solicitada') {
+        secAdmin.style.display = 'block';
+        document.getElementById('det-motivo-segunda').textContent =
+            insp.motivo_segunda || '(Sin motivo especificado)';
+    } else {
+        secAdmin.style.display = 'none';
+    }
+
     document.getElementById('modalDetalle').classList.add('activo');
     lucide.createIcons();
 }
@@ -466,6 +498,13 @@ function renderIncidencias(incidencias) {
     lucide.createIcons();
 }
 
+// ── toggle motivo segunda inspección ──────────────────────────────────
+
+function toggleMotivoSegunda(valor) {
+    document.getElementById('div-motivo-segunda').style.display =
+        valor === 'Segunda inspección solicitada' ? 'block' : 'none';
+}
+
 // ── guardar resultado ─────────────────────────────────────────────────
 
 async function guardarResultado() {
@@ -473,10 +512,17 @@ async function guardarResultado() {
     const resultado = document.getElementById('sel-resultado').value;
     if (!resultado) { showToast('Selecciona un resultado.', 'error'); return; }
 
+    const body = { resultado };
+    if (resultado === 'Segunda inspección solicitada') {
+        const motivo = document.getElementById('txt-motivo-segunda').value.trim();
+        if (!motivo) { showToast('Escribe el motivo de la segunda inspección.', 'error'); return; }
+        body.motivo_segunda = motivo;
+    }
+
     const resp = await fetch(`/api/inspeccion/${inspeccionActual.numero}/resultado/`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
-        body: JSON.stringify({ resultado }),
+        body: JSON.stringify(body),
     });
     const data = await resp.json();
     if (resp.ok) {
@@ -564,6 +610,24 @@ async function guardarSancion() {
         }
     } else {
         showToast(JSON.stringify(data), 'error');
+    }
+}
+
+// ── rechazar segunda inspección (admin) ───────────────────────────────
+
+async function rechazarSegunda(num) {
+    if (!confirm('¿Rechazar la solicitud? La inspección quedará marcada como Aprobada automáticamente.')) return;
+    const resp = await fetch(`/api/inspeccion/${num}/rechazar-segunda/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body: JSON.stringify({}),
+    });
+    const data = await resp.json();
+    if (resp.ok) {
+        showToast('Solicitud rechazada. Inspección aprobada automáticamente.');
+        setTimeout(() => location.reload(), 800);
+    } else {
+        showToast(data.error || 'Error al rechazar.', 'error');
     }
 }
 

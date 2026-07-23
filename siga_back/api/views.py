@@ -35,7 +35,7 @@ from .serializers import (
     PagoSerializer, FacturaSerializer,
     PermisoListSerializer, SancionSerializer,
     PaqueteSerializer, PaqueteCreateSerializer, ProductoCreateSerializer,
-    ProductoCategoriaSerializer, SemaforoFiscalSerializer, InspeccionSerializer,
+    ProductoCategoriaSerializer, SemaforoFiscalSerializer, SemaforoFiscalDetalleSerializer, InspeccionSerializer,
     TipoEmbalajeSerializer, IncidenciaSerializer, SegundaInspeccionSerializer,
 )
 
@@ -45,7 +45,7 @@ from .serializers import (
 def _generar_semaforo():
     resultado = random.choices(
         ['Verde - Desaduanamiento libre', 'Rojo - Reconocimiento aduanero'],
-        weights=[70, 30],
+        weights=[0, 100],
         k=1,
     )[0]
     return SemaforoFiscal.objects.create(hora=datetime.now().time(), resultado=resultado)
@@ -1081,14 +1081,17 @@ class PaqueteViewSet(viewsets.ModelViewSet):
         return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class SemaforoFiscalViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = SemaforoFiscal.objects.all().order_by('-ID')
-    serializer_class = SemaforoFiscalSerializer
+    queryset = SemaforoFiscal.objects.prefetch_related(
+        'pedimentos__ope_aduanera__cliente'
+    ).order_by('-ID')
+    serializer_class = SemaforoFiscalDetalleSerializer
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
 class InspeccionViewSet(viewsets.ModelViewSet):
     queryset = Inspeccion.objects.prefetch_related(
-        'incidencias__sanciones', 'segundas_inspecciones'
+        'incidencias__sanciones', 'segundas_inspecciones',
+        'semaforo__pedimentos__ope_aduanera__cliente',
     ).select_related('semaforo').order_by('-numero')
     serializer_class = InspeccionSerializer
     authentication_classes = [TokenAuthentication]
@@ -1100,8 +1103,25 @@ class InspeccionViewSet(viewsets.ModelViewSet):
         resultado = request.data.get('resultado', '').strip()
         if not resultado:
             return Response({'error': 'El campo resultado es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
+        update_fields = ['resultado']
         inspeccion.resultado = resultado
-        inspeccion.save(update_fields=['resultado'])
+        if resultado == 'Segunda inspección solicitada':
+            motivo = request.data.get('motivo_segunda', '').strip()
+            if not motivo:
+                return Response({'error': 'El motivo de la segunda inspección es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
+            inspeccion.motivo_segunda = motivo
+            update_fields.append('motivo_segunda')
+        inspeccion.save(update_fields=update_fields)
+        return Response(InspeccionSerializer(inspeccion).data)
+
+    @action(detail=True, methods=['post'], url_path='rechazar-segunda')
+    def rechazar_segunda(self, request, pk=None):
+        inspeccion = self.get_object()
+        if inspeccion.resultado != 'Segunda inspección solicitada':
+            return Response({'error': 'La inspección no tiene una solicitud de segunda inspección pendiente.'}, status=status.HTTP_400_BAD_REQUEST)
+        inspeccion.resultado = 'Aprobado'
+        inspeccion.motivo_segunda = None
+        inspeccion.save(update_fields=['resultado', 'motivo_segunda'])
         return Response(InspeccionSerializer(inspeccion).data)
 
     @action(detail=True, methods=['get', 'post'], url_path='incidencias')
@@ -1121,9 +1141,7 @@ class InspeccionViewSet(viewsets.ModelViewSet):
         inspeccion = self.get_object()
         if inspeccion.segundas_inspecciones.exists():
             return Response({'error': 'Ya existe una segunda inspección para esta inspección.'}, status=status.HTTP_400_BAD_REQUEST)
-        id_revision = 1
         segunda = SegundaInspeccion.objects.create(
-            ID_revision=id_revision,
             inspeccion_FK=inspeccion,
             fecha_inspeccion=timezone.localdate(),
             hora_inicio=datetime.now().time(),

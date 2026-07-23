@@ -1012,7 +1012,6 @@ def semaforofiscal_view(request):
 
         for semaforo in semaforos:
             resultado = semaforo["resultado"].lower()
-            
             if resultado.startswith("verde"):
                 semaforo["clase_css"] = "pill-aprobada"
             elif resultado.startswith("amarillo"):
@@ -1024,14 +1023,27 @@ def semaforofiscal_view(request):
     except Exception as e:
         print(f"Error al obtener semáforos: {e}")
         semaforos = []
-        
-    paginador = Paginator(semaforos, 5)
-    context = {
-        "semaforos":        paginador.get_page(request.GET.get('pagina', 1)),
-        "total_semaforos":  len(semaforos),
-    }
 
-    return render(request, 'home/semaforo_fiscal.html', context)
+    total_verde = sum(1 for s in semaforos if s.get('resultado', '').lower().startswith('verde'))
+    total_rojo  = sum(1 for s in semaforos if s.get('resultado', '').lower().startswith('rojo'))
+
+    query = request.GET.get('q', '').lower()
+    if query:
+        semaforos = [
+            s for s in semaforos
+            if query in (s.get('pedimento_num') or '').lower()
+            or query in (s.get('cliente_nombre') or '').lower()
+            or query in str(s.get('ID', '')).lower()
+        ]
+
+    paginador = Paginator(semaforos, 10)
+    return render(request, 'home/semaforo_fiscal.html', {
+        "semaforos":       paginador.get_page(request.GET.get('pagina', 1)),
+        "total_semaforos": len(semaforos),
+        "total_verde":     total_verde,
+        "total_rojo":      total_rojo,
+        "query":           request.GET.get('q', ''),
+    })
 
 @solo_admin
 def sanciones_view(request):
@@ -1175,6 +1187,10 @@ def inspecciones_view(request):
         inspecciones = []
         messages.error(request, 'No fue posible obtener las inspecciones.')
 
+    # Inspector solo ve las inspecciones pendientes (sin resultado aún)
+    if getattr(request.user, 'rol', '') == 'Inspector':
+        inspecciones = [i for i in inspecciones if not i.get('resultado')]
+
     q = request.GET.get('q', '').lower()
     if q:
         inspecciones = [i for i in inspecciones if
@@ -1259,6 +1275,17 @@ def api_segunda_inspeccion(request, pk):
         return JsonResponse({'error': 'Método no permitido'}, status=405)
     try:
         resp = api.post(request, f'/inspecciones/{pk}/segunda-inspeccion/', {})
+        return JsonResponse(resp.json(), status=resp.status_code)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def api_rechazar_segunda(request, pk):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    try:
+        resp = api.post(request, f'/inspecciones/{pk}/rechazar-segunda/', {})
         return JsonResponse(resp.json(), status=resp.status_code)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
