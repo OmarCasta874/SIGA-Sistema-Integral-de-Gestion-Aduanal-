@@ -41,9 +41,18 @@ class UsuarioCreateSerializer(serializers.ModelSerializer):
         fields = ['nombre_pila', 'primer_apell', 'seg_apell', 'correo', 'nombre_usuario', 'password', 'rol']
 
     def create(self, validated_data):
+        from datetime import datetime
         password = validated_data.pop('password')
+        bitacora = Bitacora.objects.create(
+            descripcion=f'Alta de usuario: {validated_data.get("nombre_pila", "")} {validated_data.get("primer_apell", "")}',
+            fecha=timezone.localdate(),
+            hora=datetime.now().time(),
+            modulo='Usuarios',
+            tipo_accion='Creación',
+        )
         usuario = Usuario(**validated_data)
         usuario.fecha_alta = timezone.localdate()
+        usuario.bitacora = bitacora.numero
         usuario.set_password(password)
         usuario.save()
         return usuario
