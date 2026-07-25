@@ -1049,23 +1049,66 @@ def semaforofiscal_view(request):
 def sanciones_view(request):
     query = request.GET.get('q', '')
     try:
-        resp      = api.get(request, '/sanciones/')
-        sanciones = api.safe_json(resp, []) if resp.status_code == 200 else []
+        resp        = api.get(request, '/incidencias/')
+        incidencias = api.safe_json(resp, []) if resp.status_code == 200 else []
     except Exception:
-        sanciones = []
+        incidencias = []
         messages.error(request, 'No fue posible obtener las sanciones.')
 
-    if query:
-        q         = query.lower()
-        sanciones = [s for s in sanciones if q in s.get('fundamento_legal', '').lower()]
+    # Solo incidencias que tienen al menos una sanción
+    incidencias = [i for i in incidencias if i.get('sanciones')]
 
-    paginador          = Paginator(sanciones, 5)
-    sanciones_paginadas = paginador.get_page(request.GET.get('pagina', 1))
+    if query:
+        q           = query.lower()
+        incidencias = [
+            i for i in incidencias
+            if q in i.get('cliente_nombre', '').lower()
+            or q in i.get('cliente_rfc', '').lower()
+            or q in i.get('gravedad', '').lower()
+            or any(q in s.get('fundamento_legal', '').lower() for s in i.get('sanciones', []))
+        ]
+
+    total     = len(incidencias)
+    pagadas   = sum(1 for i in incidencias if i.get('pagada'))
+    pendientes = total - pagadas
+
+    paginador           = Paginator(incidencias, 5)
+    incidencias_paginadas = paginador.get_page(request.GET.get('pagina', 1))
 
     return render(request, 'home/sanciones.html', {
-        'sanciones': sanciones_paginadas,
-        'query':     query,
+        'incidencias':  incidencias_paginadas,
+        'query':        query,
+        'stat_total':   total,
+        'stat_pagadas': pagadas,
+        'stat_pendientes': pendientes,
     })
+
+@solo_admin
+def sancion_detalle_view(request, pk):
+    try:
+        resp       = api.get(request, f'/incidencias/{pk}/')
+        incidencia = api.safe_json(resp, {}) if resp.status_code == 200 else {}
+    except Exception:
+        incidencia = {}
+        messages.error(request, 'No fue posible obtener la sanción.')
+    return render(request, 'home/sancion_detalle.html', {'incidencia': incidencia})
+
+
+def multa_pagar_view(request, pk):
+    from django.http import JsonResponse
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido.'}, status=405)
+
+    resp = api.post(request, f'/incidencias/{pk}/multa_pagar/', {
+        'monto':   request.POST.get('monto'),
+        'concepto': request.POST.get('concepto') or f'Pago de multa — Incidencia #{pk}',
+    })
+
+    if resp.status_code == 201:
+        return JsonResponse(resp.json(), status=201)
+    error = api.safe_json(resp).get('error', resp.text)
+    return JsonResponse({'error': error}, status=resp.status_code)
+
 
 @solo_admin
 def paquetes_view(request):
@@ -1187,9 +1230,15 @@ def inspecciones_view(request):
         inspecciones = []
         messages.error(request, 'No fue posible obtener las inspecciones.')
 
-    # Inspector solo ve las inspecciones pendientes (sin resultado aún)
-    if getattr(request.user, 'rol', '') == 'Inspector':
-        inspecciones = [i for i in inspecciones if not i.get('resultado')]
+    es_inspector = getattr(request.user, 'rol', '') == 'Inspector'
+    es_admin     = not es_inspector
+
+    if es_inspector:
+        inspecciones = [i for i in inspecciones if i.get('estado', 'En revisión') == 'En revisión']
+
+    estado_filtro = request.GET.get('estado', '')
+    if estado_filtro and es_admin:
+        inspecciones = [i for i in inspecciones if i.get('estado') == estado_filtro]
 
     q = request.GET.get('q', '').lower()
     if q:
@@ -1198,30 +1247,182 @@ def inspecciones_view(request):
                         q in (i.get('pedimento_num') or '').lower() or
                         q in (i.get('cliente_nombre') or '').lower()]
 
-    total           = len(inspecciones)
-    en_revision     = sum(1 for i in inspecciones if not i.get('resultado'))
-    con_incidencias = sum(1 for i in inspecciones if i.get('resultado') == 'Con incidencias')
-    segunda_sol     = sum(1 for i in inspecciones if i.get('resultado') == 'Segunda inspección solicitada')
+    total          = len(inspecciones)
+    en_revision    = sum(1 for i in inspecciones if i.get('estado') == 'En revisión')
+    en_despacho    = sum(1 for i in inspecciones if i.get('estado') == 'En despacho')
+    con_incidencias = sum(1 for i in inspecciones if i.get('estado') == 'Con incidencias')
+    finalizada     = sum(1 for i in inspecciones if i.get('estado') == 'Finalizada')
 
-    import json as _json
     paginador = Paginator(inspecciones, 10)
     page      = paginador.get_page(request.GET.get('pagina', 1))
-    return render(
-        request,
-        'home/inspecciones.html',
-        {
-            "inspecciones":       page,
-            "inspecciones_json":  _json.dumps(list(page.object_list)),
-            "total_inspecciones": total,
-            "en_revision":        en_revision,
-            "con_incidencias":    con_incidencias,
-            "segunda_sol":        segunda_sol,
-            "query":              request.GET.get('q', ''),
-            "rol":                request.user.rol,
-            "es_inspector":       request.user.rol == 'Inspector',
-            "es_admin":           request.user.rol == 'Administrador',
-        }
+    return render(request, 'home/inspecciones.html', {
+        "inspecciones":       page,
+        "total_inspecciones": total,
+        "en_revision":        en_revision,
+        "en_despacho":        en_despacho,
+        "con_incidencias":    con_incidencias,
+        "finalizada":         finalizada,
+        "query":              request.GET.get('q', ''),
+        "estado_filtro":      estado_filtro,
+        "es_inspector":       es_inspector,
+        "es_admin":           es_admin,
+    })
+
+
+def _get_inspeccion_contexto(request, pk):
+    """Helper: obtiene inspección + pedimento + paquetes + pago desde la API."""
+    insp_resp = api.get(request, f'/inspecciones/{pk}/')
+    if insp_resp.status_code != 200:
+        return None, None
+    insp = api.safe_json(insp_resp, {})
+
+    pedimento, paquetes, pago = {}, [], {}
+    operacion_id  = insp.get('operacion_id')
+    pedimento_num = insp.get('pedimento_num')
+
+    if operacion_id:
+        try:
+            ped_resp = api.get(request, f'/operaciones/{operacion_id}/pedimento/')
+            if ped_resp.status_code == 200:
+                pedimento = api.safe_json(ped_resp, {}) or {}
+        except Exception:
+            pass
+
+    if operacion_id:
+        try:
+            pq_resp = api.get(request, f'/paquetes/?operacion={operacion_id}')
+            if pq_resp.status_code == 200:
+                paquetes = api.safe_json(pq_resp, [])
+        except Exception:
+            pass
+
+    if pedimento_num:
+        try:
+            pagos_resp = api.get(request, f'/pagos/?pedimento={pedimento_num}')
+            if pagos_resp.status_code == 200:
+                todos = api.safe_json(pagos_resp, [])
+                pago = todos[0] if todos else {}
+        except Exception:
+            pass
+
+    return insp, {'pedimento': pedimento, 'paquetes': paquetes, 'pago': pago}
+
+
+def _calcular_totales_pedimento(pedimento, paquetes):
+    """Calcula DTA, IVA, IGI y peso bruto para el pedimento SAT completo."""
+    valor_total = float(pedimento.get('valor_total') or 0)
+    dta   = round(valor_total * 0.008, 2)
+    iva   = round(valor_total * 0.16,  2)
+    igi   = sum(
+        float(p.get('igi_importe') or 0)
+        for pq in paquetes
+        for p in (pq.get('productos') or [])
     )
+    gran_total = round(dta + iva + igi, 2)
+    peso_bruto = sum(float(pq.get('peso') or 0) for pq in paquetes)
+    return {
+        'ped_dta':        f'{dta:.2f}',
+        'ped_iva':        f'{iva:.2f}',
+        'ped_igi':        f'{igi:.2f}',
+        'ped_gran_total': f'{gran_total:.2f}',
+        'ped_peso_bruto': f'{peso_bruto:.2f}',
+    }
+
+
+@login_required
+def inspeccion_revisar_view(request, pk):
+    """Vista exclusiva inspector: split-screen checklist + pedimento/paquete/pago."""
+    if getattr(request.user, 'rol', '') != 'Inspector':
+        return redirect('home:inspecciones')
+
+    insp, datos = _get_inspeccion_contexto(request, pk)
+    if insp is None:
+        messages.error(request, 'Inspección no encontrada.')
+        return redirect('home:inspecciones')
+
+    if insp.get('estado', 'En revisión') != 'En revisión':
+        messages.warning(request, 'Esta inspección ya fue procesada.')
+        return redirect('home:inspecciones')
+
+    import json as _json
+    paquetes = datos['paquetes']
+    paquete  = paquetes[0] if paquetes else {}
+    totales  = _calcular_totales_pedimento(datos['pedimento'], paquetes)
+
+    return render(request, 'home/inspeccion_revisar.html', {
+        "insp":        insp,
+        "pedimento":   datos['pedimento'],
+        "paquetes":    paquetes,
+        "paquete":     paquete,
+        "pago":        datos['pago'],
+        "paquete_json": _json.dumps(paquete),
+        "es_inspector": True,
+        **totales,
+    })
+
+
+@login_required
+def inspeccion_incidencia_view(request, pk):
+    """Vista inspector: formulario de incidencia con marcas rojas en vista aérea."""
+    if getattr(request.user, 'rol', '') != 'Inspector':
+        return redirect('home:inspecciones')
+
+    insp, datos = _get_inspeccion_contexto(request, pk)
+    if insp is None:
+        messages.error(request, 'Inspección no encontrada.')
+        return redirect('home:inspecciones')
+
+    import json as _json
+    paquetes = datos['paquetes']
+    paquete  = paquetes[0] if paquetes else {}
+    totales  = _calcular_totales_pedimento(datos['pedimento'], paquetes)
+
+    return render(request, 'home/inspeccion_incidencia.html', {
+        "insp":         insp,
+        "pedimento":    datos['pedimento'],
+        "paquetes":     paquetes,
+        "paquete":      paquete,
+        "pago":         datos['pago'],
+        "paquete_json": _json.dumps(paquete),
+        "es_inspector": True,
+        **totales,
+    })
+
+
+@login_required
+def inspeccion_admin_detalle_view(request, pk):
+    """Vista admin: detalle readonly + botón enviar a 2ª inspección."""
+    if getattr(request.user, 'rol', '') != 'Administrador':
+        return redirect('home:inspecciones')
+
+    insp, datos = _get_inspeccion_contexto(request, pk)
+    if insp is None:
+        messages.error(request, 'Inspección no encontrada.')
+        return redirect('home:inspecciones')
+
+    import json as _json
+    checklist = {}
+    if insp.get('checklist_data'):
+        try:
+            checklist = _json.loads(insp['checklist_data'])
+        except Exception:
+            pass
+
+    paquetes = datos['paquetes']
+    paquete  = paquetes[0] if paquetes else {}
+    totales  = _calcular_totales_pedimento(datos['pedimento'], paquetes)
+
+    return render(request, 'home/inspeccion_admin_detalle.html', {
+        "insp":         insp,
+        "pedimento":    datos['pedimento'],
+        "paquetes":     paquetes,
+        "paquete":      paquete,
+        "pago":         datos['pago'],
+        "paquete_json": _json.dumps(paquete),
+        "checklist":    checklist,
+        "es_admin":     True,
+        **totales,
+    })
 
 
 @login_required
@@ -1232,6 +1433,19 @@ def api_inspeccion_resultado(request, pk):
     try:
         body = json.loads(request.body)
         resp = api.patch(request, f'/inspecciones/{pk}/resultado/', body)
+        return JsonResponse(resp.json(), status=resp.status_code)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def api_inspeccion_checklist(request, pk):
+    import json
+    if request.method != 'PATCH':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    try:
+        body = json.loads(request.body)
+        resp = api.patch(request, f'/inspecciones/{pk}/checklist/', body)
         return JsonResponse(resp.json(), status=resp.status_code)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
@@ -1270,22 +1484,11 @@ def api_incidencia_sancion(request, pk):
 
 
 @login_required
-def api_segunda_inspeccion(request, pk):
+def api_enviar_segunda(request, pk):
     if request.method != 'POST':
         return JsonResponse({'error': 'Método no permitido'}, status=405)
     try:
-        resp = api.post(request, f'/inspecciones/{pk}/segunda-inspeccion/', {})
-        return JsonResponse(resp.json(), status=resp.status_code)
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
-
-
-@login_required
-def api_rechazar_segunda(request, pk):
-    if request.method != 'POST':
-        return JsonResponse({'error': 'Método no permitido'}, status=405)
-    try:
-        resp = api.post(request, f'/inspecciones/{pk}/rechazar-segunda/', {})
+        resp = api.post(request, f'/inspecciones/{pk}/enviar-segunda/', {})
         return JsonResponse(resp.json(), status=resp.status_code)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)

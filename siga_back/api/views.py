@@ -1097,32 +1097,50 @@ class InspeccionViewSet(viewsets.ModelViewSet):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
+    def _check_despacho_timer(self):
+        """Finaliza inspecciones en despacho con ≥2 días automáticamente."""
+        from datetime import timedelta
+        limite = timezone.localdate() - timedelta(days=2)
+        Inspeccion.objects.filter(
+            estado='En despacho',
+            fecha_aprobacion__lte=limite,
+        ).update(estado='Finalizada')
+
+    def list(self, request, *args, **kwargs):
+        self._check_despacho_timer()
+        return super().list(request, *args, **kwargs)
+
     @action(detail=True, methods=['patch'], url_path='resultado')
     def actualizar_resultado(self, request, pk=None):
         inspeccion = self.get_object()
         resultado = request.data.get('resultado', '').strip()
         if not resultado:
             return Response({'error': 'El campo resultado es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
+
         update_fields = ['resultado']
         inspeccion.resultado = resultado
-        if resultado == 'Segunda inspección solicitada':
-            motivo = request.data.get('motivo_segunda', '').strip()
-            if not motivo:
-                return Response({'error': 'El motivo de la segunda inspección es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
-            inspeccion.motivo_segunda = motivo
-            update_fields.append('motivo_segunda')
+
+        if resultado == 'Aprobado':
+            inspeccion.estado = 'En despacho'
+            inspeccion.fecha_aprobacion = timezone.localdate()
+            update_fields += ['estado', 'fecha_aprobacion']
+        elif resultado == 'Con incidencias':
+            inspeccion.estado = 'Con incidencias'
+            update_fields.append('estado')
+
         inspeccion.save(update_fields=update_fields)
         return Response(InspeccionSerializer(inspeccion).data)
 
-    @action(detail=True, methods=['post'], url_path='rechazar-segunda')
-    def rechazar_segunda(self, request, pk=None):
+    @action(detail=True, methods=['patch'], url_path='checklist')
+    def guardar_checklist(self, request, pk=None):
+        import json as _json
         inspeccion = self.get_object()
-        if inspeccion.resultado != 'Segunda inspección solicitada':
-            return Response({'error': 'La inspección no tiene una solicitud de segunda inspección pendiente.'}, status=status.HTTP_400_BAD_REQUEST)
-        inspeccion.resultado = 'Aprobado'
-        inspeccion.motivo_segunda = None
-        inspeccion.save(update_fields=['resultado', 'motivo_segunda'])
-        return Response(InspeccionSerializer(inspeccion).data)
+        checklist = request.data.get('checklist_data')
+        if checklist is None:
+            return Response({'error': 'checklist_data es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
+        inspeccion.checklist_data = _json.dumps(checklist)
+        inspeccion.save(update_fields=['checklist_data'])
+        return Response({'ok': True})
 
     @action(detail=True, methods=['get', 'post'], url_path='incidencias')
     def incidencias(self, request, pk=None):
@@ -1136,19 +1154,25 @@ class InspeccionViewSet(viewsets.ModelViewSet):
             return Response(ser.data, status=status.HTTP_201_CREATED)
         return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(detail=True, methods=['post'], url_path='segunda-inspeccion')
-    def segunda_inspeccion(self, request, pk=None):
+    @action(detail=True, methods=['post'], url_path='enviar-segunda')
+    def enviar_segunda(self, request, pk=None):
+        """Admin envía inspección aprobada a segunda revisión."""
         inspeccion = self.get_object()
-        if inspeccion.segundas_inspecciones.exists():
-            return Response({'error': 'Ya existe una segunda inspección para esta inspección.'}, status=status.HTTP_400_BAD_REQUEST)
+        if inspeccion.estado != 'En despacho':
+            return Response(
+                {'error': 'Solo se puede enviar a segunda inspección desde el estado "En despacho".'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         segunda = SegundaInspeccion.objects.create(
             inspeccion_FK=inspeccion,
             fecha_inspeccion=timezone.localdate(),
             hora_inicio=datetime.now().time(),
             resultado=None,
         )
-        inspeccion.resultado = 'Segunda inspección autorizada'
-        inspeccion.save(update_fields=['resultado'])
+        inspeccion.estado   = 'Segunda inspección'
+        inspeccion.resultado = 'Segunda inspección'
+        inspeccion.fecha_aprobacion = None
+        inspeccion.save(update_fields=['estado', 'resultado', 'fecha_aprobacion'])
         return Response(SegundaInspeccionSerializer(segunda).data, status=status.HTTP_201_CREATED)
 
 
@@ -1166,6 +1190,42 @@ class IncidenciaViewSet(viewsets.ModelViewSet):
             ser.save()
             return Response(ser.data, status=status.HTTP_201_CREATED)
         return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post'], url_path='multa_pagar')
+    def multa_pagar(self, request, pk=None):
+        import uuid as _uuid
+        incidencia = self.get_object()
+
+        if Pago.objects.filter(incidencia=incidencia).exists():
+            return Response({'error': 'Esta multa ya fue pagada.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        monto = request.data.get('monto')
+        concepto = request.data.get('concepto') or f'Pago de multa — Incidencia #{incidencia.codigo}'
+
+        if not monto:
+            return Response({'error': 'El monto es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        estado_pagado = get_object_or_404(EstadoPago, codigo=1)
+        no_transaccion = f'MUL-{_uuid.uuid4().hex[:10].upper()}'
+        num_pago = Pago.objects.count() + 1
+
+        pago = Pago.objects.create(
+            no_transaccion=no_transaccion,
+            numero_pago=num_pago,
+            concepto=concepto,
+            monto=monto,
+            saldo_final=0,
+            fecha_pago=timezone.localdate(),
+            incidencia=incidencia,
+            estado_pago=estado_pagado,
+        )
+
+        return Response({
+            'no_transaccion': pago.no_transaccion,
+            'incidencia_codigo': incidencia.codigo,
+            'monto': float(pago.monto),
+            'fecha_pago': str(pago.fecha_pago),
+        }, status=status.HTTP_201_CREATED)
     
 class PerfilAPIView(APIView):
     authentication_classes = [TokenAuthentication]
@@ -1187,8 +1247,6 @@ class PerfilAPIView(APIView):
                 UsuarioSerializer(request.user).data,
                 status=status.HTTP_200_OK
             )
-        
-        print(serializer.errors)
         
         return Response(
             serializer.errors,

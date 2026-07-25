@@ -133,11 +133,20 @@ class SemaforoFiscal(models.Model):
 # Modelo INSPECCION
 # ──────────────────────────────────────────────────────────────────
 class Inspeccion(models.Model):
+    ESTADO_EN_REVISION  = 'En revisión'
+    ESTADO_EN_DESPACHO  = 'En despacho'
+    ESTADO_FINALIZADA   = 'Finalizada'
+    ESTADO_INCIDENCIAS  = 'Con incidencias'
+    ESTADO_SEGUNDA      = 'Segunda inspección'
+
     numero = models.AutoField(primary_key=True, db_column='numero')
     fecha_inspeccion = models.DateField(db_column='fecha_inspeccion')
     hora_inicio = models.TimeField(db_column='hora_inicio')
     resultado = models.CharField(max_length=100, blank=True, null=True, db_column='resultado')
     motivo_segunda = models.CharField(max_length=500, blank=True, null=True, db_column='motivo_segunda')
+    estado = models.CharField(max_length=50, default='En revisión', db_column='estado')
+    fecha_aprobacion = models.DateField(blank=True, null=True, db_column='fecha_aprobacion')
+    checklist_data = models.TextField(blank=True, null=True, db_column='checklist_data')
     semaforo = models.ForeignKey(
         SemaforoFiscal, on_delete=models.CASCADE,
         db_column='semaforo', related_name='inspecciones'
@@ -469,6 +478,11 @@ class Pago(models.Model):
         'EstadoPago', on_delete=models.PROTECT,
         db_column='estado_pago', related_name='pagos',
     )
+    incidencia = models.ForeignKey(
+        'Incidencia', on_delete=models.SET_NULL,
+        db_column='incidencia', related_name='pagos',
+        null=True, blank=True,
+    )
 
     class Meta:
         managed = False
@@ -795,8 +809,9 @@ class Producto(models.Model):
     valor_unitario = models.DecimalField(max_digits=12, decimal_places=2, db_column='valor_unitario')
     cantidad = models.IntegerField(default=1, db_column='cantidad')
     paquete = models.ForeignKey(
-        Paquete, on_delete=models.CASCADE,
-        db_column='paquete', related_name='productos'
+        Paquete, on_delete=models.SET_NULL,
+        db_column='paquete', related_name='productos',
+        null=True, blank=True
     )
 
     class Meta:

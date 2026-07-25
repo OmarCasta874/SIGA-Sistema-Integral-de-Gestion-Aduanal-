@@ -288,6 +288,11 @@ class PedimentoSerializer(serializers.ModelSerializer):
     operacion_id   = serializers.IntegerField(source='ope_aduanera_id', read_only=True)
     cliente_rfc    = serializers.SerializerMethodField()
     cliente_nombre = serializers.SerializerMethodField()
+    cliente_curp   = serializers.SerializerMethodField()
+    cliente_domicilio = serializers.SerializerMethodField()
+    aduana_codigo  = serializers.SerializerMethodField()
+    aduana_nombre  = serializers.SerializerMethodField()
+    tipo_operacion = serializers.SerializerMethodField()
 
     class Meta:
         model = Pedimento
@@ -295,22 +300,46 @@ class PedimentoSerializer(serializers.ModelSerializer):
             'numero_pedimento', 'clave_pedimento', 'fecha_registro',
             'valor_total', 'semaforo', 'regimen_adu',
             'permiso', 'ope_aduanera', 'operacion_id',
-            'cliente_rfc', 'cliente_nombre',
+            'cliente_rfc', 'cliente_nombre', 'cliente_curp', 'cliente_domicilio',
+            'aduana_codigo', 'aduana_nombre', 'tipo_operacion',
             'tipo_exportacion', 'tipo_importacion',
             'medio_transporte', 'pais_origen_mercancia', 'pais_destino',
             'incoterm', 'tipo_cambio',
         ]
 
+    def _op(self, obj):
+        return obj.ope_aduanera if obj.ope_aduanera_id else None
+
     def get_cliente_rfc(self, obj):
-        op = obj.ope_aduanera
+        op = self._op(obj)
         return op.cliente.RFC if op and op.cliente_id else '—'
 
     def get_cliente_nombre(self, obj):
-        op = obj.ope_aduanera
+        op = self._op(obj)
         if not op or not op.cliente_id:
             return '—'
         c = op.cliente
-        return f'{c.nombre} {c.primer_apell or ""}'.strip()
+        return f'{c.nombre} {c.primer_apell or ""} {c.seg_apell or ""}'.strip()
+
+    def get_cliente_curp(self, obj):
+        op = self._op(obj)
+        return (op.cliente.curp or '—') if op and op.cliente_id else '—'
+
+    def get_cliente_domicilio(self, obj):
+        op = self._op(obj)
+        return (op.cliente.domicilio or '—') if op and op.cliente_id else '—'
+
+    def get_aduana_codigo(self, obj):
+        op = self._op(obj)
+        return str(op.aduana.codigo) if op and op.aduana_id else '—'
+
+    def get_aduana_nombre(self, obj):
+        op = self._op(obj)
+        return op.aduana.nombre if op and op.aduana_id else '—'
+
+    def get_tipo_operacion(self, obj):
+        op = self._op(obj)
+        return op.tipo_operacion if op else '—'
 
 
 def _calcular_paso(obj):
@@ -434,11 +463,52 @@ class SancionSerializer(serializers.ModelSerializer):
 
 
 class IncidenciaSerializer(serializers.ModelSerializer):
-    sanciones = SancionSerializer(many=True, read_only=True)
+    sanciones      = SancionSerializer(many=True, read_only=True)
+    total_multa    = serializers.SerializerMethodField()
+    pagada         = serializers.SerializerMethodField()
+    cliente_nombre = serializers.SerializerMethodField()
+    cliente_rfc    = serializers.SerializerMethodField()
+    operacion_id   = serializers.SerializerMethodField()
 
     class Meta:
         model = Incidencia
-        fields = ['codigo', 'gravedad', 'descripcion', 'inspeccion', 'sanciones']
+        fields = [
+            'codigo', 'gravedad', 'descripcion', 'inspeccion',
+            'sanciones', 'total_multa', 'pagada',
+            'cliente_nombre', 'cliente_rfc', 'operacion_id',
+        ]
+
+    def _pedimento(self, obj):
+        try:
+            return obj.inspeccion.semaforo.pedimentos.first()
+        except Exception:
+            return None
+
+    def get_total_multa(self, obj):
+        return sum(float(s.monto_multa or 0) for s in obj.sanciones.all())
+
+    def get_pagada(self, obj):
+        return obj.pagos.exists()
+
+    def get_cliente_nombre(self, obj):
+        ped = self._pedimento(obj)
+        if not ped or not ped.ope_aduanera_id:
+            return '—'
+        c = ped.ope_aduanera.cliente
+        if not c:
+            return '—'
+        return f'{c.nombre} {c.primer_apell or ""} {c.seg_apell or ""}'.strip()
+
+    def get_cliente_rfc(self, obj):
+        ped = self._pedimento(obj)
+        if not ped or not ped.ope_aduanera_id:
+            return '—'
+        c = ped.ope_aduanera.cliente
+        return c.RFC if c else '—'
+
+    def get_operacion_id(self, obj):
+        ped = self._pedimento(obj)
+        return ped.ope_aduanera_id if ped else None
 
 
 class SegundaInspeccionSerializer(serializers.ModelSerializer):
@@ -483,37 +553,50 @@ class InspeccionSerializer(serializers.ModelSerializer):
     semaforo_resultado = serializers.SerializerMethodField()
     pedimento_num      = serializers.SerializerMethodField()
     operacion_id       = serializers.SerializerMethodField()
+    cliente_id         = serializers.SerializerMethodField()
     cliente_nombre     = serializers.SerializerMethodField()
     incidencias        = serializers.SerializerMethodField()
     tiene_segunda      = serializers.SerializerMethodField()
-    estado_display     = serializers.SerializerMethodField()
+    dias_en_despacho   = serializers.SerializerMethodField()
 
     class Meta:
         model = Inspeccion
         fields = [
             'numero', 'fecha_inspeccion', 'hora_inicio', 'semaforo',
-            'semaforo_resultado', 'resultado', 'motivo_segunda', 'estado_display',
-            'pedimento_num', 'operacion_id', 'cliente_nombre',
-            'incidencias', 'tiene_segunda',
+            'semaforo_resultado', 'resultado', 'motivo_segunda',
+            'estado', 'fecha_aprobacion', 'checklist_data',
+            'pedimento_num', 'operacion_id', 'cliente_id', 'cliente_nombre',
+            'incidencias', 'tiene_segunda', 'dias_en_despacho',
         ]
+
+    def _get_pedimento(self, obj):
+        return obj.semaforo.pedimentos.first() if obj.semaforo_id else None
 
     def get_semaforo_resultado(self, obj):
         return obj.semaforo.resultado if obj.semaforo_id else None
 
     def get_pedimento_num(self, obj):
-        ped = obj.semaforo.pedimentos.first() if obj.semaforo_id else None
+        ped = self._get_pedimento(obj)
         return ped.numero_pedimento if ped else None
 
     def get_operacion_id(self, obj):
-        ped = obj.semaforo.pedimentos.first() if obj.semaforo_id else None
+        ped = self._get_pedimento(obj)
         return ped.ope_aduanera_id if ped else None
 
-    def get_cliente_nombre(self, obj):
-        ped = obj.semaforo.pedimentos.first() if obj.semaforo_id else None
+    def get_cliente_id(self, obj):
+        ped = self._get_pedimento(obj)
         if ped and ped.ope_aduanera_id:
             try:
-                op = ped.ope_aduanera
-                c  = op.cliente
+                return ped.ope_aduanera.cliente_id
+            except Exception:
+                pass
+        return None
+
+    def get_cliente_nombre(self, obj):
+        ped = self._get_pedimento(obj)
+        if ped and ped.ope_aduanera_id:
+            try:
+                c = ped.ope_aduanera.cliente
                 return f'{c.nombre} {c.primer_apell or ""}'.strip()
             except Exception:
                 pass
@@ -525,11 +608,12 @@ class InspeccionSerializer(serializers.ModelSerializer):
     def get_tiene_segunda(self, obj):
         return obj.segundas_inspecciones.exists()
 
-    def get_estado_display(self, obj):
-        r = obj.resultado or ''
-        if not r:
-            return 'En revisión'
-        return r
+    def get_dias_en_despacho(self, obj):
+        if obj.estado == 'En despacho' and obj.fecha_aprobacion:
+            from django.utils import timezone
+            delta = timezone.localdate() - obj.fecha_aprobacion
+            return delta.days
+        return None
 
 
 class PaqueteSerializer(serializers.ModelSerializer):

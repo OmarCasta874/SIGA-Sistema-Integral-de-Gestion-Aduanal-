@@ -1,0 +1,547 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Revisión #{{ insp.numero }} — SIGA</title>
+    <link rel="icon" type="image/x-icon" href="{% static 'home/img/siga_logo.png' %}">
+    <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'home/css/inspecciones.css' %}">
+    <link rel="stylesheet" href="{% static 'home/css/inspeccion_revisar.css' %}">
+    <link rel="stylesheet" href="{% static 'home/css/toasts.css' %}">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script defer src="{% static 'home/js/sidebar.js' %}"></script>
+    <script defer src="{% static 'home/js/toasts.js' %}"></script>
+</head>
+<body>
+<aside class="sidebar">
+    <div class="sidebar-logo">
+        <img src="{% static 'home/img/siga_logo_light.png' %}" alt="SIGA">
+        <button class="sidebar-toggle" title="Colapsar menú"><i data-lucide="panel-left"></i></button>
+    </div>
+    <nav>
+        <p class="nav-section-label">Fiscalización</p>
+        <a href="{% url 'home:inspecciones' %}" class="nav-item active" title="Mis Inspecciones">
+            <i data-lucide="search" class="nav-icon"></i> <span class="nav-label">Mis Inspecciones</span>
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <button type="button" class="btn-sidebar btn-sidebar-salir" onclick="mostrarModalLogout()" title="Salir">
+            <i data-lucide="log-out" class="nav-icon"></i> <span class="nav-label">Salir</span>
+        </button>
+    </div>
+</aside>
+
+<main class="main">
+    <div class="rev-header">
+        <a href="{% url 'home:inspecciones' %}" class="btn-back">
+            <i data-lucide="arrow-left"></i> Volver
+        </a>
+        <div>
+            <h1>Inspección #{{ insp.numero }}</h1>
+            <div class="rev-meta">
+                <span><strong>Pedimento:</strong> {{ insp.pedimento_num|default:"—" }}</span>
+                <span><strong>Cliente:</strong> {{ insp.cliente_nombre|default:"—" }}</span>
+                <span><strong>Fecha:</strong> {{ insp.fecha_inspeccion }}</span>
+                <span><strong>Semáforo:</strong>
+                    {% if insp.semaforo_resultado and "Rojo" in insp.semaforo_resultado %}
+                        🔴 Rojo
+                    {% else %}
+                        🟢 Verde
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="rev-split">
+        <!-- ══ IZQUIERDA: CHECKLIST ══ -->
+        <div class="rev-left">
+            <h2><i data-lucide="clipboard-check" style="width:16px;height:16px;"></i> Checklist de inspección</h2>
+
+            <div id="checklistItems">
+                <p class="checklist-seccion">Pedimento</p>
+                <ul class="checklist-items">
+                    <li data-key="pedimento"><input type="checkbox" id="ck0"><label for="ck0">Pedimento presentado y vigente</label></li>
+                    <li data-key="rfc"><input type="checkbox" id="ck1"><label for="ck1">RFC e identificación del importador/exportador</label></li>
+                    <li data-key="valor"><input type="checkbox" id="ck2"><label for="ck2">Valor declarado coincide con factura</label></li>
+                    <li data-key="codigos"><input type="checkbox" id="ck3"><label for="ck3">Códigos arancelarios (HS) correctos</label></li>
+                </ul>
+
+                <p class="checklist-seccion">Paquete / Mercancía</p>
+                <ul class="checklist-items">
+                    <li data-key="peso"><input type="checkbox" id="ck4"><label for="ck4">Peso y dimensiones declaradas correctas</label></li>
+                    <li data-key="etiquetado"><input type="checkbox" id="ck5"><label for="ck5">Etiquetado y marcado correcto</label></li>
+                    <li data-key="embalaje"><input type="checkbox" id="ck6"><label for="ck6">Embalaje en buen estado</label></li>
+                    <li data-key="serie"><input type="checkbox" id="ck7"><label for="ck7">Número de serie registrado (si aplica)</label></li>
+                    <li data-key="fisica"><input type="checkbox" id="ck8"><label for="ck8">Verificación física de mercancía conforme</label></li>
+                </ul>
+
+                <p class="checklist-seccion">Pago</p>
+                <ul class="checklist-items">
+                    <li data-key="pago_completo"><input type="checkbox" id="ck9"><label for="ck9">Pago de contribuciones completo</label></li>
+                    <li data-key="comprobante"><input type="checkbox" id="ck10"><label for="ck10">Comprobante de pago presentado</label></li>
+                    <li data-key="monto_pago"><input type="checkbox" id="ck11"><label for="ck11">Monto pagado coincide con pedimento</label></li>
+                </ul>
+            </div>
+
+            <div class="rev-actions">
+                <button class="btn-aprobar" id="btnAprobar" onclick="enviarResultado('Aprobado')" disabled title="Completa todos los ítems del checklist para aprobar">
+                    <i data-lucide="check-circle"></i> Aprobado
+                </button>
+                <button class="btn-incidencia" onclick="irAIncidencia()">
+                    <i data-lucide="alert-triangle"></i> Con incidencias
+                </button>
+            </div>
+        </div>
+
+        <!-- ══ DERECHA: TABS ══ -->
+        <div class="rev-right">
+            <div class="rev-tabs">
+                <button class="rev-tab active" onclick="switchTab('pedimento', this)">
+                    <i data-lucide="file-text"></i> Pedimento
+                </button>
+                <button class="rev-tab" onclick="switchTab('paquete', this)">
+                    <i data-lucide="package"></i> Paquete
+                </button>
+                <button class="rev-tab" onclick="switchTab('pago', this)">
+                    <i data-lucide="credit-card"></i> Pago
+                </button>
+            </div>
+
+            <div class="rev-tab-content">
+                <!-- PEDIMENTO — formato SAT oficial completo -->
+                <div class="tab-panel active" id="tab-pedimento">
+                    {% if pedimento %}
+                    <div class="sat-wrap">
+                        <table class="sat-table">
+                            <tr class="sat-title-row">
+                                <td colspan="6">P &nbsp; E &nbsp; D &nbsp; I &nbsp; M &nbsp; E &nbsp; N &nbsp; T &nbsp; O</td>
+                                <td colspan="2" style="text-align:right;font-size:9px;font-weight:normal;letter-spacing:0;font-family:Arial,sans-serif;">
+                                    <div>Página 1 de 1</div>
+                                    <div style="font-weight:700;">CERTIFICACIONES</div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td colspan="3">
+                                    <span class="sat-lbl">NUM. PEDIMENTO</span>
+                                    <span class="sat-val mono">{{ pedimento.numero_pedimento|default:"—" }}</span>
+                                </td>
+                                <td colspan="3">
+                                    <span class="sat-lbl">T. OPER &nbsp;&nbsp;&nbsp; CVE. PEDIMENTO</span>
+                                    <span class="sat-val">{% if pedimento.tipo_operacion == "Importación" %}IMP{% elif pedimento.tipo_operacion == "Exportación" %}EXP{% else %}—{% endif %} &nbsp;&nbsp;&nbsp;&nbsp; {{ pedimento.clave_pedimento|default:"—" }}</span>
+                                </td>
+                                <td colspan="2">
+                                    <span class="sat-lbl">RÉGIMEN</span>
+                                    <span class="sat-val">{{ pedimento.regimen_adu.clave_oficial|default:"—" }}{% if pedimento.regimen_adu.descripcion %} — {{ pedimento.regimen_adu.descripcion }}{% endif %}</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td colspan="2">
+                                    <span class="sat-lbl">DESTINO</span>
+                                    <span class="sat-val">{{ pedimento.pais_destino|default:"—" }}</span>
+                                </td>
+                                <td colspan="2">
+                                    <span class="sat-lbl">TIPO CAMBIO</span>
+                                    <span class="sat-val">{% if pedimento.tipo_cambio %}$ {{ pedimento.tipo_cambio }}{% else %}—{% endif %}</span>
+                                </td>
+                                <td colspan="2">
+                                    <span class="sat-lbl">PESO BRUTO</span>
+                                    <span class="sat-val">{{ ped_peso_bruto }} KG</span>
+                                </td>
+                                <td colspan="2">
+                                    <span class="sat-lbl">ADUANA E/S</span>
+                                    <span class="sat-val">{{ pedimento.aduana_codigo|default:"—" }} — {{ pedimento.aduana_nombre|default:"—" }}</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td colspan="2">
+                                    <span class="sat-lbl">MEDIO DE TRANSPORTE</span>
+                                    <span class="sat-val">{{ pedimento.medio_transporte|default:"—" }}</span>
+                                </td>
+                                <td colspan="3">
+                                    <span class="sat-lbl">VALOR ADUANA</span>
+                                    <span class="sat-val">$ {{ pedimento.valor_total|default:"0"|floatformat:2 }}</span>
+                                </td>
+                                <td colspan="3">
+                                    <span class="sat-lbl">PRECIO PAGADO / VALOR COMERCIAL</span>
+                                    <span class="sat-val">$ {{ pedimento.valor_total|default:"0"|floatformat:2 }}</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td colspan="8" class="sat-section-hdr">DATOS DEL {% if pedimento.tipo_operacion == "Importación" %}IMPORTADOR{% else %}EXPORTADOR{% endif %}</td>
+                            </tr>
+                            <tr>
+                                <td colspan="2">
+                                    <span class="sat-lbl">RFC</span>
+                                    <span class="sat-val mono">{{ pedimento.cliente_rfc|default:"—" }}</span>
+                                </td>
+                                <td colspan="6">
+                                    <span class="sat-lbl">NOMBRE, DENOMINACION O RAZON SOCIAL</span>
+                                    <span class="sat-val">{{ pedimento.cliente_nombre|default:"—" }}</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td colspan="8">
+                                    <span class="sat-lbl">CURP</span>
+                                    <span class="sat-val">{{ pedimento.cliente_curp|default:"—" }}</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td colspan="8">
+                                    <span class="sat-lbl">DOMICILIO FISCAL</span>
+                                    <span class="sat-val">{{ pedimento.cliente_domicilio|default:"—" }}</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td colspan="4">
+                                    <span class="sat-lbl">INCOTERM</span>
+                                    <span class="sat-val">{{ pedimento.incoterm|default:"—" }}</span>
+                                </td>
+                                <td colspan="4">
+                                    <span class="sat-lbl">TIPO DE CAMBIO</span>
+                                    <span class="sat-val">{% if pedimento.tipo_cambio %}$ {{ pedimento.tipo_cambio }}{% else %}—{% endif %}</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td colspan="2">
+                                    <span class="sat-lbl">ACEPTACIÓN</span>
+                                    <span class="sat-val mono">{{ pedimento.fecha_registro|default:"—" }}</span>
+                                </td>
+                                <td colspan="4">
+                                    <span class="sat-lbl">NÚMERO DE PEDIMENTO</span>
+                                    <span class="sat-val mono" style="font-size:13px;letter-spacing:2px;">{{ pedimento.numero_pedimento|default:"—" }}</span>
+                                </td>
+                                <td colspan="2">
+                                    <span class="sat-lbl">CLAVE SECCIÓN ADUANERA</span>
+                                    <span class="sat-val">{{ pedimento.aduana_codigo|default:"—" }}</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td colspan="4">
+                                    <span class="sat-lbl">MARCAS, NÚMEROS Y TOTAL DE BULTOS</span>
+                                    <span class="sat-val">{{ paquetes|length }} BULTO{% if paquetes|length != 1 %}S{% endif %}{% for pq in paquetes %}{% if pq.tipo_embalaje %} — {{ pq.tipo_embalaje.nombre }}{% endif %}{% endfor %}</span>
+                                </td>
+                                <td colspan="4">
+                                    <span class="sat-lbl">TASAS A NIVEL PEDIMENTO</span>
+                                    <table class="sat-sub" style="margin-top:4px;">
+                                        <tr><th>CONTRIB</th><th>CVE. T. TASA</th><th>TASA</th></tr>
+                                        <tr><td>IGI</td><td>AD</td><td>AD VALOREM</td></tr>
+                                        <tr><td>DTA</td><td>AD</td><td>0.8%</td></tr>
+                                        <tr><td>IVA</td><td>IVA</td><td>16%</td></tr>
+                                    </table>
+                                </td>
+                            </tr>
+                            <tr><td colspan="8" class="sat-section-hdr">DESCRIPCIÓN DE MERCANCÍAS</td></tr>
+                            <tr>
+                                <td colspan="8" style="padding:4px 6px;">
+                                    <table class="sat-sub" style="width:100%;">
+                                        <tr>
+                                            <th>DESCRIPCIÓN</th><th>CANT.</th><th>PESO (KG)</th><th>VALOR UNIT.</th><th>IGI EST.</th>
+                                        </tr>
+                                        {% for pq in paquetes %}
+                                            {% for prod in pq.productos %}
+                                            <tr>
+                                                <td>{{ prod.nombre }}{% if prod.descripcion %} — {{ prod.descripcion }}{% endif %}</td>
+                                                <td>{{ prod.cantidad }}</td>
+                                                <td>{{ prod.peso }}</td>
+                                                <td>${{ prod.valor_unitario }}</td>
+                                                <td>${{ prod.igi_importe|default:"0.00" }}</td>
+                                            </tr>
+                                            {% empty %}
+                                            <tr><td colspan="5" style="color:#9CA3AF;">Sin productos registrados</td></tr>
+                                            {% endfor %}
+                                        {% empty %}
+                                        <tr><td colspan="5" style="color:#9CA3AF;">Sin paquetes registrados</td></tr>
+                                        {% endfor %}
+                                    </table>
+                                </td>
+                            </tr>
+                            <tr><td colspan="8" class="sat-section-hdr">CUADRO DE LIQUIDACION</td></tr>
+                            <tr>
+                                <td colspan="4">
+                                    <table class="sat-sub" style="width:100%;">
+                                        <tr><th>CONCEPTO</th><th>F.P.</th><th>IMPORTE</th></tr>
+                                        <tr><td>DTA</td><td>1</td><td>$ {{ ped_dta }}</td></tr>
+                                        <tr><td>IGI</td><td>1</td><td>$ {{ ped_igi }}</td></tr>
+                                        <tr><td>IVA</td><td>1</td><td>$ {{ ped_iva }}</td></tr>
+                                    </table>
+                                </td>
+                                <td colspan="4">
+                                    <span class="sat-lbl">TOTALES</span>
+                                    <table class="sat-sub" style="margin-top:4px;width:100%;">
+                                        <tr><th>EFECTIVO</th><td>$ {{ ped_gran_total }}</td></tr>
+                                        <tr><th>OTROS</th><td>—</td></tr>
+                                        <tr><th style="font-weight:800;">TOTAL</th><td>$ {{ ped_gran_total }}</td></tr>
+                                    </table>
+                                </td>
+                            </tr>
+                            <tr><td colspan="8" class="sat-section-hdr">PERMISOS REGULATORIOS</td></tr>
+                            <tr>
+                                <td colspan="8">
+                                    <span class="sat-lbl">PERMISO DEL CLIENTE</span>
+                                    <span class="sat-val">{{ pedimento.permiso|default:"—" }}</span>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p style="color:#9CA3AF;font-size:14px;text-align:center;padding:40px;">Sin pedimento disponible.</p>
+                    {% endif %}
+                </div>
+
+                <!-- PAQUETE vista aérea -->
+                <div class="tab-panel" id="tab-paquete">
+                    <div class="aerial-wrapper" id="aerialWrapper">
+                        <!-- renderizado por JS -->
+                    </div>
+                </div>
+
+                <!-- PAGO — estilo recibo oficial -->
+                <div class="tab-panel" id="tab-pago">
+                    {% if pago %}
+                    <div style="padding:4px;">
+                        <div style="background:linear-gradient(135deg,#1e3a5f 0%,#2563EB 100%);border-radius:10px;padding:18px 20px;color:#fff;margin-bottom:14px;">
+                            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+                                <div style="width:36px;height:36px;background:rgba(255,255,255,.15);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                    <i data-lucide="receipt" style="width:18px;height:18px;"></i>
+                                </div>
+                                <div>
+                                    <div style="font-size:10px;opacity:.75;text-transform:uppercase;letter-spacing:.5px;">Pedimento pagado</div>
+                                    <div style="font-size:14px;font-weight:700;font-family:monospace;letter-spacing:1px;">{{ insp.pedimento_num|default:"—" }}</div>
+                                </div>
+                            </div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;border-top:1px solid rgba(255,255,255,.2);padding-top:12px;">
+                                <div>
+                                    <div style="font-size:10px;opacity:.65;margin-bottom:2px;">CLIENTE</div>
+                                    <div style="font-size:12px;font-weight:600;">{{ pago.cliente_nombre|default:"—" }}</div>
+                                </div>
+                                <div>
+                                    <div style="font-size:10px;opacity:.65;margin-bottom:2px;">FECHA DE PAGO</div>
+                                    <div style="font-size:12px;font-weight:600;">{{ pago.fecha_pago|default:"—" }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="border:1px solid #E5E7EB;border-radius:10px;overflow:hidden;margin-bottom:12px;">
+                            <div style="background:#F9FAFB;padding:8px 14px;font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #E5E7EB;">
+                                Desglose del pago
+                            </div>
+                            <div style="padding:0 14px;">
+                                <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #F3F4F6;font-size:13px;">
+                                    <span style="color:#374151;">Concepto</span>
+                                    <span style="font-weight:600;">{{ pago.concepto|default:"—" }}</span>
+                                </div>
+                                <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #F3F4F6;font-size:13px;">
+                                    <span style="color:#374151;">No. Transacción</span>
+                                    <span style="font-weight:600;font-family:monospace;">{{ pago.no_transaccion|default:"—" }}</span>
+                                </div>
+                                <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #F3F4F6;font-size:13px;">
+                                    <span style="color:#374151;">No. Pago</span>
+                                    <span style="font-weight:600;">{{ pago.numero_pago|default:"—" }}</span>
+                                </div>
+                                <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #F3F4F6;font-size:13px;">
+                                    <span style="color:#374151;">Estado</span>
+                                    <span style="font-weight:600;color:#16A34A;">{{ pago.estado|default:"—" }}</span>
+                                </div>
+                                <div style="display:flex;justify-content:space-between;padding:11px 0;font-size:16px;font-weight:700;color:#111827;">
+                                    <span>Total pagado</span>
+                                    <span style="color:#2563EB;">${{ pago.monto|default:"0"|floatformat:2 }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <p style="text-align:center;color:#9CA3AF;font-size:14px;padding:40px;">
+                        <i data-lucide="clock" style="width:22px;height:22px;display:block;margin:0 auto 8px;"></i>
+                        Sin pago registrado para este pedimento.
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- Logout modal reutilizado -->
+<div class="modal-overlay" id="modalLogout" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:14px;padding:28px 32px;max-width:380px;text-align:center;">
+        <h3 style="margin:0 0 10px;font-size:17px;color:#111827;">¿Cerrar sesión?</h3>
+        <p style="font-size:14px;color:#6B7280;margin:0 0 20px;">Serás redirigido al inicio de sesión.</p>
+        <div style="display:flex;gap:10px;justify-content:center;">
+            <button onclick="document.getElementById('modalLogout').style.display='none'" style="padding:9px 18px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;cursor:pointer;">Cancelar</button>
+            <a href="{% url 'home:logout' %}" style="padding:9px 18px;background:#DC2626;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">Salir</a>
+        </div>
+    </div>
+</div>
+
+<script>
+const INSP_PK   = {{ insp.numero }};
+const PAQUETE   = {{ paquete_json|safe }};
+const CSRF      = '{{ csrf_token }}';
+const URL_LISTA = "{% url 'home:inspecciones' %}";
+const URL_INC   = "{% url 'home:inspeccion_incidencia' insp.numero %}";
+
+// ── checklist state ──────────────────────────────────────────
+const checkItems  = document.querySelectorAll('#checklistItems li');
+const btnAprobar  = document.getElementById('btnAprobar');
+
+function actualizarBtnAprobar() {
+    const total    = checkItems.length;
+    const marcados = [...checkItems].filter(li => li.querySelector('input').checked).length;
+    btnAprobar.disabled = marcados < total;
+    btnAprobar.title = marcados < total
+        ? `Faltan ${total - marcados} ítem(s) por verificar`
+        : 'Aprobar inspección';
+}
+
+checkItems.forEach(li => {
+    const cb = li.querySelector('input[type="checkbox"]');
+    cb.addEventListener('change', () => {
+        li.classList.toggle('checked', cb.checked);
+        actualizarBtnAprobar();
+    });
+});
+
+actualizarBtnAprobar();
+
+function getChecklistData() {
+    const data = {};
+    checkItems.forEach(li => {
+        data[li.dataset.key] = li.querySelector('input').checked;
+    });
+    return data;
+}
+
+// ── tabs ─────────────────────────────────────────────────────
+function switchTab(name, btn) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.rev-tab').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    btn.classList.add('active');
+    if (name === 'paquete') renderAerial();
+}
+
+// ── acciones ─────────────────────────────────────────────────
+async function guardarChecklist() {
+    const resp = await fetch(`/api/inspeccion/${INSP_PK}/checklist/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+        body: JSON.stringify({ checklist_data: getChecklistData() }),
+    });
+    return resp.ok;
+}
+
+async function enviarResultado(resultado) {
+    await guardarChecklist();
+    const resp = await fetch(`/api/inspeccion/${INSP_PK}/resultado/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+        body: JSON.stringify({ resultado }),
+    });
+    const data = await resp.json();
+    if (resp.ok) {
+        showToast('Inspección aprobada. Entrará en despacho por 2 días.');
+        setTimeout(() => window.location.href = URL_LISTA, 1200);
+    } else {
+        showToast(data.error || 'Error al guardar.', 'error');
+    }
+}
+
+async function irAIncidencia() {
+    await guardarChecklist();
+    window.location.href = URL_INC;
+}
+
+// ── vista aérea ──────────────────────────────────────────────
+const BG_COLORS = ['#4F46E5','#7C3AED','#DB2777','#D97706','#059669','#0891B2','#DC2626','#0284C7','#7C2D12','#166534'];
+
+function _productoIcon(nombre) {
+    const n = nombre.toLowerCase();
+    if (n.includes('electr') || n.includes('comput') || n.includes('telef') || n.includes('celul')) return '💻';
+    if (n.includes('ropa') || n.includes('zapato') || n.includes('tela') || n.includes('calzado')) return '👕';
+    if (n.includes('aliment') || n.includes('comida') || n.includes('bebida') || n.includes('fruta')) return '🍎';
+    if (n.includes('medic') || n.includes('farmac') || n.includes('vitam')) return '💊';
+    if (n.includes('auto') || n.includes('vehic') || n.includes('refacc')) return '🚗';
+    if (n.includes('juguete') || n.includes('juego')) return '🎮';
+    if (n.includes('libro') || n.includes('papel') || n.includes('document')) return '📄';
+    if (n.includes('herram') || n.includes('maquina') || n.includes('equipo')) return '🔧';
+    if (n.includes('cosmet') || n.includes('perfum') || n.includes('belleza')) return '💄';
+    return '📦';
+}
+
+function renderAerial(marcasRojas = {}) {
+    const wrapper = document.getElementById('aerialWrapper');
+    if (!wrapper) return;
+
+    const embalaje = (PAQUETE.tipo_embalaje?.nombre || 'Caja').toLowerCase();
+    const productos = PAQUETE.productos || [];
+
+    let containerClass = 'aerial-caja';
+    let label = 'CAJA';
+    if (embalaje.includes('sobre'))       { containerClass = 'aerial-sobre'; label = 'SOBRE'; }
+    else if (embalaje.includes('paleta')) { containerClass = 'aerial-paleta'; label = 'PALETA'; }
+    else if (embalaje.includes('tambor')) { containerClass = 'aerial-tambor-outer'; label = 'TAMBOR'; }
+    else if (embalaje.includes('conten')) { containerClass = 'aerial-contenedor'; label = 'CONTENEDOR'; }
+
+    const hayContainerError = marcasRojas.peso || marcasRojas.embalaje;
+    const hayProductoError  = marcasRojas.permiso || marcasRojas.valor || marcasRojas.serie;
+    const hayDocError       = marcasRojas.pago || marcasRojas.rfc || marcasRojas.documentacion;
+
+    let prodsHtml = productos.map((p, i) => {
+        const bg = BG_COLORS[i % BG_COLORS.length];
+        const icon = _productoIcon(p.nombre);
+        const desc = p.descripcion ? `<p class="aerial-product-desc">${p.descripcion}</p>` : '';
+        return `
+        <div class="aerial-product" style="border-left:4px solid ${bg};">
+            <div class="aerial-product-icon" style="background:${bg};">${icon}</div>
+            <div class="aerial-product-body">
+                <p class="aerial-product-name">${p.nombre}</p>
+                ${desc}
+                <div class="aerial-product-meta">
+                    <span>×${p.cantidad}</span>
+                    <span>${p.peso} kg</span>
+                    <span>$${parseFloat(p.valor_unitario).toFixed(2)}</span>
+                </div>
+            </div>
+            <span class="red-dot ${hayProductoError ? 'visible' : ''}"></span>
+        </div>`;
+    }).join('');
+
+    if (!prodsHtml) prodsHtml = `<p style="color:rgba(255,255,255,.6);font-size:12px;text-align:center;padding:10px 0;">Sin productos registrados</p>`;
+
+    const innerHtml = `<div class="aerial-products">${prodsHtml}</div>`;
+
+    let containerHtml = '';
+    if (embalaje.includes('tambor')) {
+        containerHtml = `
+        <div class="aerial-tambor-outer ${hayContainerError ? 'aerial-container-error' : ''}">
+            <div class="aerial-tambor-inner">${innerHtml}</div>
+        </div>`;
+    } else {
+        containerHtml = `
+        <div class="${containerClass} ${hayContainerError ? 'aerial-container-error' : ''}">
+            ${innerHtml}
+        </div>`;
+    }
+
+    wrapper.innerHTML = `
+        <p class="aerial-label-title">Vista aérea del paquete</p>
+        ${hayDocError ? `<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:7px 14px;font-size:12.5px;color:#DC2626;font-weight:600;display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;"><span style="animation:pulse-red 1s infinite;display:inline-block;width:10px;height:10px;border-radius:50%;background:#DC2626;flex-shrink:0;"></span>⚠ Incidencia documental detectada</div>` : ''}
+        ${containerHtml}
+        <span class="aerial-embalaje-badge">${label} — Código #${PAQUETE.codigo || '?'} — ${PAQUETE.peso || 0} kg</span>
+    `;
+}
+
+// logout
+function mostrarModalLogout() {
+    document.getElementById('modalLogout').style.display = 'flex';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    lucide.createIcons();
+    renderAerial();
+});
+</script>
+</body>
+</html>
