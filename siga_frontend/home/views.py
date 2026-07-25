@@ -215,10 +215,29 @@ def clientes_view(request):
 
     paginador          = Paginator(clientes, 5)
     clientes_paginados = paginador.get_page(request.GET.get('pagina', 1))
+    
+    clientes_activos = sum(1 for c in clientes if c.get('activo'))
+    clientes_inactivos = sum(1 for c in clientes if not c.get('activo'))
+    
+    personas_fisicas = sum(
+        1 for c in clientes
+        if (c.get('tipo_persona') or '').strip().lower() == 'física'
+    )
+    
+    personas_morales = sum(
+        1 for c in clientes
+        if (c.get('tipo_persona') or '').strip().lower() == 'moral'
+    )
 
     return render(request, 'home/clientes.html', {
         'clientes':       clientes_paginados,
         'total_clientes': len(clientes),
+        
+        'clientes_activos': clientes_activos,
+        'clientes_inactivos': clientes_inactivos,
+        'personas_fisicas': personas_fisicas,
+        'personas_morales': personas_morales,
+        
         'form':           form,
         'query':          query,
         'hoy':            timezone.localdate(),
@@ -312,10 +331,27 @@ def operaciones_view(request):
         aduanas = api.safe_json(api.get(request, '/aduanas/'), [])
     except Exception:
         aduanas = []
+        
+    total_operaciones = len(ops_raw)
+    importaciones = sum(
+        1 for o in ops_raw
+        if (o.get('tipo_operacion') or '').strip().lower() == 'importación'
+    )
+    exportaciones = sum(
+        1 for o in ops_raw
+        if (o.get('tipo_operacion') or '').strip().lower() == 'exportación'
+    )
+    operaciones_finalizadas = sum(
+        1 for o in ops_raw
+        if o.get('fecha_final')
+    )
 
     return render(request, 'home/operaciones.html', {
         'operaciones':       paginador.get_page(request.GET.get('pagina', 1)),
-        'total_operaciones': len(ops_raw),
+        'total_operaciones': total_operaciones,
+        'importaciones':     importaciones,
+        'exportaciones':     exportaciones,
+        'operaciones_finalizadas': operaciones_finalizadas,
         'query':             query,
         'clientes':          clientes,
         'aduanas':           aduanas,
@@ -721,10 +757,27 @@ def categorias_view(request):
 
     paginador          = Paginator(categorias, 5)
     categorias_paginadas = paginador.get_page(request.GET.get('pagina', 1))
+    
+    total_categorias = len(categorias)
+    categorias_con_permiso = sum(
+        1 for c in categorias
+        if (c.get('tipo_permiso_requerido') or '').strip()
+    )
+    categorias_con_fraccion = sum(
+        1 for c in categorias
+        if (c.get('fraccion_arancelaria') or '').strip()
+    )
+    categorias_con_igi = sum(
+        1 for c in categorias
+        if float(c.get('IGI') or 0) > 0
+    )
 
     return render(request, 'home/categorias.html', {
         'categorias':       categorias_paginadas,
-        'total_categorias': paginador.count,
+        'total_categorias': total_categorias,
+        'categorias_con_permiso': categorias_con_permiso,
+        'categorias_con_fraccion': categorias_con_fraccion,
+        'categorias_con_igi': categorias_con_igi,
         'query':            query,
     })
 
@@ -744,11 +797,37 @@ def bitacora_view(request):
     if query:
         q        = query.lower()
         entradas = [e for e in entradas if q in e.get('descripcion', '').lower()]
+        
+    hoy = timezone.localdate().isoformat()
+    total_registros = len(entradas)
+    registros_hoy = sum(
+        1 for e in entradas
+        if e.get('fecha') == hoy
+    )
+    ultimo_registro = '-'
+    ultima_hora = '-'
+    
+    if entradas:
+        entradas_ordenadas = sorted(
+            entradas,
+            key=lambda e: (
+                e.get('fecha', ''),
+                e.get('hora', '')
+            ),
+            reverse=True
+        )
+        ultimo_registro = entradas_ordenadas[0].get('fecha', '-')
+        ultima_hora = entradas_ordenadas[0].get('hora', '-')
 
     paginador = Paginator(entradas, 5)
     return render(request, 'home/bitacora.html', {
         'entradas': paginador.get_page(request.GET.get('pagina', 1)),
         'query':    query,
+        
+        'total_registros': total_registros,
+        'registros_hoy': registros_hoy,
+        'ultimo_registro': ultimo_registro,
+        'ultima_hora': ultima_hora,
     })
 
 

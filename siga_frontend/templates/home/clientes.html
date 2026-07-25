@@ -105,20 +105,26 @@
         <div class="clientes-card">
             <div class="clientes-card-label">Clientes activos</div>
             <div class="clientes-card-number clientes-num-azul">
-                {{ total_clientes }}
+                {{ clientes_activos }}
             </div>
         </div>
         <div class="clientes-card">
-            <div class="clientes-card-label">Operaciones este mes</div>
-            <div class="clientes-card-number clientes-num-verde">1,284</div>
+            <div class="clientes-card-label">Personas físicas</div>
+            <div class="clientes-card-number clientes-num-verde">
+                {{ personas_fisicas }}
+            </div>
         </div>
         <div class="clientes-card">
-            <div class="clientes-card-label">Clientes pendientes</div>
-            <div class="clientes-card-number clientes-num-naranja">12</div>
+            <div class="clientes-card-label">Personas morales</div>
+            <div class="clientes-card-number clientes-num-naranja">
+                {{ personas_morales }}
+            </div>
         </div>
         <div class="clientes-card">
-            <div class="clientes-card-label">Clientes bloqueados</div>
-            <div class="clientes-card-number clientes-num-rojo">3</div>
+            <div class="clientes-card-label">Clientes inactivos</div>
+            <div class="clientes-card-number clientes-num-rojo">
+                {{ clientes_inactivos }}
+            </div>
         </div>
     </div>
 
