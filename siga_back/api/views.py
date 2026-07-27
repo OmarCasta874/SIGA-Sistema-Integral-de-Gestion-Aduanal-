@@ -318,6 +318,22 @@ class AduanaViewSet(viewsets.ModelViewSet):
     serializer_class = AduanaSerializer
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
+    
+    @action(detail=True, methods=["patch"])
+    def cambiar_estado(self, request, pk=None):
+        aduana = self.get_object()
+        if aduana.estado == "Activa":
+            aduana.estado = "Inactiva"
+        else:
+            aduana.estado = "Activa"
+            
+        aduana.save()
+        
+        return Response({
+            "success": True,
+            "estado": aduana.estado,
+            "mensaje": f"La aduana ahora está {aduana.estado}."
+        }, status=status.HTTP_200_OK)
 
 
 # ── Operaciones ────────────────────────────────────────────────────────────────

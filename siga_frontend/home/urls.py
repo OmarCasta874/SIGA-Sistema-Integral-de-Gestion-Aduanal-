@@ -20,6 +20,7 @@ urlpatterns = [
     path('aduanas/', views.aduanas_view, name='aduanas'),
     path('aduanas/<int:codigo>/detalle/', views.detalle_aduana, name="detalle_aduana"),
     path('aduanas/<int:codigo>/editar/', views.editar_aduana, name='editar_aduana'),
+    path('aduanas/<int:codigo>/cambiar-estado/', views.cambiar_estado_aduana, name='cambiar_estado_aduana'),
     path('categorias/', views.categorias_view, name='categorias'),
     path('bitacora/', views.bitacora_view, name='bitacora'),
     path('api/operacion/', views.api_datos_operacion,  name='api_operacion'),

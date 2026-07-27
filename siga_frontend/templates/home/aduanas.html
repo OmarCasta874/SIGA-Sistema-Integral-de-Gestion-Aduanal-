@@ -107,8 +107,12 @@
             <h2 class="num-azul">{{ total_aduanas }}</h2>
         </div>
         <div class="card-aduana">
-            <p>Registros disponibles</p>
-            <h2 class="num-verde">{{ total_aduanas }}</h2>
+            <p>Aduanas activas</p>
+            <h2 class="num-verde">{{ total_activas }}</h2>
+        </div>
+        <div class="card-aduana">
+            <p>Aduanas inactivas</p>
+            <h2 class="num-rojo">{{ total_inactivas }}</h2>
         </div>
     </div>
 
@@ -155,7 +159,17 @@
                     <td>{{ aduana.nombre }}</td>
                     <td>{{ aduana.codigo }}</td>
                     <td>{{ aduana.ciudad }}</td>
-                    <td><span class="estado estado-activa">Activa</span></td>
+                    <td>
+                        {% if aduana.estado == "Activa" %}
+                            <span class="estado estado-activa">
+                                {{ aduana.estado }}
+                            </span>
+                        {% else %}
+                            <span class="estado estado-inactiva">
+                                {{ aduana.estado }}
+                            </span>
+                        {% endif %}
+                    </td>
                     <td class="acciones">
                         <button type="button" class="btn-ver" onclick="abrirModalDetalle('{{ aduana.codigo }}')">
                              Ver
@@ -163,6 +177,15 @@
                         <button type="button" class="btn-editar" onclick="abrirModalEditar('{{ aduana.codigo }}')">
                             Editar
                         </button>
+                        {% if aduana.estado == "Activa" %}
+                        <button type="button" class="btn-desactivar" onclick="abrirModalEstado('{{ aduana.codigo }}','Desactivar')">
+                            Desactivar
+                        </button>
+                        {% else %}
+                        <button type="button" class="btn-activar" onclick="abrirModalEstado('{{ aduana.codigo }}','Activar')">
+                            Activar
+                        </button>
+                        {% endif %}
                     </td>
                 </tr>
                 {% empty %}
@@ -202,7 +225,7 @@
         </div>
     </section>
 </main>
-<!-- Modales Nueva Aduana, Ver y Editar-->
+<!-- Modales Nueva Aduana, Ver, Editar y Desactivar -->
 <div class="modal-overlay" id="modalNuevaAduana">
     <div class="modal-box">
         <h2>Nueva Aduana</h2>
@@ -266,6 +289,23 @@
                 <button type="submit" class="btn-guardar">Guardar cambios</button>
             </div>
         </form>
+    </div>
+</div>
+<div class="modal-overlay" id="modalEstadoAduana">
+    <div class="modal-box">
+        <h2 id="tituloEstadoAduana">Cambiar Estado</h2>
+        <p id="textoEstadoAduana">
+            ¿Deseas desactivar esta aduana?
+        </p>
+        <input type="hidden" id="codigoEstadoAduana">
+        <div class="modal-botones">
+            <button type="button" class="btn-cancelar" onclick="cerrarModalEstado()">
+                Cancelar
+            </button>
+            <button type="button" class="btn-guardar" onclick="cambiarEstadoAduana()">
+                Confirmar
+            </button>
+        </div>
     </div>
 </div>
 {% include "components/toasts.html" %}
@@ -355,6 +395,54 @@
         })
         .catch(error => console.error(error));
     });
+
+    function abrirModalEstado(codigo, accion) {
+        document.getElementById("codigoEstadoAduana").value = codigo;
+        document.getElementById("textoEstadoAduana").textContent =
+            `¿Deseas ${accion.toLowerCase()} esta aduana?`;
+
+        document.getElementById("tituloEstadoAduana").textContent = 
+            accion + " Aduana";
+
+        document.getElementById("modalEstadoAduana").classList.add("activo");
+    }
+
+    function cerrarModalEstado() {
+        document.getElementById("modalEstadoAduana").classList.remove("activo");
+    }
+
+    function cambiarEstadoAduana() {
+        const codigo = document.getElementById("codigoEstadoAduana").value;
+
+        fetch(`/aduanas/${codigo}/cambiar-estado/`,{
+            method:"POST",
+            headers:{
+                "X-CSRFToken":
+                    document.querySelector(
+                        "[name=csrfmiddlewaretoken]"
+                    ).value
+            }
+        })
+        .then(response => response.json())
+        .then(data=>{
+            if (data.success) {
+                cerrarModalEstado();
+                mostrarToastSuccess(data.mensaje);
+                setTimeout(()=> {
+                    location.reload();
+                }, 1000);
+            } else {
+                mostrarToastError(
+                    data.error || "Ocurrió un error."
+                );
+            }
+        })
+        .catch(() => {
+            mostrarToastError(
+                "No fue posible conectar con la API."
+            );
+        });
+    }
 </script>
 </body>
 </html>

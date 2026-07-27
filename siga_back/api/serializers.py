@@ -79,7 +79,7 @@ class UsuarioUpdateSerializer(serializers.ModelSerializer):
 class AduanaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Aduana
-        fields = ['codigo', 'ciudad', 'nombre']
+        fields = ['codigo', 'ciudad', 'nombre', "estado"]
         read_only_fields = ['codigo']
 
 

@@ -681,6 +681,15 @@ def aduanas_view(request):
     except Exception:
         aduanas = []
         messages.error(request, 'No fue posible conectar con la API.')
+        
+    total_activas = sum(
+        1 for a in aduanas
+        if a.get("estado") == "Activa"
+    )
+    total_inactivas = sum(
+        1 for a in aduanas
+        if a.get("estado") == "Inactiva"
+    )
 
     if query:
         q       = query.lower()
@@ -692,6 +701,8 @@ def aduanas_view(request):
     return render(request, 'home/aduanas.html', {
         'aduanas':       aduanas_paginadas,
         'total_aduanas': paginador.count,
+        'total_activas': total_activas,
+        'total_inactivas': total_inactivas,
         'query':         query,
     })
 
@@ -738,6 +749,34 @@ def editar_aduana(request, codigo):
             {"error": "No fue posible conectar con la API. "},
             status=500
         )
+        
+@solo_admin
+def cambiar_estado_aduana(request, codigo):
+    if request.method != "POST":
+        return JsonResponse({
+            "success": False,
+            "error": "Método no permitido."
+        }, status=405)
+        
+    try:
+        response = api.patch(request, f"/aduanas/{codigo}/cambiar_estado/")
+        if response.status_code == 200:
+            return JsonResponse(response.json())
+        try:
+            error = response.json()
+        except Exception:
+            error = response.text
+        
+        return JsonResponse({
+            "success": False,
+            "error": error
+        }, status=response.status_code)
+        
+    except Exception:
+        return JsonResponse({
+            "success": False,
+            "error": "No fue posible conectar con la API."
+        }, status=500)
 
 # ── Categorías ─────────────────────────────────────────────────────────────────
 

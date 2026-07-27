@@ -248,6 +248,15 @@ class Aduana(models.Model):
     codigo = models.AutoField(primary_key=True, db_column='codigo')
     ciudad = models.CharField(max_length=60, db_column='ciudad')
     nombre = models.CharField(max_length=100, db_column='nombre')
+    estado = models.CharField(
+        max_length=20,
+        choices=[
+            ("Activa", "Activa"),
+            ("Inactiva", "Inactiva"),
+        ],
+        default="Activa",
+        db_column="estado"
+    )
 
     class Meta:
         managed = False
