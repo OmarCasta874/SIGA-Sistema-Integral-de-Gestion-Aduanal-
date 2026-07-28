@@ -426,15 +426,9 @@
         .then(response => response.json())
         .then(data=>{
             if (data.success) {
-                cerrarModalEstado();
-                mostrarToastSuccess(data.mensaje);
-                setTimeout(()=> {
-                    location.reload();
-                }, 1000);
+                window.location.reload();
             } else {
-                mostrarToastError(
-                    data.error || "Ocurrió un error."
-                );
+                alert(data.error);
             }
         })
         .catch(() => {
