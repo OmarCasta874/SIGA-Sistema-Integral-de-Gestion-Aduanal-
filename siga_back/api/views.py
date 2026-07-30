@@ -1075,7 +1075,9 @@ class PaqueteViewSet(viewsets.ModelViewSet):
                 total=Sum(ExpressionWrapper(F('peso') * F('cantidad'), output_field=Df(max_digits=12, decimal_places=2)))
             )['total'] or 0
             peso_max = float(paquete.tipo_embalaje.peso_maximo)
-            disponible = round(peso_max - float(ocupado), 2)
+            peso_paquete = float(paquete.peso)
+            disponible = round(peso_max - peso_paquete - float(ocupado), 2)
+            disponible = max(disponible, 0)
             if peso_nuevo > disponible:
                 return Response(
                     {'error': f'Sin espacio: el producto ocupa {peso_nuevo:.2f} kg pero el paquete solo tiene {disponible:.2f} kg disponibles.'},

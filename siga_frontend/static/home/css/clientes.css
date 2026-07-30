@@ -254,6 +254,53 @@
     align-items: center;
 }
 
+.rfc-contenedor {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+}
+
+.rfc-contenedor input {
+    height: 44px;
+    border: 1px solid #D1D5DB;
+    border-radius: 8px;
+    padding: 0 12px;
+    font-size: 14px;
+    font-family: inherit;
+    box-sizing: border-box;
+    transition: 0.2s;
+}
+
+.rfc-contenedor input:focus {
+    outline: none;
+    border-color: #2563EB;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+#rfc_base {
+    flex: 1;
+    background: #F3F4F6;
+    color: #374151;
+    font-weight: 600;
+    cursor: default;
+}
+
+#rfc_homoclave {
+    width: 80px;
+    text-align: center;
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+
+#rfc_base:read-only {
+    background-color: #F9FAFB;
+    color: #6B7280;
+}
+
+#id_RFC {
+    display: none;
+}
 /* SIDEBAR COLAPSADO (modo mini) */
 
 .sidebar {

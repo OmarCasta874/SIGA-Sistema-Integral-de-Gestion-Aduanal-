@@ -288,7 +288,7 @@
             </button>
         </div>
 
-        <form method="post" action="{% url 'home:clientes' %}">
+        <form id="formCliente" method="post" action="{% url 'home:clientes' %}">
             {% csrf_token %}
             <div class="modal-body">
                 <div class="form-group">
@@ -316,8 +316,14 @@
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label>{{ form.RFC.label }}</label>
-                        {{ form.RFC }}
+                        <label>RFC</label>
+                        <div class="rfc-contenedor">
+                            <input type="text" id="rfc_base" class="form-input" maxlength="10" readonly>
+                            <input type="text" id="rfc_homoclave" class="form-input" maxlength="3" placeholder="ABC">
+                        </div>
+                        <div style="display: none;">
+                            {{ form.RFC }}
+                        </div>
                     </div>
                     <div class="form-group" id="grupo-curp">
                         <label>{{ form.curp.label }}</label>
@@ -730,6 +736,8 @@ const campoNombre   = document.getElementById('id_nombre');
 const campoPrimero  = document.getElementById('id_primer_apell');
 const campoSegundo  = document.getElementById('id_seg_apell');
 const campoRFC      = document.getElementById('id_RFC');
+const campoRFCBase  = document.getElementById('rfc_base');
+const campoRFCHomoclave = document.getElementById('rfc_homoclave');
 const filaPrimero   = campoPrimero.closest('.form-group');
 const filaSegundo   = campoSegundo.closest('.form-group');
 const checkSinSeg   = document.getElementById('check-sin-segundo');
@@ -741,6 +749,8 @@ function aplicarTipoPersona() {
         campoPrimero.disabled = false;
         campoSegundo.disabled = checkSinSeg.checked;
         campoRFC.disabled     = false;
+        campoRFC.readOnly     = true;
+        campoCURP.disabled    = false;
         filaPrimero.style.opacity = '1';
         filaSegundo.style.opacity  = checkSinSeg.checked ? '0.4' : '1';
 
@@ -752,11 +762,16 @@ function aplicarTipoPersona() {
         filaPrimero.style.opacity = '0.4';
         filaSegundo.style.opacity  = '0.4';
         campoRFC.disabled     = false;
+        campoRFC.readOnly     = false;
+        campoCURP.value       = "";
+        campoCURP.disabled    = true;
 
     } else {
         campoPrimero.disabled = true;
         campoSegundo.disabled = true;
         campoRFC.disabled     = true;
+        campoRFC.readOnly     = false;
+        campoCURP.disabled    = true;
         campoNombre.disabled  = true;
         filaPrimero.style.opacity = '0.4';
         filaSegundo.style.opacity  = '0.4';
@@ -773,11 +788,23 @@ const campoCURP = document.getElementById('id_curp');
 if (campoCURP) {
     campoCURP.addEventListener('input', function () {
         if (tipoPersona.value !== 'Física') return;
-        const base = this.value.toUpperCase().slice(0, 10);
-        const homoclave = campoRFC.value.slice(10); // preserva lo que el usuario haya escrito en los últimos 3
-        campoRFC.value = base + homoclave;
+        
+        const curp = this.value.toUpperCase().trim();
+
+        this.value = curp;
+
+        if (curp.length !== 18) {
+            campoRFCBase.value = "";
+            return;
+        }
+
+        campoRFCBase.value = curp.substring(0, 10);
     });
 }
+
+campoRFC.addEventListener('input', function () {
+    this.value = this.value.toUpperCase();
+});
 
 tipoPersona.addEventListener('change', aplicarTipoPersona);
 
@@ -788,6 +815,22 @@ checkSinSeg.addEventListener('change', function() {
 });
 
 aplicarTipoPersona();
+
+const form = document.getElementById("formCliente");
+
+form.addEventListener("submit", function (event) {
+    const base = campoRFCBase.value;
+    const homoclave = campoRFCHomoclave.value.toUpperCase();
+
+    if (tipoPersona.value === "Física") {
+        if (homoclave.length !== 3) {
+            alert("Debe ingresar la homoclave del RFC (3 caracteres).");
+            event.preventDefault();
+            return;
+        }
+        campoRFC.value = base + homoclave;
+    }
+});
 
 </script>
 </body>

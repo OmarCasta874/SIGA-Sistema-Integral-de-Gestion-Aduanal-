@@ -130,7 +130,7 @@
                 <tr>
                     <td>{{ factura.codigo }}</td>
                     <td style="font-family:monospace;font-size:11px;">{{ factura.folio_fiscal|truncatechars:20 }}</td>
-                    <td>{{ factura.fecha_factura|date:"d/m/Y" }}</td>
+                    <td>{{ factura.fecha_factura }}</td>
                     <td>${{ factura.total }}</td>
                     <td>{{ factura.operacion_id }}</td>
                     <td>

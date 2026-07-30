@@ -1300,7 +1300,14 @@ def paquete_detalle_view(request, pk):
         if resp.status_code == 201:
             messages.success(request, 'Producto agregado correctamente.')
         else:
-            messages.error(request, 'Error al agregar el producto.')
+            error = api.safe_json(resp, {})
+            mensaje = (
+                error.get('error')
+                or error.get('detail')
+                or 'Error al agregar el producto.'
+            )
+            messages.error(request, mensaje)
+            
         return redirect('home:paquete_detalle', pk=pk)
 
     resp = api.get(request, f'/paquetes/{pk}/')
