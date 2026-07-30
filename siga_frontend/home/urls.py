@@ -47,4 +47,5 @@ urlpatterns = [
     path('sanciones/<int:pk>/pagar/', views.multa_pagar_view, name='multa_pagar'),
     path('paquetes/', views.paquetes_view, name='paquetes'),
     path('paquetes/<int:pk>/', views.paquete_detalle_view, name='paquete_detalle'),
+    path('paquetes/<int:pk>/eliminar/', views.paquete_eliminar_view, name='paquete_eliminar'),
 ]

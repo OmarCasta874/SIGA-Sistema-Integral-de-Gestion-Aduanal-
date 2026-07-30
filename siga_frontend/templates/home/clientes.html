@@ -318,8 +318,8 @@
                     <div class="form-group">
                         <label>RFC</label>
                         <div class="rfc-contenedor">
-                            <input type="text" id="rfc_base" class="form-input" maxlength="10" readonly>
-                            <input type="text" id="rfc_homoclave" class="form-input" maxlength="3" placeholder="ABC">
+                            <input type="text" id="rfc_base" class="form-input" maxlength="10" readonly disabled placeholder="Auto">
+                            <input type="text" id="rfc_homoclave" class="form-input" maxlength="3" readonly disabled placeholder="Auto">
                         </div>
                         <div style="display: none;">
                             {{ form.RFC }}
@@ -746,59 +746,89 @@ function aplicarTipoPersona() {
     const tipo = tipoPersona.value;
 
     if (tipo === 'Física') {
-        campoPrimero.disabled = false;
-        campoSegundo.disabled = checkSinSeg.checked;
-        campoRFC.disabled     = false;
-        campoRFC.readOnly     = true;
-        campoCURP.disabled    = false;
-        filaPrimero.style.opacity = '1';
-        filaSegundo.style.opacity  = checkSinSeg.checked ? '0.4' : '1';
+        campoPrimero.disabled          = false;
+        campoSegundo.disabled          = checkSinSeg.checked;
+        campoRFC.disabled              = false;
+        campoRFC.readOnly              = true;
+        campoCURP.disabled             = false;
+        campoRFCBase.disabled          = false;
+        campoRFCBase.readOnly          = true;
+        campoRFCBase.maxLength         = 10;
+        campoRFCHomoclave.disabled     = false;
+        campoRFCHomoclave.readOnly     = true;
+        campoRFCHomoclave.maxLength    = 3;
+        filaPrimero.style.opacity      = '1';
+        filaSegundo.style.opacity      = checkSinSeg.checked ? '0.4' : '1';
 
     } else if (tipo === 'Moral') {
-        campoPrimero.disabled = true;
-        campoSegundo.disabled = true;
-        campoPrimero.value    = '';
-        campoSegundo.value    = '';
-        filaPrimero.style.opacity = '0.4';
-        filaSegundo.style.opacity  = '0.4';
-        campoRFC.disabled     = false;
-        campoRFC.readOnly     = false;
-        campoCURP.value       = "";
-        campoCURP.disabled    = true;
+        campoPrimero.disabled          = true;
+        campoSegundo.disabled          = true;
+        campoPrimero.value             = '';
+        campoSegundo.value             = '';
+        filaPrimero.style.opacity      = '0.4';
+        filaSegundo.style.opacity      = '0.4';
+        campoRFC.disabled              = false;
+        campoRFC.readOnly              = false;
+        campoCURP.value                = '';
+        campoCURP.disabled             = true;
+        campoRFCBase.disabled          = false;
+        campoRFCBase.readOnly          = false;
+        campoRFCBase.maxLength         = 9;
+        campoRFCBase.value             = '';
+        campoRFCHomoclave.disabled     = false;
+        campoRFCHomoclave.readOnly     = false;
+        campoRFCHomoclave.maxLength    = 3;
+        campoRFCHomoclave.value        = '';
 
     } else {
-        campoPrimero.disabled = true;
-        campoSegundo.disabled = true;
-        campoRFC.disabled     = true;
-        campoRFC.readOnly     = false;
-        campoCURP.disabled    = true;
-        campoNombre.disabled  = true;
-        filaPrimero.style.opacity = '0.4';
-        filaSegundo.style.opacity  = '0.4';
+        campoPrimero.disabled          = true;
+        campoSegundo.disabled          = true;
+        campoRFC.disabled              = true;
+        campoRFC.readOnly              = false;
+        campoCURP.disabled             = true;
+        campoNombre.disabled           = true;
+        campoRFCBase.disabled          = true;
+        campoRFCBase.readOnly          = false;
+        campoRFCBase.value             = '';
+        campoRFCHomoclave.disabled     = true;
+        campoRFCHomoclave.readOnly     = false;
+        campoRFCHomoclave.value        = '';
+        filaPrimero.style.opacity      = '0.4';
+        filaSegundo.style.opacity      = '0.4';
     }
 
     if (tipo) campoNombre.disabled = false;
 }
 
+// ── Genera homoclave aleatoria: 2 letras mayúsculas + 1 dígito ──────
+function generarHomoclave() {
+    const letras  = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const digitos = '0123456789';
+    return letras[Math.floor(Math.random() * 26)]
+         + letras[Math.floor(Math.random() * 26)]
+         + digitos[Math.floor(Math.random() * 10)];
+}
+
 // ── Auto-fill RFC desde CURP (solo Persona Física) ──────
 // Los primeros 10 chars del RFC coinciden con CURP[0:10]
-// La homoclave (3 chars finales) la completa el usuario
+// La homoclave (3 chars: 2 letras + 1 dígito) se genera automáticamente
 const campoCURP = document.getElementById('id_curp');
 
 if (campoCURP) {
     campoCURP.addEventListener('input', function () {
         if (tipoPersona.value !== 'Física') return;
-        
-        const curp = this.value.toUpperCase().trim();
 
+        const curp = this.value.toUpperCase().trim();
         this.value = curp;
 
         if (curp.length !== 18) {
-            campoRFCBase.value = "";
+            campoRFCBase.value      = '';
+            campoRFCHomoclave.value = '';
             return;
         }
 
-        campoRFCBase.value = curp.substring(0, 10);
+        campoRFCBase.value      = curp.substring(0, 10);
+        campoRFCHomoclave.value = generarHomoclave();
     });
 }
 
@@ -819,12 +849,21 @@ aplicarTipoPersona();
 const form = document.getElementById("formCliente");
 
 form.addEventListener("submit", function (event) {
-    const base = campoRFCBase.value;
+    const tipo      = tipoPersona.value;
+    const base      = campoRFCBase.value.toUpperCase();
     const homoclave = campoRFCHomoclave.value.toUpperCase();
 
-    if (tipoPersona.value === "Física") {
-        if (homoclave.length !== 3) {
-            alert("Debe ingresar la homoclave del RFC (3 caracteres).");
+    if (tipo === 'Física') {
+        if (base.length !== 10 || homoclave.length !== 3) {
+            alert('El RFC de Persona Física requiere CURP completo (18 caracteres).');
+            event.preventDefault();
+            return;
+        }
+        campoRFC.value = base + homoclave;
+
+    } else if (tipo === 'Moral') {
+        if (base.length < 1 || homoclave.length !== 3) {
+            alert('El RFC de Persona Moral debe tener entre 9 y 12 caracteres (base + homoclave).');
             event.preventDefault();
             return;
         }

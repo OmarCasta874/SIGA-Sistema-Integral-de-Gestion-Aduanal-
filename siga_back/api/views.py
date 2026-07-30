@@ -412,6 +412,7 @@ class OperacionViewSet(viewsets.ModelViewSet):
         pais_destino       = request.data.get('pais_destino') or None
         incoterm           = request.data.get('incoterm') or None
         tipo_cambio        = request.data.get('tipo_cambio') or None
+        paquete_codigo     = request.data.get('paquete') or None
 
         if not regimen_adu_id:
             return Response({'error': 'El régimen aduanero es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -443,6 +444,10 @@ class OperacionViewSet(viewsets.ModelViewSet):
             incoterm=incoterm,
             tipo_cambio=tipo_cambio,
         )
+
+        # Vincular paquete seleccionado a este pedimento
+        if paquete_codigo:
+            Paquete.objects.filter(codigo=paquete_codigo).update(pedimento=ped)
 
         # RF31: actualizar estado de operación a "Pendiente de pago"
         estado_pendiente = get_object_or_404(EstadoOpeAduanera, codigo=4)
@@ -575,11 +580,19 @@ class PermisoViewSet(viewsets.ReadOnlyModelViewSet):
 # ── Pagos ──────────────────────────────────────────────────────────────────────
 
 class PagoViewSet(viewsets.ModelViewSet):
-    queryset = Pago.objects.select_related('estado_pago', 'pedimento__ope_aduanera__cliente').order_by('-fecha_pago')
     serializer_class = PagoSerializer
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
     http_method_names = ['get', 'post', 'head', 'options']
+
+    def get_queryset(self):
+        qs = Pago.objects.select_related(
+            'estado_pago', 'pedimento__ope_aduanera__cliente'
+        ).order_by('-fecha_pago')
+        pedimento_num = self.request.query_params.get('pedimento')
+        if pedimento_num:
+            qs = qs.filter(pedimento__numero_pedimento=pedimento_num)
+        return qs
 
     def create(self, request, *args, **kwargs):
         import uuid
@@ -625,13 +638,17 @@ class PagoViewSet(viewsets.ModelViewSet):
             estado_pago=estado_pagado,
         )
 
-        # RF40: Verde → Completada. Rojo → sigue En proceso (va a inspección)
+        # RF40: Verde → Completada. Rojo → En revisión (va a inspección)
         op = ped.ope_aduanera
         if 'Verde' in semaforo.resultado:
             estado_completada = get_object_or_404(EstadoOpeAduanera, codigo=2)
             op.estado_ope_aduanera = estado_completada
             op.fecha_final = timezone.localdate()
             op.save(update_fields=['estado_ope_aduanera', 'fecha_final'])
+        elif 'Rojo' in semaforo.resultado:
+            estado_revision = get_object_or_404(EstadoOpeAduanera, codigo=5)
+            op.estado_ope_aduanera = estado_revision
+            op.save(update_fields=['estado_ope_aduanera'])
 
         return Response(
             {

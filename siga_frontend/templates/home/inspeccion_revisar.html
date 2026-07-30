@@ -220,8 +220,8 @@
                             </tr>
                             <tr>
                                 <td colspan="4">
-                                    <span class="sat-lbl">MARCAS, NÚMEROS Y TOTAL DE BULTOS</span>
-                                    <span class="sat-val">{{ paquetes|length }} BULTO{% if paquetes|length != 1 %}S{% endif %}{% for pq in paquetes %}{% if pq.tipo_embalaje %} — {{ pq.tipo_embalaje.nombre }}{% endif %}{% endfor %}</span>
+                                    <span class="sat-lbl">TIPO DE EMBALAJE</span>
+                                    <span class="sat-val">{% for pq in paquetes %}{% if pq.tipo_embalaje %}{% if not forloop.first %} — {% endif %}{{ pq.tipo_embalaje.nombre }}{% endif %}{% endfor %}</span>
                                 </td>
                                 <td colspan="4">
                                     <span class="sat-lbl">TASAS A NIVEL PEDIMENTO</span>

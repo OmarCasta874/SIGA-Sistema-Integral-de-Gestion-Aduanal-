@@ -683,11 +683,11 @@
     font-size: 12px;
     font-weight: 700;
 }
-.estado-tag.en-revision   { background: #EFF6FF; color: #1D4ED8; }
-.estado-tag.en-despacho   { background: #FFF7ED; color: #C2410C; }
-.estado-tag.finalizada    { background: #F0FDF4; color: #15803D; }
-.estado-tag.con-incidencias { background: #FEF2F2; color: #DC2626; }
-.estado-tag.segunda       { background: #FFF7ED; color: #92400E; }
+.estado-tag.en-revision   { background: #FEF3C7; color: #B45309; }
+.estado-tag.en-despacho   { background: #FEF3C7; color: #B45309; }
+.estado-tag.finalizada    { background: #DCFCE7; color: #16A34A; }
+.estado-tag.con-incidencias { background: #FEE2E2; color: #DC2626; }
+.estado-tag.segunda       { background: #FEE2E2; color: #B91C1C; }
 
 /* timer despacho */
 .despacho-timer {

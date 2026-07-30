@@ -115,6 +115,7 @@
         .permiso-card-tipo    { font-weight:700; font-size:13px; color:#111827; margin-bottom:4px; }
         .permiso-card-vig     { font-size:11px; color:#6B7280; display:flex; align-items:center; gap:4px; margin-bottom:2px; }
         .permiso-vencido      { display:inline-block; margin-top:4px; background:#FEE2E2; color:#991B1B; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; }
+        .permiso-card-usado   { border-color:#FCD34D; background:#FFFBEB; }
         .permiso-no-hay       { background:#FEF3C7; border:1px solid #FDE68A; border-radius:8px; padding:10px 14px; font-size:13px; color:#92400E; display:flex; align-items:center; gap:8px; }
 
         /* ── SAT pedimento preview table (paso 2) ── */
@@ -229,8 +230,14 @@
     <div class="op-header">
         <span class="op-title">Operación #{{ op.ID_operacion }}</span>
         <span class="tipo-badge tipo-{{ op.tipo_operacion|lower }}">{{ op.tipo_operacion }}</span>
-        {% if op.estado_ope_aduanera %}
-            <span class="estado-op-pill">{{ op.estado_ope_aduanera.descripcion }}</span>
+        {% if paso == 3 and op.estado_codigo == 5 %}
+            <span class="estado-op-pill" style="background:#FEF3C7;color:#B45309;">En revisión</span>
+        {% elif paso == 3 %}
+            <span class="estado-op-pill" style="background:#DCFCE7;color:#16A34A;">Completada</span>
+        {% elif paso == 2 %}
+            <span class="estado-op-pill" style="background:#FEF3C7;color:#B45309;">Pendiente de pago</span>
+        {% else %}
+            <span class="estado-op-pill" style="background:#FEF3C7;color:#B45309;">En proceso</span>
         {% endif %}
     </div>
 
@@ -255,9 +262,15 @@
             </div>
             <div class="detalle-row" style="flex-direction:column; align-items:flex-start; padding:10px 14px;">
                 <span class="detalle-label">Estado</span>
-                <span class="estado-op-pill" style="margin-top:4px;">
-                    {{ op.estado_ope_aduanera.descripcion|default:"En proceso" }}
-                </span>
+                {% if paso == 3 and op.estado_codigo == 5 %}
+                    <span class="estado-op-pill" style="margin-top:4px;background:#FEF3C7;color:#B45309;">En revisión</span>
+                {% elif paso == 3 %}
+                    <span class="estado-op-pill" style="margin-top:4px;background:#DCFCE7;color:#16A34A;">Completada</span>
+                {% elif paso == 2 %}
+                    <span class="estado-op-pill" style="margin-top:4px;background:#FEF3C7;color:#B45309;">Pendiente de pago</span>
+                {% else %}
+                    <span class="estado-op-pill" style="margin-top:4px;background:#FEF3C7;color:#B45309;">En proceso</span>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -424,10 +437,9 @@
 
                 <tr>
                     <td colspan="4">
-                        <span class="sat-lbl">MARCAS, NÚMEROS Y TOTAL DE BULTOS</span>
+                        <span class="sat-lbl">TIPO DE EMBALAJE</span>
                         <span class="sat-val">
-                            {{ paquetes|length }} BULTO{% if paquetes|length != 1 %}S{% endif %}
-                            {% for pq in paquetes %}{% if pq.tipo_embalaje %} — {{ pq.tipo_embalaje.nombre }}{% endif %}{% endfor %}
+                            {% for pq in paquetes_pedimento %}{% if pq.tipo_embalaje %}{% if not forloop.first %} — {% endif %}{{ pq.tipo_embalaje.nombre }}{% endif %}{% endfor %}
                         </span>
                     </td>
                     <td colspan="4">
@@ -454,7 +466,7 @@
                                 <th>VALOR UNIT.</th>
                                 <th>IGI EST.</th>
                             </tr>
-                            {% for pq in paquetes %}
+                            {% for pq in paquetes_pedimento %}
                                 {% for prod in pq.productos %}
                                 <tr>
                                     <td>{{ prod.nombre }}{% if prod.descripcion %} — {{ prod.descripcion }}{% endif %}</td>
@@ -463,9 +475,9 @@
                                     <td>${{ prod.valor_unitario }}</td>
                                     <td>${{ prod.igi_importe|default:"0.00" }}</td>
                                 </tr>
-                                {% empty %}
-                                <tr><td colspan="5" style="color:#9CA3AF;">Sin productos registrados</td></tr>
                                 {% endfor %}
+                            {% empty %}
+                            <tr><td colspan="5" style="color:#9CA3AF;">Sin productos registrados</td></tr>
                             {% endfor %}
                         </table>
                     </td>
@@ -486,7 +498,7 @@
                     <td colspan="4">
                         <span class="sat-lbl">TOTALES</span>
                         <table class="sat-sub" style="margin-top:4px;width:100%;">
-                            <tr><th>EFECTIVO</th><td>${{ total_estimado }}</td></tr>
+                            <tr><th>EFECTIVO</th><td>${{ impuestos_total }}</td></tr>
                             <tr><th>OTROS</th><td>—</td></tr>
                             <tr><th style="font-weight:800;">TOTAL</th><td>${{ total_estimado }}</td></tr>
                         </table>
@@ -536,7 +548,7 @@
 <!-- ═══════════════════════════════════════════════════════════
      MODAL: Generar pedimento (3 pasos)
 ═══════════════════════════════════════════════════════════ -->
-{% if not pedimento %}
+{% if not pedimento or not pedimento.semaforo %}
 <div class="modal-overlay" id="modalPedimento">
     <div class="modal-box-pedimento">
 
@@ -658,10 +670,13 @@
                     </div>
 
                     <!-- Países auto-llenados (ocultos, derivados del tipo de operación) -->
-                    <input type="hidden" name="pais_destino"         id="ped-pais-destino"
+                    <input type="hidden" name="pais_destino"          id="ped-pais-destino"
                            value="{{ auto_pais_destino }}">
                     <input type="hidden" name="pais_origen_mercancia" id="ped-pais-origen"
                            value="{{ auto_pais_origen }}">
+
+                    <!-- Paquete vinculado desde operaciones (automático) -->
+                    <input type="hidden" name="paquete" id="ped-paquete-hidden" value="{{ paquete_preseleccionado }}">
 
                     <!-- Campos de transporte -->
                     <div class="form-row">
@@ -832,13 +847,10 @@
                             <!-- Paquetes y tasas -->
                             <tr>
                                 <td colspan="4">
-                                    <span class="sat-lbl">MARCAS, NÚMEROS Y TOTAL DE PAQUETES</span>
+                                    <span class="sat-lbl">TIPO DE EMBALAJE</span>
                                     <span class="sat-val">
-                                        {{ paquetes|length }} PAQUETE{% if paquetes|length != 1 %}S{% endif %}
-                                        {% for pq in paquetes %}
-                                            {% if pq.tipo_embalaje %}
-                                                — {{ pq.tipo_embalaje.nombre }}
-                                            {% endif %}
+                                        {% for pq in paquetes_pedimento %}
+                                            {% if pq.tipo_embalaje %}{% if not forloop.first %} — {% endif %}{{ pq.tipo_embalaje.nombre }}{% endif %}
                                         {% endfor %}
                                     </span>
                                 </td>
@@ -871,7 +883,7 @@
                                             <th>VALOR UNIT.</th>
                                             <th>IGI EST.</th>
                                         </tr>
-                                        {% for pq in paquetes %}
+                                        {% for pq in paquetes_pedimento %}
                                             {% for prod in pq.productos %}
                                             <tr>
                                                 <td>{{ prod.nombre }}{% if prod.descripcion %} — {{ prod.descripcion }}{% endif %}</td>
@@ -880,9 +892,9 @@
                                                 <td>${{ prod.valor_unitario }}</td>
                                                 <td>${{ prod.igi_importe|default:"0.00" }}</td>
                                             </tr>
-                                            {% empty %}
-                                            <tr><td colspan="5" style="color:#9CA3AF;">Sin productos registrados</td></tr>
                                             {% endfor %}
+                                        {% empty %}
+                                        <tr><td colspan="5" style="color:#9CA3AF;">Sin productos registrados</td></tr>
                                         {% endfor %}
                                     </table>
                                 </td>
@@ -1023,25 +1035,57 @@
                                 <span>PayPal</span>
                             </label>
                             <label class="metodo-pago-card" onclick="seleccionarMetodo(this)">
-                                <input type="radio" name="metodo_pago" value="transferencia" style="display:none;">
-                                <i data-lucide="building-2" style="width:20px;height:20px;"></i>
-                                <span>Transferencia</span>
+                                <input type="radio" name="metodo_pago" value="mercadopago" style="display:none;">
+                                <i data-lucide="shopping-bag" style="width:20px;height:20px;"></i>
+                                <span>Mercado Pago</span>
                             </label>
                         </div>
                     </div>
 
-                    <!-- Campos del pago -->
+                    <!-- Campos de tarjeta (solo visible cuando método = tarjeta) -->
+                    <div id="campos-tarjeta" style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:10px;padding:14px;margin-bottom:12px;">
+                        <div style="font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Datos de la tarjeta</div>
+                        <div class="form-group" style="margin-bottom:10px;">
+                            <label>Número de tarjeta</label>
+                            <input type="text" id="tarjeta-numero" class="form-input" maxlength="19"
+                                   placeholder="0000 0000 0000 0000"
+                                   oninput="this.value=this.value.replace(/\D/g,'').replace(/(.{4})/g,'$1 ').trim().substring(0,19)">
+                        </div>
+                        <div class="form-group" style="margin-bottom:10px;">
+                            <label>Nombre del propietario</label>
+                            <input type="text" id="tarjeta-nombre" class="form-input"
+                                   placeholder="Ej. JUAN PÉREZ GARCÍA" style="text-transform:uppercase;"
+                                   oninput="this.value=this.value.toUpperCase()">
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label>Vencimiento (MM/AA)</label>
+                                <input type="text" id="tarjeta-vencimiento" class="form-input" maxlength="5"
+                                       placeholder="MM/AA"
+                                       oninput="formatearVencimiento(this)">
+                            </div>
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label>CVV</label>
+                                <input type="password" id="tarjeta-cvv" class="form-input" maxlength="3"
+                                       placeholder="•••"
+                                       oninput="this.value=this.value.replace(/\D/g,'')">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Concepto y monto (readonly, lo llena el sistema) -->
                     <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:6px;">
                         <div class="form-group" style="margin-bottom:0;">
                             <label>Concepto</label>
-                            <input type="text" id="pago-concepto" class="form-input" placeholder="Pago de pedimento">
+                            <input type="text" id="pago-concepto" class="form-input" readonly
+                                   style="background:#F9FAFB;color:#374151;cursor:default;" placeholder="Pago de pedimento">
                         </div>
                         <div class="form-group" style="margin-bottom:0;">
                             <label>Monto (MXN)</label>
                             <div style="position:relative;">
                                 <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#6B7280;font-size:14px;">$</span>
-                                <input type="number" id="pago-monto" class="form-input" step="0.01" min="0"
-                                       placeholder="0.00" style="padding-left:24px;">
+                                <input type="number" id="pago-monto" class="form-input" step="0.01" min="0" readonly
+                                       placeholder="0.00" style="padding-left:24px;background:#F9FAFB;color:#374151;cursor:default;">
                             </div>
                         </div>
                     </div>
@@ -1192,11 +1236,10 @@
 
                             <tr>
                                 <td colspan="4">
-                                    <span class="sat-lbl">MARCAS, NÚMEROS Y TOTAL DE BULTOS</span>
+                                    <span class="sat-lbl">TIPO DE EMBALAJE</span>
                                     <span class="sat-val">
-                                        {{ paquetes|length }} BULTO{% if paquetes|length != 1 %}S{% endif %}
-                                        {% for pq in paquetes %}
-                                            {% if pq.tipo_embalaje %}— {{ pq.tipo_embalaje.nombre }}{% endif %}
+                                        {% for pq in paquetes_pedimento %}
+                                            {% if pq.tipo_embalaje %}{% if not forloop.first %} — {% endif %}{{ pq.tipo_embalaje.nombre }}{% endif %}
                                         {% endfor %}
                                     </span>
                                 </td>
@@ -1228,7 +1271,7 @@
                                             <th>VALOR UNIT.</th>
                                             <th>IGI EST.</th>
                                         </tr>
-                                        {% for pq in paquetes %}
+                                        {% for pq in paquetes_pedimento %}
                                             {% for prod in pq.productos %}
                                             <tr>
                                                 <td>{{ prod.nombre }}{% if prod.descripcion %} — {{ prod.descripcion }}{% endif %}</td>
@@ -1237,9 +1280,9 @@
                                                 <td>${{ prod.valor_unitario }}</td>
                                                 <td>${{ prod.igi_importe|default:"0.00" }}</td>
                                             </tr>
-                                            {% empty %}
-                                            <tr><td colspan="5" style="color:#9CA3AF;">Sin productos registrados</td></tr>
                                             {% endfor %}
+                                        {% empty %}
+                                        <tr><td colspan="5" style="color:#9CA3AF;">Sin productos registrados</td></tr>
                                         {% endfor %}
                                     </table>
                                 </td>
@@ -1397,9 +1440,15 @@ function actualizarIncoterm(transporte) {
 
 /* ── Selección de permiso por tarjeta ────────────── */
 function seleccionarPermiso(clave, cardEl) {
-    document.querySelectorAll('.permiso-card').forEach(c => c.classList.remove('selected'));
+    document.querySelectorAll('#permiso-cards-container .permiso-card').forEach(c => c.classList.remove('selected'));
     cardEl.classList.add('selected');
     document.getElementById('ped-permiso-hidden').value = clave;
+}
+
+function seleccionarPaquete(codigo, cardEl) {
+    document.querySelectorAll('#paquete-cards-container .permiso-card').forEach(c => c.classList.remove('selected'));
+    cardEl.classList.add('selected');
+    document.getElementById('ped-paquete-hidden').value = codigo;
 }
 
 /* ── Modal abrir/cerrar ───────────────────────────── */
@@ -1407,6 +1456,11 @@ function abrirModalPedimento() {
     document.getElementById('modalPedimento').classList.add('activo');
 }
 function cerrarModalPedimento() {
+    const paso4 = document.getElementById('ped-paso-4');
+    if (paso4 && paso4.style.display !== 'none') {
+        window.location.reload();
+        return;
+    }
     document.getElementById('modalPedimento').classList.remove('activo');
 }
 
@@ -1418,6 +1472,12 @@ function pedPaso2() {
     }
     {% endif %}
 
+    {% if paquetes %}
+    if (!document.getElementById('ped-paquete-hidden').value) {
+        alert('Selecciona el paquete que se asociará a este pedimento.'); return;
+    }
+    {% endif %}
+
     const medioVal    = document.getElementById('ped-transporte').value;
     const incotermVal = document.getElementById('ped-incoterm').value;
     const paisD       = document.getElementById('ped-pais-destino').value || '—';
@@ -1426,15 +1486,17 @@ function pedPaso2() {
     const claveVal    = document.getElementById('ped-clave-hidden').value;
     const regLabel    = document.getElementById('ped-regimen-display').textContent;
 
-    const selectedCard = document.querySelector('.permiso-card.selected');
+    const selectedCard = document.querySelector('#permiso-cards-container .permiso-card.selected');
     const permisoLabel = selectedCard
         ? selectedCard.querySelector('.permiso-card-tipo').textContent.trim()
         : '—';
 
-    const valUSD = tcVal > 0 ? (VALOR_ESTIMADO / tcVal).toFixed(2) : null;
-    const dta    = VALOR_ESTIMADO > 0 ? (VALOR_ESTIMADO * 0.008).toFixed(2) : null;
-    const iva    = VALOR_ESTIMADO > 0 ? (VALOR_ESTIMADO * 0.16).toFixed(2)  : null;
-    const total  = (dta && iva) ? (parseFloat(dta) + parseFloat(iva)).toFixed(2) : null;
+    const valUSD    = tcVal > 0 ? (VALOR_ESTIMADO / tcVal).toFixed(2) : null;
+    const dta       = VALOR_ESTIMADO > 0 ? (VALOR_ESTIMADO * 0.008).toFixed(2) : null;
+    const iva       = VALOR_ESTIMADO > 0 ? (VALOR_ESTIMADO * 0.16).toFixed(2)  : null;
+    const igi       = {{ igi_total|default:0 }};
+    const impuestos = (dta && iva) ? (parseFloat(dta) + parseFloat(iva) + igi).toFixed(2) : null;
+    const granTotal = impuestos    ? (VALOR_ESTIMADO + parseFloat(impuestos)).toFixed(2)   : null;
 
     setText('prev-tipo',          TIPO_OPERACION === 'Importación' ? 'IMP' : TIPO_OPERACION === 'Exportación' ? 'EXP' : '—');
     setText('prev-clave',         claveVal || '—');
@@ -1444,10 +1506,10 @@ function pedPaso2() {
     setText('prev-tc-row',        tcVal > 0 ? `$ ${tcVal.toFixed(4)}` : '—');
     setText('prev-transporte',    medioVal || '—');
     setText('prev-incoterm',      incotermVal || '—');
-    setText('prev-dta',           dta   ? `$ ${dta}`   : '—');
-    setText('prev-iva',           iva   ? `$ ${iva}`   : '—');
-    setText('prev-total-efectivo',total  ? `$ ${total}` : '—');
-    setText('prev-gran-total',    total  ? `$ ${total}` : '—');
+    setText('prev-dta',           dta       ? `$ ${dta}`       : '—');
+    setText('prev-iva',           iva       ? `$ ${iva}`       : '—');
+    setText('prev-total-efectivo',impuestos ? `$ ${impuestos}` : '—');
+    setText('prev-gran-total',    granTotal ? `$ ${granTotal}` : '—');
     setText('prev-permiso',       permisoLabel);
 
     marcarCompleto('ped-prog-1', 'ped-linea-1', 'ped-prog-2');
@@ -1516,11 +1578,51 @@ async function pedRegistrarPago() {
     const concepto = document.getElementById('pago-concepto').value;
     const errorEl  = document.getElementById('pago-error');
 
+    const metodo = document.querySelector('input[name=metodo_pago]:checked')?.value || 'tarjeta';
     errorEl.style.display = 'none';
     if (!monto || parseFloat(monto) <= 0) {
         errorEl.textContent = 'Ingresa un monto válido mayor a 0.';
         errorEl.style.display = 'block';
         return;
+    }
+    if (metodo === 'tarjeta') {
+        const numero     = document.getElementById('tarjeta-numero').value.replace(/\s/g, '');
+        const nombre     = document.getElementById('tarjeta-nombre').value.trim();
+        const vencimiento = document.getElementById('tarjeta-vencimiento').value.trim();
+        const cvv        = document.getElementById('tarjeta-cvv').value.trim();
+        if (numero.length < 13) {
+            errorEl.textContent = 'Ingresa un número de tarjeta válido.';
+            errorEl.style.display = 'block';
+            return;
+        }
+        if (!nombre) {
+            errorEl.textContent = 'Ingresa el nombre como aparece en la tarjeta.';
+            errorEl.style.display = 'block';
+            return;
+        }
+        if (!/^\d{2}\/\d{2}$/.test(vencimiento)) {
+            errorEl.textContent = 'Ingresa la fecha de vencimiento en formato MM/AA.';
+            errorEl.style.display = 'block';
+            return;
+        }
+        const [mesStr, anioStr] = vencimiento.split('/');
+        const mesCard  = parseInt(mesStr, 10);
+        const anioCard = 2000 + parseInt(anioStr, 10);
+        const ahora    = new Date();
+        const mesHoy   = ahora.getMonth() + 1;
+        const anioHoy  = ahora.getFullYear();
+        if (mesCard < 1 || mesCard > 12 ||
+            anioCard < anioHoy ||
+            (anioCard === anioHoy && mesCard < mesHoy)) {
+            errorEl.textContent = 'La tarjeta está vencida. Ingresa una fecha de vencimiento válida.';
+            errorEl.style.display = 'block';
+            return;
+        }
+        if (cvv.length < 3) {
+            errorEl.textContent = 'Ingresa el CVV de la tarjeta.';
+            errorEl.style.display = 'block';
+            return;
+        }
     }
 
     const btn = document.getElementById('btn-registrar-pago');
@@ -1644,6 +1746,22 @@ function reanudarPago() {
     setText('pago-total-display', `$${total}`);
     document.getElementById('pago-monto').value = total;
 
+    // Llenar prev-* con los datos del pedimento existente para que fin-* sean correctos al pagar
+    const impuestosR = (parseFloat(dta) + parseFloat(iva) + igi).toFixed(2);
+    setText('prev-tipo',       '{% if op.tipo_operacion == "Importación" %}IMP{% elif op.tipo_operacion == "Exportación" %}EXP{% else %}—{% endif %}');
+    setText('prev-clave',      '{{ pedimento.clave_pedimento|default:"—"|escapejs }}');
+    setText('prev-regimen',    '{% if pedimento.regimen_adu %}{{ pedimento.regimen_adu.clave_oficial|escapejs }}{% if pedimento.regimen_adu.descripcion %} — {{ pedimento.regimen_adu.descripcion|escapejs }}{% endif %}{% else %}—{% endif %}');
+    setText('prev-destino',    '{{ pedimento.pais_destino|default:"—"|escapejs }}');
+    setText('prev-tc',         '{% if pedimento.tipo_cambio %}$ {{ pedimento.tipo_cambio }}{% else %}—{% endif %}');
+    setText('prev-tc-row',     '{% if pedimento.tipo_cambio %}$ {{ pedimento.tipo_cambio }}{% else %}—{% endif %}');
+    setText('prev-transporte', '{{ pedimento.medio_transporte|default:"—"|escapejs }}');
+    setText('prev-incoterm',   '{{ pedimento.incoterm|default:"—"|escapejs }}');
+    setText('prev-permiso',    '{% if permisos %}{{ permisos.0.tipo|default:"—"|escapejs }}{% else %}—{% endif %}');
+    setText('prev-dta',           `$ ${dta}`);
+    setText('prev-iva',           `$ ${iva}`);
+    setText('prev-total-efectivo',`$ ${impuestosR}`);
+    setText('prev-gran-total',    `$ ${total}`);
+
     ['ped-paso-1','ped-paso-2','ped-paso-4'].forEach(id => {
         document.getElementById(id).style.display = 'none';
     });
@@ -1663,6 +1781,14 @@ function seleccionarMetodo(el) {
     document.querySelectorAll('.metodo-pago-card').forEach(c => c.classList.remove('activo'));
     el.classList.add('activo');
     el.querySelector('input[type=radio]').checked = true;
+    const metodo = el.querySelector('input[type=radio]').value;
+    document.getElementById('campos-tarjeta').style.display = metodo === 'tarjeta' ? '' : 'none';
+}
+
+function formatearVencimiento(input) {
+    let val = input.value.replace(/\D/g, '');
+    if (val.length > 2) val = val.substring(0, 2) + '/' + val.substring(2, 4);
+    input.value = val;
 }
 
 /* ── Cerrar al click fuera ───────────────────────── */

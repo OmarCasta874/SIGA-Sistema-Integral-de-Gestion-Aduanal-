@@ -243,6 +243,10 @@
                         <a href="{% url 'home:paquete_detalle' paquete.codigo %}" class="btn-accion btn-accion-ver">
                             Ver detalle
                         </a>
+                        <button type="button" class="btn-accion btn-accion-eliminar"
+                                onclick="confirmarEliminar({{ paquete.codigo }}, '{{ paquete.descripcion|escapejs }}', {% if paquete.pedimento_num != '—' %}true{% else %}false{% endif %})">
+                            Eliminar
+                        </button>
                     </td>
                 </tr>
                 {% empty %}
@@ -339,10 +343,11 @@
     function resetPeso() {
         const inp  = document.getElementById('input-peso');
         const hint = document.getElementById('hint-peso');
-        inp.value       = '';
-        inp.disabled    = true;
+        inp.value        = '';
+        inp.disabled     = true;
+        inp.readOnly     = false;
         inp.removeAttribute('max');
-        inp.placeholder = 'Selecciona dimensión primero';
+        inp.placeholder  = 'Selecciona dimensión primero';
         hint.textContent = '';
     }
 
@@ -373,7 +378,7 @@
         selDim.focus();
     });
 
-    /* Al cambiar la dimensión: habilitar peso con el límite correcto */
+    /* Al cambiar la dimensión: auto-rellenar peso máximo (readonly) */
     document.getElementById('select-dimensiones').addEventListener('change', function () {
         const selected = this.options[this.selectedIndex];
         const inp      = document.getElementById('input-peso');
@@ -384,13 +389,14 @@
             return;
         }
 
-        const pesoMax = parseFloat(selected.dataset.pesoMax);
-        inp.disabled    = false;
-        inp.max         = pesoMax;
-        inp.placeholder = `0.01 – ${pesoMax} kg`;
-        inp.value       = '';
-        hint.textContent = `Máximo permitido: ${pesoMax} kg`;
-        inp.focus();
+        const pesoMax        = parseFloat(selected.dataset.pesoMax);
+        inp.disabled         = false;
+        inp.readOnly         = true;
+        inp.max              = pesoMax;
+        inp.value            = pesoMax;
+        inp.placeholder      = '';
+        hint.textContent     = `Capacidad máxima para esta dimensión: ${pesoMax} kg`;
+        hint.style.color     = '#6B7280';
     });
 
     /* Validación extra al enviar: mensaje claro si supera el límite */
@@ -406,6 +412,23 @@
             inp.focus();
         }
     });
+
+    function confirmarEliminar(codigo, descripcion, tienePedimento) {
+        let msg = `¿Eliminar el paquete #${codigo}?`;
+        if (descripcion) msg += `\n"${descripcion}"`;
+        if (tienePedimento) {
+            msg += '\n\n⚠ Este paquete ya tiene un pedimento asignado. Si lo eliminas, el pedimento quedará sin paquete.';
+        }
+        if (!confirm(msg)) return;
+        document.getElementById('form-eliminar-paquete').action =
+            `/paquetes/${codigo}/eliminar/`;
+        document.getElementById('form-eliminar-paquete').submit();
+    }
 </script>
+
+<form id="form-eliminar-paquete" method="post" action="" style="display:none;">
+    {% csrf_token %}
+    <input type="hidden" name="_method" value="DELETE">
+</form>
 </body>
 </html>

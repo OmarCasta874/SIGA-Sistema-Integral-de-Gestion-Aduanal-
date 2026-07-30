@@ -331,7 +331,30 @@ def operaciones_view(request):
         aduanas = api.safe_json(api.get(request, '/aduanas/'), [])
     except Exception:
         aduanas = []
-        
+
+    try:
+        todos_paquetes = api.safe_json(api.get(request, '/paquetes/'), [])
+    except Exception:
+        todos_paquetes = []
+
+    # Agrupar paquetes por cliente_id para consumo en JS
+    import json as _json
+    paquetes_por_cliente = {}
+    for p in todos_paquetes:
+        cid = str(p.get('cliente') or '')
+        if cid:
+            productos_raw = p.get('productos') or []
+            paquetes_por_cliente.setdefault(cid, []).append({
+                'codigo':    p.get('codigo'),
+                'tipo':      (p.get('tipo_embalaje') or {}).get('nombre', ''),
+                'tiene_ped': bool(p.get('pedimento_num') and p.get('pedimento_num') != '—'),
+                'productos': [
+                    {'nombre': pr.get('nombre', ''), 'cantidad': pr.get('cantidad', 1)}
+                    for pr in productos_raw[:5]
+                ],
+            })
+    paquetes_json = _json.dumps(paquetes_por_cliente)
+
     total_operaciones = len(ops_raw)
     importaciones = sum(
         1 for o in ops_raw
@@ -359,6 +382,7 @@ def operaciones_view(request):
         'tipos_exportacion': tipos_exportacion,
         'regimenes':         regimenes,
         'hoy':               timezone.localdate(),
+        'paquetes_json':     paquetes_json,
     })
 
 
@@ -369,10 +393,12 @@ def operacion_nueva_view(request):
         if form.is_valid():
             resp = api.post(request, '/operaciones/', form.cleaned_data)
             if resp.status_code == 201:
-                pk = resp.json().get('ID_operacion')
+                pk          = resp.json().get('ID_operacion')
+                paquete_id  = request.POST.get('paquete') or ''
                 messages.success(request, 'Operación abierta correctamente. Ahora completa el pedimento.')
                 from django.urls import reverse
-                return redirect(f"{reverse('home:operacion_detalle', args=[pk])}?nuevo=1")
+                qs = f'?nuevo=1&paquete={paquete_id}' if paquete_id else '?nuevo=1'
+                return redirect(f"{reverse('home:operacion_detalle', args=[pk])}{qs}")
             else:
                 error = api.safe_json(resp).get('error', resp.text)
                 messages.error(request, error)
@@ -412,9 +438,10 @@ def operacion_detalle_view(request, pk):
         for p in paquetes
         for prod in p.get('productos', [])
     ), 2)
-    dta_estimado   = round(valor_estimado * 0.008, 2)
-    iva_estimado   = round(valor_estimado * 0.16, 2)
-    total_estimado = round(valor_estimado + dta_estimado + igi_total + iva_estimado, 2)
+    dta_estimado      = round(valor_estimado * 0.008, 2)
+    iva_estimado      = round(valor_estimado * 0.16, 2)
+    impuestos_total   = round(dta_estimado + igi_total + iva_estimado, 2)
+    total_estimado    = round(valor_estimado + impuestos_total, 2)
 
     try:
         regimenes = api.safe_json(api.get(request, '/regimenes/'), [])
@@ -446,17 +473,32 @@ def operacion_detalle_view(request, pk):
     auto_pais_destino = 'México' if tipo_op == 'Importación' else ''
     auto_pais_origen  = 'México' if tipo_op == 'Exportación' else ''
     abrir_modal = 'nuevo' in request.GET and not pedimento
+
+    # Paquete pre-seleccionado: viene de ?paquete=X al crear la operación,
+    # o se detecta automáticamente si el pedimento ya tiene un paquete vinculado
+    paquete_preseleccionado = request.GET.get('paquete', '')
+    pedimento_num = (pedimento or {}).get('numero_pedimento', '')
+    if pedimento_num:
+        paquetes_pedimento = [p for p in paquetes if str(p.get('pedimento_num', '')) == str(pedimento_num)]
+    elif paquete_preseleccionado:
+        paquetes_pedimento = [p for p in paquetes if str(p.get('codigo', '')) == str(paquete_preseleccionado)]
+    else:
+        paquetes_pedimento = []
+
     return render(request, 'home/operacion_detalle.html', {
         'op':               data,
         'paso':             paso,
         'pedimento':        pedimento,
         'estado_pedimento': estado_pedimento,
         'paquetes':         paquetes,
+        'paquetes_pedimento': paquetes_pedimento,
+        'paquete_preseleccionado': paquete_preseleccionado,
         'peso_bruto':       peso_bruto,
         'valor_estimado':   valor_estimado,
         'igi_total':        igi_total,
         'dta_estimado':     dta_estimado,
         'iva_estimado':     iva_estimado,
+        'impuestos_total':  impuestos_total,
         'total_estimado':   total_estimado,
         'regimenes':        regimenes,
         'regimenes_json':   json.dumps(regimenes, ensure_ascii=False),
@@ -486,6 +528,7 @@ def operacion_pedimento_view(request, pk):
         'pais_destino':          request.POST.get('pais_destino') or None,
         'incoterm':              request.POST.get('incoterm') or None,
         'tipo_cambio':           request.POST.get('tipo_cambio') or None,
+        'paquete':               request.POST.get('paquete') or None,
     })
 
     if es_ajax:
@@ -710,7 +753,7 @@ def aduanas_view(request):
 def detalle_aduana(request, codigo):
     
     try:
-        response = api.get(request, f"/aduanas/{codigo}")
+        response = api.get(request, f"/aduanas/{codigo}/")
         
         if response.status_code == 200:
             return JsonResponse(api.safe_json(response, {}))
@@ -1212,6 +1255,7 @@ def sancion_detalle_view(request, pk):
     return render(request, 'home/sancion_detalle.html', {'incidencia': incidencia})
 
 
+@login_required
 def multa_pagar_view(request, pk):
     from django.http import JsonResponse
     if request.method != 'POST':
@@ -1262,7 +1306,7 @@ def paquetes_view(request):
         paquetes = [
             p for p in paquetes
             if q in p.get('cliente_nombre', '').lower()
-            or q in p.get('tipo_embalaje', '').lower()
+            or q in (p.get('tipo_embalaje') or {}).get('nombre', '').lower()
             or q in p.get('numero', '').lower()
         ]
 
@@ -1347,6 +1391,22 @@ def paquete_detalle_view(request, pk):
 
 
 @login_required
+@solo_admin
+def paquete_eliminar_view(request, pk):
+    if request.method != 'POST':
+        return redirect('home:paquetes')
+
+    resp = api.delete(request, f'/paquetes/{pk}/')
+    if resp.status_code in (200, 204):
+        messages.success(request, f'Paquete #{pk} eliminado correctamente.')
+    else:
+        error = api.safe_json(resp, {}).get('detail', resp.text or 'Error al eliminar.')
+        messages.error(request, f'No se pudo eliminar el paquete: {error}')
+
+    return redirect('home:paquetes')
+
+
+@login_required
 def inspecciones_view(request):
     try:
         response = api.get(request, "/inspecciones/")
@@ -1404,6 +1464,7 @@ def _get_inspeccion_contexto(request, pk):
     pedimento, paquetes, pago = {}, [], {}
     operacion_id  = insp.get('operacion_id')
     pedimento_num = insp.get('pedimento_num')
+    cliente_id    = insp.get('cliente_id')
 
     if operacion_id:
         try:
@@ -1413,9 +1474,9 @@ def _get_inspeccion_contexto(request, pk):
         except Exception:
             pass
 
-    if operacion_id:
+    if cliente_id:
         try:
-            pq_resp = api.get(request, f'/paquetes/?operacion={operacion_id}')
+            pq_resp = api.get(request, f'/paquetes/?cliente={cliente_id}')
             if pq_resp.status_code == 200:
                 paquetes = api.safe_json(pq_resp, [])
         except Exception:

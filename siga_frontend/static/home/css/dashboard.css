@@ -276,8 +276,8 @@ body {
 
 .estado-pagado { background: #dcfce7; color: #16a34a; }
 .estado-transmitido { background: #fee2e2; color: #dc2626; }
-.estado-validado { background: #dbeafe; color: #2563eb; }
-.estado-generado { background: #f3f4f6; color: #6b7280; }
+.estado-validado { background: #dcfce7; color: #16a34a; }
+.estado-generado { background: #fef3c7; color: #b45309; }
 .estado-pendiente { background: #fef3c7; color: #d97706; }
 
 .semaforo-verde { background: #dcfce7; color: #16a34a; }

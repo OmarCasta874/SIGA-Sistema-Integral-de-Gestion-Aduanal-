@@ -1,4 +1,22 @@
 /* PAQUETES */
+
+/* Botones de acción en tabla */
+.btn-accion {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 6px;
+    text-decoration: none;
+    margin-right: 4px;
+    border: none;
+    cursor: pointer;
+}
+.btn-accion-ver { background: #EFF6FF; color: #1E3A8A; }
+.btn-accion-ver:hover { background: #DBEAFE; }
+.btn-accion-eliminar { background: #FEE2E2; color: #991B1B; }
+.btn-accion-eliminar:hover { background: #FECACA; }
+
 .paq-titulo {
     font-size: 28px;
     font-weight: 600;
@@ -152,13 +170,13 @@
 }
 
 .pill-con-pedimento {
-    background: #DBEAFE;
-    color: #1D4ED8;
+    background: #DCFCE7;
+    color: #16A34A;
 }
 
 .pill-sin-pedimento {
-    background: #FEF3C7;
-    color: #B45309;
+    background: #FEE2E2;
+    color: #B91C1C;
 }
 
 /* BOTÓN NUEVO */
@@ -344,6 +362,14 @@
     color: #9CA3AF;
     cursor: not-allowed;
     border-color: #E5E7EB;
+}
+
+/* Campo de peso en modo solo-lectura (auto-rellenado por dimensión) */
+#input-peso[readonly] {
+    background: #F9FAFB;
+    color: #374151;
+    cursor: default;
+    border-color: #D1D5DB;
 }
 
 /* Texto de ayuda bajo el campo de peso */

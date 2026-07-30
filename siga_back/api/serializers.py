@@ -376,13 +376,15 @@ class OperacionDetalleSerializer(serializers.ModelSerializer):
     aduana = AduanaSerializer(read_only=True)
     paso = serializers.SerializerMethodField()
     estado_nombre = serializers.SerializerMethodField()
+    estado_codigo = serializers.SerializerMethodField()
     pedimento = serializers.SerializerMethodField()
 
     class Meta:
         model = OperacionAduanera
         fields = [
             'ID_operacion', 'fecha_inicio', 'fecha_final',
-            'tipo_operacion', 'cliente', 'aduana', 'paso', 'estado_nombre', 'pedimento',
+            'tipo_operacion', 'cliente', 'aduana', 'paso',
+            'estado_nombre', 'estado_codigo', 'pedimento',
         ]
 
     def get_paso(self, obj):
@@ -390,6 +392,9 @@ class OperacionDetalleSerializer(serializers.ModelSerializer):
 
     def get_estado_nombre(self, obj):
         return obj.estado_ope_aduanera.descripcion if obj.estado_ope_aduanera_id else '—'
+
+    def get_estado_codigo(self, obj):
+        return obj.estado_ope_aduanera.codigo if obj.estado_ope_aduanera_id else None
 
     def get_pedimento(self, obj):
         ped = (
