@@ -1091,9 +1091,8 @@ class PaqueteViewSet(viewsets.ModelViewSet):
             ocupado = paquete.productos.aggregate(
                 total=Sum(ExpressionWrapper(F('peso') * F('cantidad'), output_field=Df(max_digits=12, decimal_places=2)))
             )['total'] or 0
-            peso_max = float(paquete.tipo_embalaje.peso_maximo)
-            peso_paquete = float(paquete.peso)
-            disponible = round(peso_max - peso_paquete - float(ocupado), 2)
+            peso_max = float(paquete.peso)
+            disponible = round(peso_max - float(ocupado), 2)
             disponible = max(disponible, 0)
             if peso_nuevo > disponible:
                 return Response(

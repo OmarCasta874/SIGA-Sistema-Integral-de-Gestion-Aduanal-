@@ -1345,12 +1345,12 @@ def paquete_detalle_view(request, pk):
             messages.success(request, 'Producto agregado correctamente.')
         else:
             error = api.safe_json(resp, {})
-            mensaje = (
-                error.get('error')
-                or error.get('detail')
-                or 'Error al agregar el producto.'
-            )
-            messages.error(request, mensaje)
+            
+            print("------- Error Backend -------")
+            print(error)
+            print("------------------------------")
+            
+            messages.error(request, str(error))
             
         return redirect('home:paquete_detalle', pk=pk)
 

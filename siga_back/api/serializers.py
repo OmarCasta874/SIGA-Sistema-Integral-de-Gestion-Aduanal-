@@ -664,11 +664,11 @@ class PaqueteSerializer(serializers.ModelSerializer):
         return round(self._calc_peso_ocupado(obj), 2)
 
     def get_peso_disponible(self, obj):
-        peso_max = float(obj.tipo_embalaje.peso_maximo) if obj.tipo_embalaje else 0.0
-        return round(peso_max - self._calc_peso_ocupado(obj), 2)
+        peso_max = float(obj.peso)
+        return round(max(peso_max - self._calc_peso_ocupado(obj), 0), 2)
 
     def get_peso_porcentaje(self, obj):
-        peso_max = float(obj.tipo_embalaje.peso_maximo) if obj.tipo_embalaje else 0.0
+        peso_max = float(obj.peso)
         if peso_max == 0:
             return 0
         return min(round((self._calc_peso_ocupado(obj) / peso_max) * 100, 1), 100)
