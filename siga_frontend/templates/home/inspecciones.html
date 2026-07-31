@@ -23,9 +23,15 @@
         <button class="sidebar-toggle" title="Colapsar menú"><i data-lucide="panel-left"></i></button>
     </div>
     <nav>
+        {% if es_inspector %}
+        <p class="nav-section-label">Fiscalización</p>
+        <a href="{% url 'home:inspecciones' %}" class="nav-item active" title="Mis Inspecciones">
+            <i data-lucide="search" class="nav-icon"></i> <span class="nav-label">Mis Inspecciones</span>
+        </a>
+        {% else %}
         <p class="nav-section-label">Principal</p>
         <a href="{% url 'home:dashboard' %}" class="nav-item" title="Dashboard">
-            <i data-lucide="layout-grid" class="nav-icon"></i> <span class="nav-label">Dashboard</span> 
+            <i data-lucide="layout-grid" class="nav-icon"></i> <span class="nav-label">Dashboard</span>
         </a>
         <a href="{% url 'home:usuarios' %}" class="nav-item" title="Usuarios">
             <i data-lucide="user" class="nav-icon"></i> <span class="nav-label">Usuarios</span>
@@ -73,85 +79,142 @@
         <a href="{% url 'home:bitacora' %}" class="nav-item" title="Bitácora">
             <i data-lucide="history" class="nav-icon"></i> <span class="nav-label">Bitácora</span>
         </a>
+        {% endif %}
     </nav>
 
     <div class="sidebar-footer">
         <button type="button" class="btn-sidebar btn-sidebar-salir" onclick="mostrarModalLogout()" title="Salir">
             <i data-lucide="log-out" class="nav-icon"></i> <span class="nav-label">Salir</span>
         </button>
+        {% if not es_inspector %}
         <a href="{% url 'home:perfilusuario' %}" class="btn-sidebar btn-sidebar-usuario" title="Usuario">
             <i data-lucide="user" class="nav-icon"></i> <span class="nav-label">Usuario</span>
         </a>
+        {% endif %}
     </div>
 </aside>
+
 <main class="main">
     <header class="inspecciones-header">
         <h1>Inspecciones</h1>
+        {% if es_inspector %}<span class="rol-badge">Vista Inspector</span>{% endif %}
+        {% if es_admin %}<span class="rol-badge rol-badge-admin">Vista Administrador</span>{% endif %}
     </header>
 
-    <section class="inspecciones-stats">
+    <section class="inspecciones-stats" style="grid-template-columns:repeat(5,1fr);">
         <div class="stat-card">
-            <p class="stat-label">Total de Inspecciones</p>
+            <p class="stat-label">Total</p>
             <p class="stat-value stat-value-blue">{{ total_inspecciones }}</p>
         </div>
         <div class="stat-card">
-            <p class="stat-label">Aprobadas</p>
-            <p class="stat-value stat-value-green">50</p>
+            <p class="stat-label">En revisión</p>
+            <p class="stat-value stat-value-amber">{{ en_revision }}</p>
+        </div>
+        {% if es_admin %}
+        <div class="stat-card">
+            <p class="stat-label">En despacho</p>
+            <p class="stat-value" style="color:#C2410C;">{{ en_despacho }}</p>
         </div>
         <div class="stat-card">
-            <p class="stat-label">Segunda Inspección</p>
-            <p class="stat-value stat-value-amber">20</p>
+            <p class="stat-label">Con incidencias</p>
+            <p class="stat-value stat-value-red">{{ con_incidencias }}</p>
         </div>
         <div class="stat-card">
-            <p class="stat-label">Restringidas</p>
-            <p class="stat-value stat-value-red">30</p>
+            <p class="stat-label">Finalizadas</p>
+            <p class="stat-value stat-value-green">{{ finalizada }}</p>
         </div>
+        {% endif %}
     </section>
 
     <section class="inspecciones-toolbar">
-        <div class="inspecciones-search">
-            <i data-lucide="search" class="inspecciones-search-icon"></i>
-            <input type="text" name="q" value="{{ query }}" placeholder="Buscar inspección..."
-            data-buscador-target="tbodyInspecciones" data-buscador-colspan="4">
-        </div>
+        <form method="get" action="{% url 'home:inspecciones' %}" class="tabla-search-form">
+            <div class="inspecciones-search">
+                <i data-lucide="search" class="inspecciones-search-icon"></i>
+                <input type="text" name="q" value="{{ query }}" placeholder="Buscar por número, pedimento o cliente...">
+            </div>
+            {% if es_admin %}
+            <select name="estado" class="inspecciones-select" style="margin-left:8px;">
+                <option value="" {% if not estado_filtro %}selected{% endif %}>Todos los estados</option>
+                <option value="En revisión"      {% if estado_filtro == "En revisión" %}selected{% endif %}>En revisión</option>
+                <option value="En despacho"      {% if estado_filtro == "En despacho" %}selected{% endif %}>En despacho</option>
+                <option value="Finalizada"       {% if estado_filtro == "Finalizada" %}selected{% endif %}>Finalizada</option>
+                <option value="Con incidencias"  {% if estado_filtro == "Con incidencias" %}selected{% endif %}>Con incidencias</option>
+                <option value="Segunda inspección" {% if estado_filtro == "Segunda inspección" %}selected{% endif %}>Segunda inspección</option>
+            </select>
+            {% endif %}
+            <button type="submit" class="btn-filtrar">Filtrar</button>
+            {% if query or estado_filtro %}
+                <a href="{% url 'home:inspecciones' %}" class="btn-limpiar">✕ Limpiar</a>
+            {% endif %}
+        </form>
         <select class="inspecciones-select" data-ordenador data-ordenador-target="tbodyInspecciones" data-ordenador-columna="0">
             <option value="">Ordenar por</option>
-            <option value="alfabetico">Alfabético (A-Z)</option>
-            <option value="ascendente">Menor a mayor</option>
-            <option value="descendente">Mayor a menor</option>
-            <option value="fecha" data-columna="1" data-modo="ascendente">Fecha</option>
-            <option value="hora" data-columna="2" data-modo="ascendente">Hora</option>
+            <option value="ascendente">Número ↑</option>
+            <option value="descendente">Número ↓</option>
+            <option value="fecha" data-columna="2" data-modo="ascendente">Fecha</option>
         </select>
-        <button type="button" class="btn-nueva-inspeccion">
-            <i data-lucide="plus" class="nav-icon"></i> Nueva Inspección
-        </button>
     </section>
 
     <section class="inspecciones-tabla-wrapper">
         <table class="inspecciones-tabla">
             <thead>
                 <tr>
-                    <th>Numero</th>
+                    <th>No.</th>
+                    <th>Pedimento</th>
                     <th>Fecha</th>
-                    <th>Hora</th>
-                    <th>Resultado</th>
+                    <th>Cliente</th>
                     <th>Semáforo</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
                 </tr>
             </thead>
             <tbody id="tbodyInspecciones">
-            {% for inspeccion in inspecciones %}
+            {% for insp in inspecciones %}
                 <tr>
-                    <td>{{ inspeccion.numero }}</td>
-                    <td>{{ inspeccion.fecha_inspeccion }}</td>
-                    <td>{{ inspeccion.hora_inicio }}</td>
-                    <td>{{ inspeccion.resultado }}</td>
-                    <td>{{ inspeccion.semaforo }}</td>
+                    <td>{{ insp.numero }}</td>
+                    <td>{{ insp.pedimento_num|default:"—" }}</td>
+                    <td>{{ insp.fecha_inspeccion }}</td>
+                    <td>{{ insp.cliente_nombre|default:"—" }}</td>
+                    <td>
+                        {% if insp.semaforo_resultado and "Rojo" in insp.semaforo_resultado %}
+                            <span class="semaforo-badge semaforo-rojo">🔴 Rojo</span>
+                        {% else %}
+                            <span class="semaforo-badge semaforo-verde">🟢 Verde</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if insp.estado == "En despacho" %}
+                            <span class="estado-badge" style="background:#FFF7ED;color:#C2410C;border-color:#FED7AA;">
+                                En despacho
+                                {% if insp.dias_en_despacho is not None %}
+                                  <small>({{ insp.dias_en_despacho }}/2 días)</small>
+                                {% endif %}
+                            </span>
+                        {% elif insp.estado == "Finalizada" %}
+                            <span class="estado-badge estado-aprobado">✓ Finalizada</span>
+                        {% elif insp.estado == "Con incidencias" %}
+                            <span class="estado-badge estado-incidencia">Con incidencias</span>
+                        {% elif insp.estado == "Segunda inspección" %}
+                            <span class="estado-badge estado-segunda">2ª Inspección</span>
+                        {% else %}
+                            <span class="estado-badge estado-revision">En revisión</span>
+                        {% endif %}
+                    </td>
+                    <td class="acciones">
+                        {% if es_inspector and insp.estado == "En revisión" %}
+                            <a href="{% url 'home:inspeccion_revisar' insp.numero %}" class="btn-ver">
+                                Revisar
+                            </a>
+                        {% elif es_admin %}
+                            <a href="{% url 'home:inspeccion_admin_detalle' insp.numero %}" class="btn-ver">
+                                Ver detalle
+                            </a>
+                        {% endif %}
+                    </td>
                 </tr>
             {% empty %}
                 <tr>
-                    <td colspan="4" style="text-align:center;">
-                        No hay inspecciones registradas.
-                    </td>
+                    <td colspan="7" style="text-align:center;">No hay inspecciones registradas.</td>
                 </tr>
             {% endfor %}
             </tbody>
@@ -160,7 +223,7 @@
         {% if inspecciones.has_other_pages %}
         <div class="tabla-paginacion">
             {% if inspecciones.has_previous %}
-                <a href="?pagina={{ inspecciones.previous_page_number }}" class="pagina-btn pagina-flecha">
+                <a href="?pagina={{ inspecciones.previous_page_number }}{% if query %}&q={{ query }}{% endif %}" class="pagina-btn pagina-flecha">
                     <i data-lucide="chevron-left"></i>
                 </a>
             {% else %}
@@ -171,12 +234,12 @@
                 {% if inspecciones.number == num %}
                     <button class="pagina-btn pagina-activa">{{ num }}</button>
                 {% elif num >= inspecciones.number|add:"-2" and num <= inspecciones.number|add:"2" %}
-                    <a href="?pagina={{ num }}" class="pagina-btn">{{ num }}</a>
+                    <a href="?pagina={{ num }}{% if query %}&q={{ query }}{% endif %}" class="pagina-btn">{{ num }}</a>
                 {% endif %}
             {% endfor %}
 
             {% if inspecciones.has_next %}
-                <a href="?pagina={{ inspecciones.next_page_number }}" class="pagina-btn pagina-flecha">
+                <a href="?pagina={{ inspecciones.next_page_number }}{% if query %}&q={{ query }}{% endif %}" class="pagina-btn pagina-flecha">
                     <i data-lucide="chevron-right"></i>
                 </a>
             {% else %}
@@ -187,29 +250,24 @@
     </section>
 </main>
 
+<!-- Modal logout -->
 <div class="modal-overlay" id="modalLogout">
     <div class="modal-logout-box">
         <img src="{% static 'home/img/siga_logo.png' %}" alt="SIGA" class="modal-logout-logo">
-        <p class="modal-logout-texto"> ¿Estás seguro de cerrar sesión? </p>
+        <p class="modal-logout-texto">¿Estás seguro de cerrar sesión?</p>
         <div class="modal-logout-acciones">
             <a href="{% url 'home:logout' %}" class="modal-logout-si">Sí</a>
-            <button type="button" class="modal-logout-cancelar" onclick="cerrarModalLogout()"> Cancelar </button>
+            <button type="button" class="modal-logout-cancelar" onclick="cerrarModalLogout()">Cancelar</button>
         </div>
     </div>
 </div>
+
 {% include "components/toasts.html" %}
+
 <script>
-    lucide.createIcons();
- 
-    function mostrarModalLogout() {
-        document.getElementById('modalLogout').classList.add('activo');
-    }
- 
-    function cerrarModalLogout() {
-        document.getElementById('modalLogout').classList.remove('activo');
-    }
+lucide.createIcons();
+function mostrarModalLogout() { document.getElementById('modalLogout').classList.add('activo'); }
+function cerrarModalLogout()  { document.getElementById('modalLogout').classList.remove('activo'); }
 </script>
- 
 </body>
 </html>
- 

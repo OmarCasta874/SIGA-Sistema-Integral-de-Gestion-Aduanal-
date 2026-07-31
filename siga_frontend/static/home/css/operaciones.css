@@ -4,6 +4,43 @@
     box-sizing: border-box;
 }
 
+/* Tarjetas de selección de paquete en modal nueva operación */
+.permiso-cards        { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+.permiso-card         { border:2px solid #E5E7EB; border-radius:10px; padding:10px 14px; cursor:pointer; flex:1; min-width:130px; transition:border-color .15s, background .15s; }
+.permiso-card:hover   { border-color:#2563EB; background:#EFF6FF; }
+.permiso-card.selected { border-color:#2563EB; background:#EFF6FF; }
+.permiso-card-tipo    { font-weight:700; font-size:13px; color:#111827; margin-bottom:3px; }
+.permiso-card-vig     { font-size:11px; color:#6B7280; margin-bottom:2px; }
+.permiso-vencido      { display:inline-block; margin-top:3px; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; }
+.permiso-card-usado   { border-color:#FCD34D; background:#FFFBEB; }
+
+/* Lista de productos dentro de tarjeta de paquete */
+.paq-card-productos {
+    list-style: none;
+    margin-top: 6px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.paq-card-productos li {
+    font-size: 11px;
+    color: #374151;
+    padding: 2px 6px;
+    background: #F3F4F6;
+    border-radius: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 180px;
+}
+.paq-card-sin-prod {
+    font-size: 11px;
+    color: #9CA3AF;
+    margin-top: 4px;
+    font-style: italic;
+}
+
 .content {
     margin-left: 255px;
     padding: 30px;
@@ -221,8 +258,8 @@ td {
 }
 
 .estado-validacion {
-    background: #DBEAFE;
-    color: #2563EB;
+    background: #FEF3C7;
+    color: #B45309;
 }
 
 .estado-liberado {
@@ -231,13 +268,13 @@ td {
 }
 
 .estado-pago-pendiente {
-    background: #FEFCE7;
-    color: #D97706;
+    background: #FEF3C7;
+    color: #B45309;
 }
 
 .estado-reconocimiento {
-    background: #F3F4F6;
-    color: #6B7280;
+    background: #FEF3C7;
+    color: #B45309;
 }
 
 /* ACCIONES */

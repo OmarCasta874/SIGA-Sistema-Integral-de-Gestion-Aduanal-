@@ -102,20 +102,20 @@
     </div>
     <div class="estadisticas">
         <div class="card card-azul">
-            <p> Operaciones Activas </p>
+            <p> Operaciones registradas </p>
             <h2> {{ total_operaciones }} </h2>
         </div>
         <div class="card card-naranja">
-            <p> En Revisión </p>
-            <h2> 11</h2>
+            <p> Importaciones </p>
+            <h2>{{ importaciones }}</h2>
         </div>
         <div class="card card-rojo">
-            <p> Pendientes de Pago</p>
-            <h2> 7 </h2>
+            <p> Exportaciones </p>
+            <h2> {{ exportaciones }} </h2>
         </div>
         <div class="card card-verde">
-            <p> Liberadas Hoy </p>
-            <h2> 18 </h2>
+            <p> Operaciones finalizadas </p>
+            <h2> {{ operaciones_finalizadas }} </h2>
         </div>
     </div>
 
@@ -173,27 +173,31 @@
                 <td>{{ operacion.op.aduana }}</td>
                 <td>{{ operacion.op.fecha_inicio|date:"d/m/Y" }}</td>
                 <td>
-                    {% if operacion.estado_nombre and operacion.estado_nombre != '—' %}
-                        {% if operacion.paso == 1 %}
-                            <span style="color:#d97706;font-weight:600;">{{ operacion.estado_nombre }}</span>
-                        {% elif operacion.paso == 2 %}
-                            <span style="color:#2563eb;font-weight:600;">{{ operacion.estado_nombre }}</span>
+                    {% with nombre=operacion.estado_nombre|default:"" %}
+                    {% if "completad" in nombre|lower or "liberado" in nombre|lower or "aprobad" in nombre|lower or "finaliz" in nombre|lower or "pagado" in nombre|lower %}
+                        <span class="estado-op estado-liberado">{{ nombre }}</span>
+                    {% elif "proceso" in nombre|lower or "pendiente" in nombre|lower or "revision" in nombre|lower or "revisión" in nombre|lower %}
+                        <span class="estado-op estado-pago-pendiente">{{ nombre }}</span>
+                    {% elif nombre %}
+                        {% if operacion.paso == 3 %}
+                            <span class="estado-op estado-liberado">{{ nombre }}</span>
                         {% else %}
-                            <span style="color:#16a34a;font-weight:600;">{{ operacion.estado_nombre }}</span>
+                            <span class="estado-op estado-pago-pendiente">{{ nombre }}</span>
                         {% endif %}
                     {% else %}
-                        {% if operacion.paso == 1 %}
-                            <span style="color:#d97706;font-weight:600;">Pedimento pendiente</span>
+                        {% if operacion.paso == 3 %}
+                            <span class="estado-op estado-liberado">Completada</span>
                         {% elif operacion.paso == 2 %}
-                            <span style="color:#2563eb;font-weight:600;">Pendiente de pago</span>
+                            <span class="estado-op estado-pago-pendiente">Pendiente de pago</span>
                         {% else %}
-                            <span style="color:#16a34a;font-weight:600;">Completada</span>
+                            <span class="estado-op estado-pago-pendiente">Pedimento pendiente</span>
                         {% endif %}
                     {% endif %}
+                    {% endwith %}
                 </td>
                 <td>
                     <a href="{% url 'home:operacion_detalle' operacion.op.pk %}">
-                        <button class="btn-ver">Ver</button>
+                        <button class="btn-ver">Ver detalle</button>
                     </a>
                 </td>
             </tr>
@@ -284,7 +288,7 @@
                 </div>
                 <div class="form-group">
                     <label>Cliente asociado</label>
-                    <select id="op-cliente" class="form-input" required>
+                    <select id="op-cliente" class="form-input" required onchange="validarClientePaquetes(this.value)">
                         <option value="">Selecciona un cliente...</option>
                         {% for c in clientes %}
                             <option value="{{ c.numero }}">
@@ -292,6 +296,9 @@
                             </option>
                         {% endfor %}
                     </select>
+                    <p id="warn-sin-paquetes" style="display:none;margin-top:6px;font-size:12px;color:#DC2626;background:#FEF2F2;border:1px solid #FECACA;border-radius:6px;padding:7px 10px;">
+                        ⚠ Este cliente no tiene paquetes registrados. Debes registrar al menos un paquete antes de crear una operación.
+                    </p>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
@@ -328,6 +335,7 @@
                 <input type="hidden" name="tipo_operacion" value="Importación">
                 <input type="hidden" name="cliente"  id="imp-cliente">
                 <input type="hidden" name="aduana"   id="imp-aduana">
+                <input type="hidden" name="paquete"  id="imp-paquete">
                 <div class="modal-body">
                     <div class="form-info">
                         <i data-lucide="info"></i>
@@ -341,15 +349,50 @@
                                    placeholder="Ej. Toyota Japan Co.">
                         </div>
                         <div class="form-group">
-                            <label>País de origen</label>
-                            <input type="text" name="pais_origen" class="form-input"
-                                   placeholder="Ej. Japón">
+                            <label>País de origen <span style="color:#EF4444">*</span></label>
+                            <select name="pais_origen" id="imp-pais-origen" class="form-input">
+                                <option value="">Seleccionar...</option>
+                                <option value="Estados Unidos">Estados Unidos</option>
+                                <option value="China">China</option>
+                                <option value="Alemania">Alemania</option>
+                                <option value="España">España</option>
+                                <option value="Francia">Francia</option>
+                                <option value="Italia">Italia</option>
+                                <option value="Japón">Japón</option>
+                                <option value="Corea del Sur">Corea del Sur</option>
+                                <option value="Brasil">Brasil</option>
+                                <option value="Argentina">Argentina</option>
+                                <option value="Colombia">Colombia</option>
+                                <option value="Chile">Chile</option>
+                                <option value="Perú">Perú</option>
+                                <option value="Reino Unido">Reino Unido</option>
+                                <option value="India">India</option>
+                                <option value="Canadá">Canadá</option>
+                                <option value="Australia">Australia</option>
+                                <option value="Países Bajos">Países Bajos</option>
+                                <option value="Turquía">Turquía</option>
+                                <option value="Rusia">Rusia</option>
+                                <option value="Israel">Israel</option>
+                                <option value="Arabia Saudita">Arabia Saudita</option>
+                                <option value="Emiratos Árabes Unidos">Emiratos Árabes Unidos</option>
+                                <option value="Singapur">Singapur</option>
+                                <option value="Vietnam">Vietnam</option>
+                                <option value="Indonesia">Indonesia</option>
+                                <option value="Guatemala">Guatemala</option>
+                                <option value="Costa Rica">Costa Rica</option>
+                                <option value="Panamá">Panamá</option>
+                                <option value="Venezuela">Venezuela</option>
+                                <option value="Ecuador">Ecuador</option>
+                                <option value="Bolivia">Bolivia</option>
+                                <option value="Uruguay">Uruguay</option>
+                                <option value="México">México</option>
+                            </select>
                         </div>
                     </div>
                     <div class="form-group">
                         <label>País de destino</label>
                         <input type="text" name="pais_destino" class="form-input"
-                               value="México" readonly>
+                               value="México" readonly style="background:#F9FAFB;color:#374151;">
                     </div>
                     <div class="form-group">
                         <label>Régimen aduanero</label>
@@ -363,18 +406,20 @@
                                 {% endif %}
                             {% endfor %}
                         </select>
-                        <span class="form-hint">
-                            Solo se muestran regímenes aplicables a importación.
-                        </span>
+                        <span class="form-hint">Solo se muestran regímenes aplicables a importación.</span>
+                    </div>
+                    <!-- Selector de paquete -->
+                    <div class="form-group">
+                        <label>Paquete a procesar</label>
+                        <div id="imp-paquetes-container">
+                            <p style="font-size:13px;color:#6B7280;">Selecciona un cliente en el paso anterior para ver sus paquetes.</p>
+                        </div>
+                        <p id="imp-warn-paquete" style="display:none;margin-top:6px;font-size:12px;color:#DC2626;background:#FEF2F2;border:1px solid #FECACA;border-radius:6px;padding:7px 10px;"></p>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn-cancelar" onclick="volverPaso1()">
-                        ← Atrás
-                    </button>
-                    <button type="button" class="btn-guardar" onclick="pasarPaso3('importacion')">
-                        Continuar →
-                    </button>
+                    <button type="button" class="btn-cancelar" onclick="volverPaso1()">← Atrás</button>
+                    <button type="button" class="btn-guardar" onclick="pasarPaso3('importacion')">Continuar →</button>
                 </div>
             </form>
         </div>
@@ -386,6 +431,7 @@
                 <input type="hidden" name="tipo_operacion" value="Exportación">
                 <input type="hidden" name="cliente"  id="exp-cliente">
                 <input type="hidden" name="aduana"   id="exp-aduana">
+                <input type="hidden" name="paquete"  id="exp-paquete">
                 <div class="modal-body">
                     <div class="form-info">
                         <i data-lucide="info"></i>
@@ -399,15 +445,50 @@
                                    placeholder="Ej. Amazon USA Inc.">
                         </div>
                         <div class="form-group">
-                            <label>País de destino</label>
-                            <input type="text" name="pais_destino" class="form-input"
-                                   placeholder="Ej. Estados Unidos">
+                            <label>País de destino <span style="color:#EF4444">*</span></label>
+                            <select name="pais_destino" id="exp-pais-destino" class="form-input">
+                                <option value="">Seleccionar...</option>
+                                <option value="Estados Unidos">Estados Unidos</option>
+                                <option value="China">China</option>
+                                <option value="Alemania">Alemania</option>
+                                <option value="España">España</option>
+                                <option value="Francia">Francia</option>
+                                <option value="Italia">Italia</option>
+                                <option value="Japón">Japón</option>
+                                <option value="Corea del Sur">Corea del Sur</option>
+                                <option value="Brasil">Brasil</option>
+                                <option value="Argentina">Argentina</option>
+                                <option value="Colombia">Colombia</option>
+                                <option value="Chile">Chile</option>
+                                <option value="Perú">Perú</option>
+                                <option value="Reino Unido">Reino Unido</option>
+                                <option value="India">India</option>
+                                <option value="Canadá">Canadá</option>
+                                <option value="Australia">Australia</option>
+                                <option value="Países Bajos">Países Bajos</option>
+                                <option value="Turquía">Turquía</option>
+                                <option value="Rusia">Rusia</option>
+                                <option value="Israel">Israel</option>
+                                <option value="Arabia Saudita">Arabia Saudita</option>
+                                <option value="Emiratos Árabes Unidos">Emiratos Árabes Unidos</option>
+                                <option value="Singapur">Singapur</option>
+                                <option value="Vietnam">Vietnam</option>
+                                <option value="Indonesia">Indonesia</option>
+                                <option value="Guatemala">Guatemala</option>
+                                <option value="Costa Rica">Costa Rica</option>
+                                <option value="Panamá">Panamá</option>
+                                <option value="Venezuela">Venezuela</option>
+                                <option value="Ecuador">Ecuador</option>
+                                <option value="Bolivia">Bolivia</option>
+                                <option value="Uruguay">Uruguay</option>
+                                <option value="México">México</option>
+                            </select>
                         </div>
                     </div>
                     <div class="form-group">
                         <label>País de origen</label>
                         <input type="text" name="pais_origen" class="form-input"
-                               value="México" readonly>
+                               value="México" readonly style="background:#F9FAFB;color:#374151;">
                     </div>
                     <div class="form-group">
                         <label>Régimen aduanero</label>
@@ -421,18 +502,20 @@
                                 {% endif %}
                             {% endfor %}
                         </select>
-                        <span class="form-hint">
-                            Solo se muestran regímenes aplicables a exportación.
-                        </span>
+                        <span class="form-hint">Solo se muestran regímenes aplicables a exportación.</span>
+                    </div>
+                    <!-- Selector de paquete -->
+                    <div class="form-group">
+                        <label>Paquete a procesar</label>
+                        <div id="exp-paquetes-container">
+                            <p style="font-size:13px;color:#6B7280;">Selecciona un cliente en el paso anterior para ver sus paquetes.</p>
+                        </div>
+                        <p id="exp-warn-paquete" style="display:none;margin-top:6px;font-size:12px;color:#DC2626;background:#FEF2F2;border:1px solid #FECACA;border-radius:6px;padding:7px 10px;"></p>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn-cancelar" onclick="volverPaso1()">
-                        ← Atrás
-                    </button>
-                    <button type="button" class="btn-guardar" onclick="pasarPaso3('exportacion')">
-                        Continuar →
-                    </button>
+                    <button type="button" class="btn-cancelar" onclick="volverPaso1()">← Atrás</button>
+                    <button type="button" class="btn-guardar" onclick="pasarPaso3('exportacion')">Continuar →</button>
                 </div>
             </form>
         </div>
@@ -478,6 +561,10 @@
                         <span class="detalle-label">Régimen aduanero</span>
                         <span id="resumen-regimen"></span>
                     </div>
+                    <div class="detalle-row">
+                        <span class="detalle-label">Paquete</span>
+                        <span id="resumen-paquete">—</span>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -515,6 +602,76 @@
         document.getElementById('modalLogout').classList.remove('activo');
     }
 
+    // ── Paquetes por cliente (del contexto Django) ────────────────
+    const PAQUETES_POR_CLIENTE = {{ paquetes_json|safe }};
+
+    function validarClientePaquetes(clienteId) {
+        const warn   = document.getElementById('warn-sin-paquetes');
+        const btnSig = document.querySelector('#paso-1 .btn-guardar');
+        if (!clienteId) {
+            warn.style.display = 'none';
+            btnSig.disabled = false;
+            return;
+        }
+        const paquetes = PAQUETES_POR_CLIENTE[String(clienteId)] || [];
+        if (!paquetes.length) {
+            warn.style.display = '';
+            btnSig.disabled = true;
+        } else {
+            warn.style.display = 'none';
+            btnSig.disabled = false;
+        }
+    }
+
+    function renderizarPaquetes(clienteId, containerId, hiddenInputId) {
+        const container = document.getElementById(containerId);
+        const paquetes  = PAQUETES_POR_CLIENTE[String(clienteId)] || [];
+
+        if (!paquetes.length) {
+            container.innerHTML = '<p style="font-size:13px;color:#6B7280;">Este cliente no tiene paquetes registrados.</p>';
+            return;
+        }
+
+        container.innerHTML = '';
+        const grid = document.createElement('div');
+        grid.className = 'permiso-cards';
+
+        paquetes.forEach(pq => {
+            const card = document.createElement('div');
+            card.className = 'permiso-card' + (pq.tiene_ped ? ' permiso-card-usado' : '');
+            card.title = pq.tiene_ped ? 'Este paquete ya tiene un pedimento asignado' : '';
+
+            // Lista de productos (máx. 5)
+            let productosHtml = '';
+            if (pq.productos && pq.productos.length) {
+                const items = pq.productos.map(pr =>
+                    `<li>${pr.cantidad > 1 ? pr.cantidad + '× ' : ''}${pr.nombre || '(sin nombre)'}</li>`
+                ).join('');
+                productosHtml = `<ul class="paq-card-productos">${items}</ul>`;
+            } else {
+                productosHtml = '<p class="paq-card-sin-prod">Sin productos registrados</p>';
+            }
+
+            card.innerHTML = `
+                <div class="permiso-card-tipo">${pq.tipo || 'Paquete'} #${pq.codigo}
+                    ${pq.tiene_ped ? '<span class="permiso-vencido" style="background:#F59E0B;color:#78350F;margin-left:6px;">CON PED.</span>' : ''}
+                </div>
+                ${productosHtml}
+            `;
+            card.addEventListener('click', () => {
+                grid.querySelectorAll('.permiso-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                document.getElementById(hiddenInputId).value = pq.codigo;
+                // Ocultar aviso si lo había
+                const warn = container.parentElement.querySelector('[id$="-warn-paquete"]');
+                if (warn) warn.style.display = 'none';
+            });
+            grid.appendChild(card);
+        });
+
+        container.appendChild(grid);
+    }
+
     // ── Modal Nueva Operación: 3 pasos ────────────────────────────
     let tipoOperacionActual = null;
 
@@ -529,6 +686,11 @@
         }
         if (!cliente.value) {
             alert('Selecciona un cliente.');
+            return;
+        }
+        const paqCliente = PAQUETES_POR_CLIENTE[String(cliente.value)] || [];
+        if (!paqCliente.length) {
+            alert('Este cliente no tiene paquetes registrados.\nDebes registrar al menos un paquete antes de crear una operación.');
             return;
         }
         if (!aduana) {
@@ -554,7 +716,9 @@
             document.getElementById('imp-cliente').value                = cliente.value;
             document.getElementById('imp-aduana').value                 = aduana;
             document.getElementById('imp-nombre-cliente').textContent   = nombreCliente.split('—')[0].trim();
+            document.getElementById('imp-paquete').value                = '';
             document.getElementById('paso-2-importacion').style.display = '';
+            renderizarPaquetes(cliente.value, 'imp-paquetes-container', 'imp-paquete');
 
         } else if (tipo === 'Exportación') {
             document.getElementById('prog-2-label').textContent         = 'Exportación';
@@ -562,7 +726,9 @@
             document.getElementById('exp-cliente').value                = cliente.value;
             document.getElementById('exp-aduana').value                 = aduana;
             document.getElementById('exp-nombre-cliente').textContent   = nombreCliente.split('—')[0].trim();
+            document.getElementById('exp-paquete').value                = '';
             document.getElementById('paso-2-exportacion').style.display = '';
+            renderizarPaquetes(cliente.value, 'exp-paquetes-container', 'exp-paquete');
 
         } else {
             alert('Tránsito estará disponible próximamente.');
@@ -574,6 +740,46 @@
     }
 
     function pasarPaso3(tipo) {
+        // Validar campo de país obligatorio
+        if (tipo === 'importacion') {
+            const selOrigen = document.getElementById('imp-pais-origen');
+            if (!selOrigen.value) {
+                alert('Selecciona el país de origen de la mercancía.');
+                selOrigen.focus();
+                return;
+            }
+        } else {
+            const selDestino = document.getElementById('exp-pais-destino');
+            if (!selDestino.value) {
+                alert('Selecciona el país de destino de la mercancía.');
+                selDestino.focus();
+                return;
+            }
+        }
+
+        // Validar paquete seleccionado y que tenga productos
+        const clienteId = document.getElementById('op-cliente').value;
+        const warnId    = tipo === 'importacion' ? 'imp-warn-paquete' : 'exp-warn-paquete';
+        const warnEl    = document.getElementById(warnId);
+        const paqueteId = document.getElementById(tipo === 'importacion' ? 'imp-paquete' : 'exp-paquete').value;
+
+        if (!paqueteId) {
+            warnEl.textContent = '⚠ Selecciona el paquete que se procesará en esta operación.';
+            warnEl.style.display = '';
+            warnEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            return;
+        }
+
+        const paqData = (PAQUETES_POR_CLIENTE[String(clienteId)] || []).find(p => String(p.codigo) === String(paqueteId));
+        if (!paqData || !paqData.productos || paqData.productos.length === 0) {
+            warnEl.textContent = '⚠ El paquete seleccionado no tiene productos registrados. Agrega al menos un producto antes de continuar.';
+            warnEl.style.display = '';
+            warnEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            return;
+        }
+
+        warnEl.style.display = 'none';
+
         document.getElementById(`paso-2-${tipo}`).style.display = 'none';
 
         document.getElementById('prog-2').classList.remove('activo');
@@ -594,21 +800,29 @@
 
         // Paso 2
         if (tipo === 'importacion') {
-            const form   = document.getElementById('form-importacion');
-            const selReg = document.getElementById('imp-regimen');
+            const form      = document.getElementById('form-importacion');
+            const selReg    = document.getElementById('imp-regimen');
+            const selOrigen = document.getElementById('imp-pais-origen');
+            const paqueteId = document.getElementById('imp-paquete').value;
             document.getElementById('resumen-label-contraparte').textContent = 'Proveedor';
             document.getElementById('resumen-contraparte').textContent  = form.querySelector('[name="proveedor"]').value || '—';
-            document.getElementById('resumen-pais-origen').textContent  = form.querySelector('[name="pais_origen"]').value || '—';
-            document.getElementById('resumen-pais-destino').textContent = form.querySelector('[name="pais_destino"]').value || 'México';
+            document.getElementById('resumen-pais-origen').textContent  = selOrigen.options[selOrigen.selectedIndex]?.text || '—';
+            document.getElementById('resumen-pais-destino').textContent = 'México';
             document.getElementById('resumen-regimen').textContent      = selReg.options[selReg.selectedIndex]?.text || '—';
+            if (document.getElementById('resumen-paquete'))
+                document.getElementById('resumen-paquete').textContent = paqueteId ? `Paq. #${paqueteId}` : '—';
         } else {
-            const form   = document.getElementById('form-exportacion');
-            const selReg = document.getElementById('exp-regimen');
+            const form       = document.getElementById('form-exportacion');
+            const selReg     = document.getElementById('exp-regimen');
+            const selDestino = document.getElementById('exp-pais-destino');
+            const paqueteId  = document.getElementById('exp-paquete').value;
             document.getElementById('resumen-label-contraparte').textContent = 'Comprador';
             document.getElementById('resumen-contraparte').textContent  = form.querySelector('[name="comprador"]').value || '—';
-            document.getElementById('resumen-pais-origen').textContent  = form.querySelector('[name="pais_origen"]').value || 'México';
-            document.getElementById('resumen-pais-destino').textContent = form.querySelector('[name="pais_destino"]').value || '—';
+            document.getElementById('resumen-pais-origen').textContent  = 'México';
+            document.getElementById('resumen-pais-destino').textContent = selDestino.options[selDestino.selectedIndex]?.text || '—';
             document.getElementById('resumen-regimen').textContent      = selReg.options[selReg.selectedIndex]?.text || '—';
+            if (document.getElementById('resumen-paquete'))
+                document.getElementById('resumen-paquete').textContent = paqueteId ? `Paq. #${paqueteId}` : '—';
         }
 
         document.getElementById('paso-3').style.display = '';

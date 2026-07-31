@@ -26,6 +26,8 @@ class Usuario(AbstractBaseUser):
     correo         = models.EmailField(max_length=80, unique=True, db_column='correo')
     contrasena     = models.CharField(max_length=100, db_column='contrasena')
     bitacora       = models.IntegerField(db_column='bitacora', null=True, blank=True)
+    rol            = models.CharField(max_length=20, default='Administrador', db_column='rol')
+    activo         = models.BooleanField(default=True, db_column='activo')
 
     objects = UsuarioManager()
 

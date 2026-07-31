@@ -97,20 +97,28 @@
 
     <div class="bitacora-cards-grid">
         <div class="bitacora-card">
-            <div class="bitacora-card-label">Registros hoy</div>
-            <div class="bitacora-card-number bitacora-num-azul">248</div>
+            <div class="bitacora-card-label">Total de registros</div>
+            <div class="bitacora-card-number bitacora-num-azul">
+                {{ total_registros }}
+            </div>
         </div>
         <div class="bitacora-card">
-            <div class="bitacora-card-label">Usuarios activos</div>
-            <div class="bitacora-card-number bitacora-num-verde">18</div>
+            <div class="bitacora-card-label">Registros de hoy</div>
+            <div class="bitacora-card-number bitacora-num-verde">
+                {{ registros_hoy }}
+            </div>
         </div>
         <div class="bitacora-card">
-            <div class="bitacora-card-label">Errores detectados</div>
-            <div class="bitacora-card-number bitacora-num-rojo">3</div>
+            <div class="bitacora-card-label">Último registro</div>
+            <div class="bitacora-card-number bitacora-num-rojo">
+                {{ ultimo_registro }}
+            </div>
         </div>
         <div class="bitacora-card">
             <div class="bitacora-card-label">Última actividad</div>
-            <div class="bitacora-card-number bitacora-num-naranja">14:32 PM</div>
+            <div class="bitacora-card-number bitacora-num-naranja">
+                {{ ultima_hora }}
+            </div>
         </div>
     </div>
 

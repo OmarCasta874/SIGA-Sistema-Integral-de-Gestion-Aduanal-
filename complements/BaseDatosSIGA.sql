@@ -3487,3 +3487,5 @@ INSERT INTO producto (nombre, descripcion, peso, valor_unitario, paquete) VALUES
 INSERT INTO categorias_productos_rel (categorias, productos) VALUES (30, LAST_INSERT_ID());
 INSERT INTO producto (nombre, descripcion, peso, valor_unitario, paquete) VALUES ('Sistema de portería de fútbol portátil 3x2m', 'Estructura desmontable para práctica de fútbol.', 152.41, 1938.91, 1);
 INSERT INTO categorias_productos_rel (categorias, productos) VALUES (30, LAST_INSERT_ID());
+
+ALTER TABLE inspeccion ADD COLUMN motivo_segunda VARCHAR(500) NULL;

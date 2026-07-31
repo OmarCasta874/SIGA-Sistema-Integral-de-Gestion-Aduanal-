@@ -21,7 +21,7 @@ from home.models import (
     RegimenAduanero, SemaforoFiscal, TipoImportaciones, TipoExportaciones,
     Paquete, Producto, Pago, Factura, Sancion,
     EstadoOpeAduanera, EstadoPago, Inspeccion, TipoEmbalaje,
-    Telefono, CorreoElectronico,
+    Telefono, CorreoElectronico, Incidencia, SegundaInspeccion,
 )
 from .serializers import (
     UsuarioSerializer, UsuarioCreateSerializer, UsuarioUpdateSerializer,
@@ -35,8 +35,8 @@ from .serializers import (
     PagoSerializer, FacturaSerializer,
     PermisoListSerializer, SancionSerializer,
     PaqueteSerializer, PaqueteCreateSerializer, ProductoCreateSerializer,
-    ProductoCategoriaSerializer, SemaforoFiscalSerializer, InspeccionSerializer,
-    TipoEmbalajeSerializer,
+    ProductoCategoriaSerializer, SemaforoFiscalSerializer, SemaforoFiscalDetalleSerializer, InspeccionSerializer,
+    TipoEmbalajeSerializer, IncidenciaSerializer, SegundaInspeccionSerializer,
 )
 
 
@@ -45,7 +45,7 @@ from .serializers import (
 def _generar_semaforo():
     resultado = random.choices(
         ['Verde - Desaduanamiento libre', 'Rojo - Reconocimiento aduanero'],
-        weights=[70, 30],
+        weights=[0, 100],
         k=1,
     )[0]
     return SemaforoFiscal.objects.create(hora=datetime.now().time(), resultado=resultado)
@@ -318,6 +318,22 @@ class AduanaViewSet(viewsets.ModelViewSet):
     serializer_class = AduanaSerializer
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
+    
+    @action(detail=True, methods=["patch"])
+    def cambiar_estado(self, request, pk=None):
+        aduana = self.get_object()
+        if aduana.estado == "Activa":
+            aduana.estado = "Inactiva"
+        else:
+            aduana.estado = "Activa"
+            
+        aduana.save()
+        
+        return Response({
+            "success": True,
+            "estado": aduana.estado,
+            "mensaje": f"La aduana ahora está {aduana.estado}."
+        }, status=status.HTTP_200_OK)
 
 
 # ── Operaciones ────────────────────────────────────────────────────────────────
@@ -396,6 +412,7 @@ class OperacionViewSet(viewsets.ModelViewSet):
         pais_destino       = request.data.get('pais_destino') or None
         incoterm           = request.data.get('incoterm') or None
         tipo_cambio        = request.data.get('tipo_cambio') or None
+        paquete_codigo     = request.data.get('paquete') or None
 
         if not regimen_adu_id:
             return Response({'error': 'El régimen aduanero es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -427,6 +444,10 @@ class OperacionViewSet(viewsets.ModelViewSet):
             incoterm=incoterm,
             tipo_cambio=tipo_cambio,
         )
+
+        # Vincular paquete seleccionado a este pedimento
+        if paquete_codigo:
+            Paquete.objects.filter(codigo=paquete_codigo).update(pedimento=ped)
 
         # RF31: actualizar estado de operación a "Pendiente de pago"
         estado_pendiente = get_object_or_404(EstadoOpeAduanera, codigo=4)
@@ -559,11 +580,19 @@ class PermisoViewSet(viewsets.ReadOnlyModelViewSet):
 # ── Pagos ──────────────────────────────────────────────────────────────────────
 
 class PagoViewSet(viewsets.ModelViewSet):
-    queryset = Pago.objects.select_related('estado_pago', 'pedimento__ope_aduanera__cliente').order_by('-fecha_pago')
     serializer_class = PagoSerializer
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
     http_method_names = ['get', 'post', 'head', 'options']
+
+    def get_queryset(self):
+        qs = Pago.objects.select_related(
+            'estado_pago', 'pedimento__ope_aduanera__cliente'
+        ).order_by('-fecha_pago')
+        pedimento_num = self.request.query_params.get('pedimento')
+        if pedimento_num:
+            qs = qs.filter(pedimento__numero_pedimento=pedimento_num)
+        return qs
 
     def create(self, request, *args, **kwargs):
         import uuid
@@ -609,13 +638,17 @@ class PagoViewSet(viewsets.ModelViewSet):
             estado_pago=estado_pagado,
         )
 
-        # RF40: Verde → Completada. Rojo → sigue En proceso (va a inspección)
+        # RF40: Verde → Completada. Rojo → En revisión (va a inspección)
         op = ped.ope_aduanera
         if 'Verde' in semaforo.resultado:
             estado_completada = get_object_or_404(EstadoOpeAduanera, codigo=2)
             op.estado_ope_aduanera = estado_completada
             op.fecha_final = timezone.localdate()
             op.save(update_fields=['estado_ope_aduanera', 'fecha_final'])
+        elif 'Rojo' in semaforo.resultado:
+            estado_revision = get_object_or_404(EstadoOpeAduanera, codigo=5)
+            op.estado_ope_aduanera = estado_revision
+            op.save(update_fields=['estado_ope_aduanera'])
 
         return Response(
             {
@@ -1002,7 +1035,7 @@ class DashboardAPIView(APIView):
         return Response(data)
     
 # -- Sanción --------------------------------------------------------------------
-class SancionViewSet(viewsets.ReadOnlyModelViewSet):
+class SancionViewSet(viewsets.ModelViewSet):
     queryset = Sancion.objects.select_related(
         'incidencia'
     ).order_by('-num_sancion')
@@ -1058,8 +1091,9 @@ class PaqueteViewSet(viewsets.ModelViewSet):
             ocupado = paquete.productos.aggregate(
                 total=Sum(ExpressionWrapper(F('peso') * F('cantidad'), output_field=Df(max_digits=12, decimal_places=2)))
             )['total'] or 0
-            peso_max = float(paquete.tipo_embalaje.peso_maximo)
+            peso_max = float(paquete.peso)
             disponible = round(peso_max - float(ocupado), 2)
+            disponible = max(disponible, 0)
             if peso_nuevo > disponible:
                 return Response(
                     {'error': f'Sin espacio: el producto ocupa {peso_nuevo:.2f} kg pero el paquete solo tiene {disponible:.2f} kg disponibles.'},
@@ -1081,16 +1115,151 @@ class PaqueteViewSet(viewsets.ModelViewSet):
         return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class SemaforoFiscalViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = SemaforoFiscal.objects.all().order_by('-ID')
-    serializer_class = SemaforoFiscalSerializer
+    queryset = SemaforoFiscal.objects.prefetch_related(
+        'pedimentos__ope_aduanera__cliente'
+    ).order_by('-ID')
+    serializer_class = SemaforoFiscalDetalleSerializer
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
-class InspeccionViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Inspeccion.objects.all().order_by('-numero')
+class InspeccionViewSet(viewsets.ModelViewSet):
+    queryset = Inspeccion.objects.prefetch_related(
+        'incidencias__sanciones', 'segundas_inspecciones',
+        'semaforo__pedimentos__ope_aduanera__cliente',
+    ).select_related('semaforo').order_by('-numero')
     serializer_class = InspeccionSerializer
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
+
+    def _check_despacho_timer(self):
+        """Finaliza inspecciones en despacho con ≥2 días automáticamente."""
+        from datetime import timedelta
+        limite = timezone.localdate() - timedelta(days=2)
+        Inspeccion.objects.filter(
+            estado='En despacho',
+            fecha_aprobacion__lte=limite,
+        ).update(estado='Finalizada')
+
+    def list(self, request, *args, **kwargs):
+        self._check_despacho_timer()
+        return super().list(request, *args, **kwargs)
+
+    @action(detail=True, methods=['patch'], url_path='resultado')
+    def actualizar_resultado(self, request, pk=None):
+        inspeccion = self.get_object()
+        resultado = request.data.get('resultado', '').strip()
+        if not resultado:
+            return Response({'error': 'El campo resultado es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        update_fields = ['resultado']
+        inspeccion.resultado = resultado
+
+        if resultado == 'Aprobado':
+            inspeccion.estado = 'En despacho'
+            inspeccion.fecha_aprobacion = timezone.localdate()
+            update_fields += ['estado', 'fecha_aprobacion']
+        elif resultado == 'Con incidencias':
+            inspeccion.estado = 'Con incidencias'
+            update_fields.append('estado')
+
+        inspeccion.save(update_fields=update_fields)
+        return Response(InspeccionSerializer(inspeccion).data)
+
+    @action(detail=True, methods=['patch'], url_path='checklist')
+    def guardar_checklist(self, request, pk=None):
+        import json as _json
+        inspeccion = self.get_object()
+        checklist = request.data.get('checklist_data')
+        if checklist is None:
+            return Response({'error': 'checklist_data es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
+        inspeccion.checklist_data = _json.dumps(checklist)
+        inspeccion.save(update_fields=['checklist_data'])
+        return Response({'ok': True})
+
+    @action(detail=True, methods=['get', 'post'], url_path='incidencias')
+    def incidencias(self, request, pk=None):
+        inspeccion = self.get_object()
+        if request.method == 'GET':
+            qs = inspeccion.incidencias.prefetch_related('sanciones').all()
+            return Response(IncidenciaSerializer(qs, many=True).data)
+        ser = IncidenciaSerializer(data={**request.data, 'inspeccion': inspeccion.pk})
+        if ser.is_valid():
+            ser.save()
+            return Response(ser.data, status=status.HTTP_201_CREATED)
+        return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post'], url_path='enviar-segunda')
+    def enviar_segunda(self, request, pk=None):
+        """Admin envía inspección aprobada a segunda revisión."""
+        inspeccion = self.get_object()
+        if inspeccion.estado != 'En despacho':
+            return Response(
+                {'error': 'Solo se puede enviar a segunda inspección desde el estado "En despacho".'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        segunda = SegundaInspeccion.objects.create(
+            inspeccion_FK=inspeccion,
+            fecha_inspeccion=timezone.localdate(),
+            hora_inicio=datetime.now().time(),
+            resultado=None,
+        )
+        inspeccion.estado   = 'Segunda inspección'
+        inspeccion.resultado = 'Segunda inspección'
+        inspeccion.fecha_aprobacion = None
+        inspeccion.save(update_fields=['estado', 'resultado', 'fecha_aprobacion'])
+        return Response(SegundaInspeccionSerializer(segunda).data, status=status.HTTP_201_CREATED)
+
+
+class IncidenciaViewSet(viewsets.ModelViewSet):
+    queryset = Incidencia.objects.prefetch_related('sanciones').all().order_by('-codigo')
+    serializer_class = IncidenciaSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    @action(detail=True, methods=['post'], url_path='sancion')
+    def registrar_sancion(self, request, pk=None):
+        incidencia = self.get_object()
+        ser = SancionSerializer(data={**request.data, 'incidencia': incidencia.pk})
+        if ser.is_valid():
+            ser.save()
+            return Response(ser.data, status=status.HTTP_201_CREATED)
+        return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post'], url_path='multa_pagar')
+    def multa_pagar(self, request, pk=None):
+        import uuid as _uuid
+        incidencia = self.get_object()
+
+        if Pago.objects.filter(incidencia=incidencia).exists():
+            return Response({'error': 'Esta multa ya fue pagada.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        monto = request.data.get('monto')
+        concepto = request.data.get('concepto') or f'Pago de multa — Incidencia #{incidencia.codigo}'
+
+        if not monto:
+            return Response({'error': 'El monto es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        estado_pagado = get_object_or_404(EstadoPago, codigo=1)
+        no_transaccion = f'MUL-{_uuid.uuid4().hex[:10].upper()}'
+        num_pago = Pago.objects.count() + 1
+
+        pago = Pago.objects.create(
+            no_transaccion=no_transaccion,
+            numero_pago=num_pago,
+            concepto=concepto,
+            monto=monto,
+            saldo_final=0,
+            fecha_pago=timezone.localdate(),
+            incidencia=incidencia,
+            estado_pago=estado_pagado,
+        )
+
+        return Response({
+            'no_transaccion': pago.no_transaccion,
+            'incidencia_codigo': incidencia.codigo,
+            'monto': float(pago.monto),
+            'fecha_pago': str(pago.fecha_pago),
+        }, status=status.HTTP_201_CREATED)
     
 class PerfilAPIView(APIView):
     authentication_classes = [TokenAuthentication]
@@ -1112,8 +1281,6 @@ class PerfilAPIView(APIView):
                 UsuarioSerializer(request.user).data,
                 status=status.HTTP_200_OK
             )
-        
-        print(serializer.errors)
         
         return Response(
             serializer.errors,

@@ -90,20 +90,16 @@
     </header>
     <section class="sanciones-stats">
         <div class="stat-card">
-            <p class="stat-label">Total Sanciones</p>
-            <p class="stat-value stat-value-blue">250</p>
+            <p class="stat-label">Total Incidencias</p>
+            <p class="stat-value stat-value-blue">{{ stat_total }}</p>
         </div>
         <div class="stat-card">
-            <p class="stat-label">Liberadas</p>
-            <p class="stat-value stat-value-green">50</p>
+            <p class="stat-label">Multas pagadas</p>
+            <p class="stat-value stat-value-green">{{ stat_pagadas }}</p>
         </div>
         <div class="stat-card">
-            <p class="stat-label">En proceso</p>
-            <p class="stat-value stat-value-amber">100</p>
-        </div>
-        <div class="stat-card">
-            <p class="stat-label">Sancionadas</p>
-            <p class="stat-value stat-value-red">100</p>
+            <p class="stat-label">Pendientes de pago</p>
+            <p class="stat-value stat-value-red">{{ stat_pendientes }}</p>
         </div>
     </section>
 
@@ -111,48 +107,63 @@
         <form method="get" action="{% url 'home:sanciones' %}" class="tabla-search-form">
             <div class="sanciones-search">
                 <i data-lucide="search" class="sanciones-search-icon"></i>
-                <input type="text" name="q" value="{{ query }}" placeholder="Buscar sanción..."
-                data-buscador-target="tbodySanciones" data-buscador-colspan="4">
+                <input type="text" name="q" value="{{ query }}" placeholder="Buscar por cliente, RFC o artículo..."
+                data-buscador-target="tbodySanciones" data-buscador-colspan="5">
             </div>
             <button type="submit" class="btn-filtrar">Filtrar</button>
             {% if query %}
                 <a href="{% url 'home:sanciones' %}" class="btn-limpiar">✕ Limpiar</a>
             {% endif %}
         </form>
-        <select class="sanciones-select" data-ordenador data-ordenador-target="tbodySanciones" data-ordenador-columna="0">
+        <select class="sanciones-select" data-ordenador data-ordenador-target="tbodySanciones" data-ordenador-columna="2">
             <option value="">Ordenar por</option>
-            <option value="alfabetico">Alfabético (A-Z)</option>
-            <option value="ascendente">Menor a mayor</option>
-            <option value="descendente">Mayor a menor</option>
-            <option value="monto" data-columna="2" data-modo="ascendente">Monto Multa</option>
+            <option value="alfabetico">Cliente A-Z</option>
+            <option value="descendente">Mayor multa primero</option>
+            <option value="ascendente">Menor multa primero</option>
         </select>
-        <button type="button" class="btn-nueva-fraccion">
-            <i data-lucide="plus" class="nav-icon"></i> Nueva Sanción
-        </button>
     </section>
 
     <section class="sanciones-tabla-wrapper">
         <table class="sanciones-tabla">
             <thead>
                 <tr>
-                    <th>Numero</th>
-                    <th>Fundamento</th>
-                    <th>Monto de la multa</th>
+                    <th>Cliente</th>
                     <th>Incidencia</th>
+                    <th>Total multa</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
                 </tr>
             </thead>
             <tbody id="tbodySanciones">
-                {% for sancion in sanciones %}
+                {% for inc in incidencias %}
                 <tr>
-                    <td>{{ sancion.num_sancion }}</td>
-                    <td>{{ sancion.fundamento_legal }}</td>
-                    <td>{{ sancion.monto_multa }}</td>
-                    <td>{{ sancion.incidencia }}</td>
+                    <td>
+                        <span style="font-weight:600;">{{ inc.cliente_nombre|default:"—" }}</span><br>
+                        <span style="font-size:11px;color:#6B7280;">{{ inc.cliente_rfc|default:"" }}</span>
+                    </td>
+                    <td>
+                        <span class="badge-gravedad badge-{{ inc.gravedad|lower }}">{{ inc.gravedad }}</span><br>
+                        <span style="font-size:12px;color:#374151;">{{ inc.descripcion|truncatechars:50 }}</span>
+                    </td>
+                    <td style="font-weight:700;">
+                        ${{ inc.total_multa|floatformat:2 }}
+                        <br><span style="font-size:11px;color:#6B7280;">{{ inc.sanciones|length }} artículo{% if inc.sanciones|length != 1 %}s{% endif %}</span>
+                    </td>
+                    <td>
+                        {% if inc.pagada %}
+                            <span class="badge-estado badge-pagada">Pagada</span>
+                        {% else %}
+                            <span class="badge-estado badge-pendiente">Pendiente</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'home:sancion_detalle' inc.codigo %}" class="btn-ver">Ver detalles</a>
+                    </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="4" style="text-align:center;">
-                        No hay más sanciones registradas.
+                    <td colspan="5" style="text-align:center;color:#6B7280;padding:24px;">
+                        No hay sanciones registradas.
                     </td>
                 </tr>
                 {% endfor %}

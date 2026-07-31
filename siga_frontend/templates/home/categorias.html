@@ -100,16 +100,22 @@
             <div class="card-number"> {{ total_categorias }}</div>
         </div>
         <div class="card">
-            <div class="card-label">Categorías activas</div>
-            <div class="card-number card-number-verde">10</div>
+            <div class="card-label">Con permiso requerido</div>
+            <div class="card-number card-number-verde">
+                {{ categorias_con_permiso }}
+            </div>
         </div>
         <div class="card">
-            <div class="card-label">Productos registrados</div>
-            <div class="card-number card-number-naranja">2,304</div>
+            <div class="card-label">Con fracción arancelaria</div>
+            <div class="card-number card-number-naranja">
+                {{ categorias_con_fraccion }}
+            </div>
         </div>
         <div class="card">
-            <div class="card-label">Categoría más usada</div>
-            <div class="card-number card-number-rojo">Electrónicos</div>
+            <div class="card-label">Con IGI asignado</div>
+            <div class="card-number card-number-rojo">
+                {{ categorias_con_igi }}
+            </div>
         </div>
     </div>
 

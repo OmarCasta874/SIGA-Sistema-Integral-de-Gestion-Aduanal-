@@ -20,10 +20,10 @@ class UsuarioManager(BaseUserManager):
 
 class Usuario(AbstractBaseUser):
     ROL_ADMINISTRADOR = 'Administrador'
-    ROL_AGENTE = 'Agente Aduanal'
+    ROL_INSPECTOR = 'Inspector'
     ROLES = [
         (ROL_ADMINISTRADOR, 'Administrador'),
-        (ROL_AGENTE, 'Agente Aduanal'),
+        (ROL_INSPECTOR, 'Inspector'),
     ]
 
     ID_usuario = models.AutoField(primary_key=True, db_column='ID_usuario')
@@ -35,7 +35,7 @@ class Usuario(AbstractBaseUser):
     correo = models.EmailField(max_length=80, unique=True, db_column='correo')
     contrasena = models.CharField(max_length=100, db_column='contrasena')
     bitacora = models.IntegerField(db_column='bitacora', null=True, blank=True)
-    rol = models.CharField(max_length=20, choices=ROLES, default=ROL_AGENTE, db_column='rol')
+    rol = models.CharField(max_length=20, choices=ROLES, default=ROL_ADMINISTRADOR, db_column='rol')
     activo = models.BooleanField(default=True, db_column='activo')
 
     objects = UsuarioManager()
@@ -133,10 +133,20 @@ class SemaforoFiscal(models.Model):
 # Modelo INSPECCION
 # ──────────────────────────────────────────────────────────────────
 class Inspeccion(models.Model):
+    ESTADO_EN_REVISION  = 'En revisión'
+    ESTADO_EN_DESPACHO  = 'En despacho'
+    ESTADO_FINALIZADA   = 'Finalizada'
+    ESTADO_INCIDENCIAS  = 'Con incidencias'
+    ESTADO_SEGUNDA      = 'Segunda inspección'
+
     numero = models.AutoField(primary_key=True, db_column='numero')
     fecha_inspeccion = models.DateField(db_column='fecha_inspeccion')
     hora_inicio = models.TimeField(db_column='hora_inicio')
     resultado = models.CharField(max_length=100, blank=True, null=True, db_column='resultado')
+    motivo_segunda = models.CharField(max_length=500, blank=True, null=True, db_column='motivo_segunda')
+    estado = models.CharField(max_length=50, default='En revisión', db_column='estado')
+    fecha_aprobacion = models.DateField(blank=True, null=True, db_column='fecha_aprobacion')
+    checklist_data = models.TextField(blank=True, null=True, db_column='checklist_data')
     semaforo = models.ForeignKey(
         SemaforoFiscal, on_delete=models.CASCADE,
         db_column='semaforo', related_name='inspecciones'
@@ -156,10 +166,10 @@ class Inspeccion(models.Model):
 # Modelo SEGUNDA_INSPECCION
 # ──────────────────────────────────────────────────────────────────
 class SegundaInspeccion(models.Model):
-    ID_revision = models.IntegerField(db_column='ID_revision')
+    ID_revision = models.AutoField(primary_key=True, db_column='ID_revision')
     inspeccion_FK = models.ForeignKey(
         Inspeccion, on_delete=models.CASCADE,
-        db_column='inspeccion_FK', related_name='segundas_inspecciones'
+        db_column='inspeccion', related_name='segundas_inspecciones'
     )
     fecha_inspeccion = models.DateField(db_column='fecha_inspeccion')
     hora_inicio = models.TimeField(db_column='hora_inicio')
@@ -170,7 +180,6 @@ class SegundaInspeccion(models.Model):
         db_table = 'segunda_inspeccion'
         verbose_name = 'Segunda inspección'
         verbose_name_plural = 'Segundas inspecciones'
-        unique_together = (('ID_revision', 'inspeccion_FK'),)
 
     def __str__(self):
         return f'Segunda inspección {self.ID_revision} (de inspección {self.inspeccion_FK_id})'
@@ -239,6 +248,15 @@ class Aduana(models.Model):
     codigo = models.AutoField(primary_key=True, db_column='codigo')
     ciudad = models.CharField(max_length=60, db_column='ciudad')
     nombre = models.CharField(max_length=100, db_column='nombre')
+    estado = models.CharField(
+        max_length=20,
+        choices=[
+            ("Activa", "Activa"),
+            ("Inactiva", "Inactiva"),
+        ],
+        default="Activa",
+        db_column="estado"
+    )
 
     class Meta:
         managed = False
@@ -468,6 +486,11 @@ class Pago(models.Model):
     estado_pago = models.ForeignKey(
         'EstadoPago', on_delete=models.PROTECT,
         db_column='estado_pago', related_name='pagos',
+    )
+    incidencia = models.ForeignKey(
+        'Incidencia', on_delete=models.SET_NULL,
+        db_column='incidencia', related_name='pagos',
+        null=True, blank=True,
     )
 
     class Meta:
@@ -795,8 +818,9 @@ class Producto(models.Model):
     valor_unitario = models.DecimalField(max_digits=12, decimal_places=2, db_column='valor_unitario')
     cantidad = models.IntegerField(default=1, db_column='cantidad')
     paquete = models.ForeignKey(
-        Paquete, on_delete=models.CASCADE,
-        db_column='paquete', related_name='productos'
+        Paquete, on_delete=models.SET_NULL,
+        db_column='paquete', related_name='productos',
+        null=True, blank=True
     )
 
     class Meta:

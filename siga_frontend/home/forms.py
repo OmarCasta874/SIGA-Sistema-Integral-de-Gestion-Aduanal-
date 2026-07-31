@@ -119,7 +119,7 @@ class NuevoClienteForm(forms.Form):
         label='RFC',
         widget=forms.TextInput(attrs={
             'class': 'form-input',
-            'placeholder': 'Ej. MALC850312HBC',
+            'placeholder': 'Se genera automáticamente desde la CURP',
             'maxlength': '13',
         }),
     )

@@ -1,0 +1,502 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalle de Sanción — SIGA</title>
+    <link rel="icon" type="image/x-icon" href="{% static 'home/img/siga_logo.png' %}">
+    <link rel="stylesheet" href="{% static 'home/css/dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'home/css/sanciones.css' %}">
+    <link rel="stylesheet" href="{% static 'home/css/toasts.css' %}">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script defer src="{% static 'home/js/sidebar.js' %}"></script>
+    <script defer src="{% static 'home/js/toasts.js' %}"></script>
+    <style>
+        /* ── Layout ── */
+        .sd-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:18px; }
+        .sd-card { background:#fff; border:1px solid #E5E7EB; border-radius:12px; padding:20px; }
+        .sd-card-label { font-size:11px; font-weight:700; color:#6B7280; text-transform:uppercase; letter-spacing:.5px; margin:0 0 10px; }
+        .sd-card-titulo { font-size:17px; font-weight:700; color:#111827; margin:0 0 4px; }
+        .sd-card-sub { font-size:13px; color:#6B7280; margin:0; }
+
+        /* ── Badges ── */
+        .badge-gravedad { display:inline-block; padding:4px 12px; border-radius:20px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; }
+        .badge-alta  { background:#FEE2E2; color:#B91C1C; }
+        .badge-media { background:#FEF9C3; color:#92400E; }
+        .badge-baja  { background:#DCFCE7; color:#166534; }
+        .badge-pagada-chip { display:inline-flex; align-items:center; gap:6px; background:#DCFCE7; color:#166534; padding:6px 14px; border-radius:20px; font-size:13px; font-weight:700; }
+        .badge-pendiente-chip { display:inline-flex; align-items:center; gap:6px; background:#FEF9C3; color:#92400E; padding:6px 14px; border-radius:20px; font-size:13px; font-weight:700; }
+
+        /* ── Tabla artículos ── */
+        .sd-tabla-wrap { background:#fff; border:1px solid #E5E7EB; border-radius:12px; overflow:hidden; margin-bottom:18px; }
+        .sd-tabla-header { padding:14px 20px; border-bottom:1px solid #E5E7EB; display:flex; align-items:center; justify-content:space-between; }
+        .sd-tabla-header span { font-size:13px; font-weight:700; color:#111827; }
+        .sd-tabla { width:100%; border-collapse:collapse; }
+        .sd-tabla th { padding:10px 16px; font-size:11px; font-weight:700; color:#6B7280; text-transform:uppercase; background:#F9FAFB; text-align:left; border-bottom:1px solid #E5E7EB; }
+        .sd-tabla td { padding:12px 16px; font-size:13px; color:#374151; border-bottom:1px solid #F3F4F6; }
+        .sd-tabla tr:last-child td { border-bottom:none; }
+        .sd-tabla .td-num { color:#9CA3AF; font-size:12px; width:36px; }
+        .sd-tabla .td-monto { font-weight:700; color:#111827; text-align:right; }
+        .sd-tabla-footer { padding:12px 20px; border-top:1px solid #E5E7EB; display:flex; justify-content:flex-end; align-items:center; gap:10px; }
+        .sd-total-label { font-size:13px; color:#6B7280; }
+        .sd-total-valor { font-size:18px; font-weight:800; color:#2563EB; }
+
+        /* ── Botón pagar ── */
+        .sd-acciones { display:flex; justify-content:flex-end; margin-bottom:20px; }
+        .btn-pagar-multa-main { display:inline-flex; align-items:center; gap:8px; background:#2563EB; color:#fff; border:none; border-radius:10px; padding:13px 24px; font-size:15px; font-weight:700; cursor:pointer; transition:background .15s; }
+        .btn-pagar-multa-main:hover { background:#1D4ED8; }
+
+        /* ── Panel de pago ── */
+        #panelPago { background:#fff; border:1px solid #E5E7EB; border-radius:14px; overflow:hidden; margin-bottom:20px; box-shadow:0 4px 16px rgba(37,99,235,.08); }
+
+        .pago-encabezado { background:linear-gradient(135deg,#1e3a5f 0%,#2563EB 100%); padding:20px 24px; color:#fff; }
+        .pago-enc-icono { width:44px; height:44px; background:rgba(255,255,255,.15); border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .pago-enc-titulo { font-size:11px; opacity:.75; text-transform:uppercase; letter-spacing:.5px; }
+        .pago-enc-id { font-size:16px; font-weight:700; font-family:monospace; letter-spacing:1px; }
+        .pago-enc-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; border-top:1px solid rgba(255,255,255,.2); padding-top:14px; margin-top:14px; }
+        .pago-enc-item-label { font-size:10px; opacity:.65; margin-bottom:3px; }
+        .pago-enc-item-valor { font-size:13px; font-weight:600; }
+
+        .pago-body { padding:20px 24px; }
+
+        /* Desglose */
+        .pago-desglose { border:1px solid #E5E7EB; border-radius:10px; overflow:hidden; margin-bottom:18px; }
+        .pago-desglose-header { background:#F9FAFB; padding:10px 16px; font-size:11px; font-weight:700; color:#6B7280; text-transform:uppercase; letter-spacing:.5px; border-bottom:1px solid #E5E7EB; }
+        .pago-desglose-fila { display:flex; justify-content:space-between; padding:10px 16px; font-size:13px; border-bottom:1px solid #F3F4F6; }
+        .pago-desglose-fila:last-child { border-bottom:none; }
+        .pago-desglose-total { display:flex; justify-content:space-between; padding:12px 16px; font-size:15px; font-weight:700; border-top:2px solid #E5E7EB; }
+        .pago-desglose-total span:last-child { color:#2563EB; }
+
+        /* Métodos de pago */
+        .pago-metodos-label { font-size:11px; font-weight:700; color:#6B7280; text-transform:uppercase; letter-spacing:.5px; margin-bottom:10px; }
+        .pago-metodos-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:18px; }
+        .metodo-card { display:flex; flex-direction:column; align-items:center; gap:6px; padding:14px 8px; border:2px solid #E5E7EB; border-radius:10px; cursor:pointer; font-size:13px; font-weight:600; color:#6B7280; transition:border-color .15s, color .15s, background .15s; }
+        .metodo-card:hover { border-color:#93C5FD; color:#2563EB; }
+        .metodo-card.activo { border-color:#2563EB; color:#2563EB; background:#EFF6FF; }
+
+        /* Campos */
+        .pago-campos-grid { display:grid; grid-template-columns:2fr 1fr; gap:12px; margin-bottom:16px; }
+        .pago-campo label { display:block; font-size:12px; font-weight:600; color:#374151; margin-bottom:5px; }
+        .pago-campo input { width:100%; padding:10px 12px; border:1px solid #D1D5DB; border-radius:8px; font-size:13px; color:#111827; background:#F9FAFB; box-sizing:border-box; }
+        .pago-campo input[readonly] { color:#6B7280; cursor:default; }
+        .pago-monto-wrap { position:relative; }
+        .pago-monto-prefix { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#6B7280; font-size:14px; }
+        .pago-monto-wrap input { padding-left:24px; }
+
+        .pago-info-nota { font-size:11px; color:#9CA3AF; display:flex; align-items:center; gap:4px; margin-bottom:8px; }
+        #sd-pago-error { color:#DC2626; font-size:13px; display:none; margin-top:6px; }
+
+        /* Footer de acciones */
+        .pago-footer { display:flex; gap:10px; padding:16px 24px; border-top:1px solid #E5E7EB; background:#F9FAFB; }
+        .btn-cancelar-pago { flex:1; padding:11px; border:1px solid #D1D5DB; background:#fff; color:#374151; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; transition:background .15s; }
+        .btn-cancelar-pago:hover { background:#F3F4F6; }
+        .btn-confirmar-pago { flex:2; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; background:#16A34A; color:#fff; border:none; border-radius:8px; font-size:15px; font-weight:700; cursor:pointer; transition:background .15s; }
+        .btn-confirmar-pago:hover { background:#15803D; }
+        .btn-confirmar-pago:disabled { background:#9CA3AF; cursor:not-allowed; }
+
+        /* ── Panel de recibo (post-pago) ── */
+        #panelRecibo { background:#fff; border:1px solid #D1FAE5; border-radius:14px; overflow:hidden; margin-bottom:20px; box-shadow:0 4px 16px rgba(22,163,74,.10); }
+        .recibo-header { background:linear-gradient(135deg,#064E3B 0%,#16A34A 100%); padding:20px 24px; color:#fff; display:flex; align-items:center; gap:14px; }
+        .recibo-icono { width:48px; height:48px; background:rgba(255,255,255,.2); border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .recibo-titulo { font-size:18px; font-weight:800; }
+        .recibo-sub { font-size:13px; opacity:.8; margin-top:2px; }
+        .recibo-cuerpo { padding:24px; }
+        .recibo-fila { display:flex; justify-content:space-between; padding:10px 0; font-size:14px; border-bottom:1px solid #F3F4F6; }
+        .recibo-fila:last-child { border-bottom:none; }
+        .recibo-fila-label { color:#6B7280; }
+        .recibo-fila-valor { font-weight:600; color:#111827; }
+        .recibo-total { display:flex; justify-content:space-between; padding:14px 0; font-size:17px; font-weight:800; border-top:2px solid #D1FAE5; margin-top:4px; }
+        .recibo-total span:last-child { color:#16A34A; }
+    </style>
+</head>
+<body>
+<aside class="sidebar">
+    <div class="sidebar-logo">
+        <img src="{% static 'home/img/siga_logo_light.png' %}" alt="SIGA">
+        <button class="sidebar-toggle" title="Colapsar menú"><i data-lucide="panel-left"></i></button>
+    </div>
+    <nav>
+        <p class="nav-section-label">Principal</p>
+        <a href="{% url 'home:dashboard' %}" class="nav-item" title="Dashboard">
+            <i data-lucide="layout-grid" class="nav-icon"></i> <span class="nav-label">Dashboard</span>
+        </a>
+        <a href="{% url 'home:usuarios' %}" class="nav-item" title="Usuarios">
+            <i data-lucide="user" class="nav-icon"></i> <span class="nav-label">Usuarios</span>
+        </a>
+        <a href="{% url 'home:permisos' %}" class="nav-item" title="Permisos">
+            <i data-lucide="key-round" class="nav-icon"></i> <span class="nav-label">Permisos</span>
+        </a>
+        <p class="nav-section-label">Operaciones</p>
+        <a href="{% url 'home:clientes' %}" class="nav-item" title="Clientes">
+            <i data-lucide="users" class="nav-icon"></i> <span class="nav-label">Clientes</span>
+        </a>
+        <a href="{% url 'home:aduanas' %}" class="nav-item" title="Aduanas">
+            <i data-lucide="home" class="nav-icon"></i> <span class="nav-label">Aduanas</span>
+        </a>
+        <a href="{% url 'home:pedimentos' %}" class="nav-item" title="Pedimentos">
+            <i data-lucide="file-text" class="nav-icon"></i> <span class="nav-label">Pedimentos</span>
+        </a>
+        <a href="{% url 'home:paquetes' %}" class="nav-item" title="Paquetes">
+            <i data-lucide="package" class="nav-icon"></i> <span class="nav-label">Paquetes</span>
+        </a>
+        <a href="{% url 'home:operaciones' %}" class="nav-item" title="Operación Aduanera">
+            <i data-lucide="clipboard-list" class="nav-icon"></i> <span class="nav-label">Operación Aduanera</span>
+        </a>
+        <a href="{% url 'home:pagos' %}" class="nav-item" title="Pagos">
+            <i data-lucide="circle-dollar-sign" class="nav-icon"></i> <span class="nav-label">Pagos</span>
+        </a>
+        <a href="{% url 'home:facturas' %}" class="nav-item" title="Facturas">
+            <i data-lucide="receipt" class="nav-icon"></i> <span class="nav-label">Facturas</span>
+        </a>
+        <a href="{% url 'home:categorias' %}" class="nav-item" title="Categorías">
+            <i data-lucide="tag" class="nav-icon"></i> <span class="nav-label">Categorías</span>
+        </a>
+        <p class="nav-section-label">Fiscalización</p>
+        <a href="{% url 'home:semaforo_fiscal' %}" class="nav-item" title="Semáforo Fiscal">
+            <i data-lucide="radio" class="nav-icon"></i> <span class="nav-label">Semáforo Fiscal</span>
+        </a>
+        <a href="{% url 'home:inspecciones' %}" class="nav-item" title="Inspecciones">
+            <i data-lucide="search" class="nav-icon"></i> <span class="nav-label">Inspecciones</span>
+        </a>
+        <a href="{% url 'home:sanciones' %}" class="nav-item active" title="Sanciones">
+            <i data-lucide="triangle-alert" class="nav-icon"></i> <span class="nav-label">Sanciones</span>
+        </a>
+        <a href="{% url 'home:bitacora' %}" class="nav-item" title="Bitácora">
+            <i data-lucide="history" class="nav-icon"></i> <span class="nav-label">Bitácora</span>
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <button type="button" class="btn-sidebar btn-sidebar-salir" onclick="mostrarModalLogout()" title="Salir">
+            <i data-lucide="log-out" class="nav-icon"></i> <span class="nav-label">Salir</span>
+        </button>
+        <a href="{% url 'home:perfilusuario' %}" class="btn-sidebar btn-sidebar-usuario" title="Usuario">
+            <i data-lucide="user" class="nav-icon"></i> <span class="nav-label">Usuario</span>
+        </a>
+    </div>
+</aside>
+
+<main class="main">
+    <!-- Encabezado de página -->
+    <header style="display:flex;align-items:center;gap:14px;margin-bottom:22px;">
+        <a href="{% url 'home:sanciones' %}" style="display:inline-flex;align-items:center;gap:4px;padding:7px 14px;background:#fff;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;font-weight:600;color:#374151;text-decoration:none;transition:background .15s;" onmouseover="this.style.background='#F3F4F6'" onmouseout="this.style.background='#fff'">
+            <i data-lucide="arrow-left" style="width:14px;height:14px;"></i> Volver
+        </a>
+        <div>
+            <h1 style="font-size:20px;font-weight:800;color:#111827;margin:0;">Detalle de Sanción</h1>
+            <p style="font-size:13px;color:#6B7280;margin:0;">Incidencia #{{ incidencia.codigo|default:"—" }}</p>
+        </div>
+        <div style="margin-left:auto;">
+            {% if incidencia.pagada %}
+                <span class="badge-pagada-chip">
+                    <i data-lucide="check-circle-2" style="width:15px;height:15px;"></i> Pagada
+                </span>
+            {% else %}
+                <span class="badge-pendiente-chip">
+                    <i data-lucide="clock" style="width:15px;height:15px;"></i> Pendiente de pago
+                </span>
+            {% endif %}
+        </div>
+    </header>
+
+    <!-- Tarjetas de información -->
+    <div class="sd-grid-2">
+        <!-- Cliente -->
+        <div class="sd-card">
+            <p class="sd-card-label"><i data-lucide="user" style="width:12px;height:12px;vertical-align:middle;margin-right:4px;"></i>Cliente</p>
+            <p class="sd-card-titulo">{{ incidencia.cliente_nombre|default:"—" }}</p>
+            <p class="sd-card-sub">RFC: <strong>{{ incidencia.cliente_rfc|default:"—" }}</strong></p>
+            {% if incidencia.operacion_id %}
+            <p class="sd-card-sub" style="margin-top:6px;">
+                Operación aduanera:
+                <a href="{% url 'home:operacion_detalle' incidencia.operacion_id %}" style="color:#2563EB;font-weight:600;text-decoration:none;">
+                    #{{ incidencia.operacion_id }}
+                </a>
+            </p>
+            {% endif %}
+        </div>
+        <!-- Incidencia -->
+        <div class="sd-card">
+            <p class="sd-card-label"><i data-lucide="triangle-alert" style="width:12px;height:12px;vertical-align:middle;margin-right:4px;"></i>Incidencia</p>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                <span class="badge-gravedad badge-{{ incidencia.gravedad|lower }}">{{ incidencia.gravedad|default:"—" }}</span>
+                <span style="font-size:12px;color:#6B7280;">Inspección #{{ incidencia.inspeccion|default:"—" }}</span>
+            </div>
+            <p style="font-size:14px;color:#374151;margin:0;line-height:1.5;">{{ incidencia.descripcion|default:"Sin descripción registrada." }}</p>
+        </div>
+    </div>
+
+    <!-- Tabla de artículos aplicados -->
+    <div class="sd-tabla-wrap">
+        <div class="sd-tabla-header">
+            <span><i data-lucide="gavel" style="width:15px;height:15px;vertical-align:middle;margin-right:6px;"></i>Artículos aplicados (Ley Aduanera)</span>
+            <span style="font-size:12px;color:#6B7280;">{{ incidencia.sanciones|length }} artículo(s)</span>
+        </div>
+        <table class="sd-tabla">
+            <thead>
+                <tr>
+                    <th class="td-num">#</th>
+                    <th>Fundamento legal</th>
+                    <th style="text-align:right;">Monto multa</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in incidencia.sanciones %}
+                <tr>
+                    <td class="td-num">{{ forloop.counter }}</td>
+                    <td>{{ s.fundamento_legal }}</td>
+                    <td class="td-monto">${{ s.monto_multa|floatformat:2 }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="3" style="text-align:center;color:#9CA3AF;padding:24px;">
+                        Sin artículos registrados para esta incidencia.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div class="sd-tabla-footer">
+            <span class="sd-total-label">Total de multa:</span>
+            <span class="sd-total-valor">${{ incidencia.total_multa|floatformat:2|default:"0.00" }}</span>
+        </div>
+    </div>
+
+    <!-- Área de acción: botón pagar o estado pagado -->
+    <div class="sd-acciones" id="areaAccion">
+        {% if incidencia.pagada %}
+            <!-- ya pagada, no se muestra botón -->
+        {% elif incidencia.sanciones %}
+            <button class="btn-pagar-multa-main" onclick="mostrarPanelPago()">
+                <i data-lucide="credit-card" style="width:18px;height:18px;"></i>
+                Pagar multa
+            </button>
+        {% endif %}
+    </div>
+
+    <!-- ── Panel de pago ── -->
+    <div id="panelPago" style="display:none;">
+        <!-- Encabezado gradiente -->
+        <div class="pago-encabezado">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+                <div class="pago-enc-icono">
+                    <i data-lucide="receipt" style="width:22px;height:22px;"></i>
+                </div>
+                <div>
+                    <div class="pago-enc-titulo">Pago de multa</div>
+                    <div class="pago-enc-id">Incidencia #{{ incidencia.codigo }}</div>
+                </div>
+            </div>
+            <div class="pago-enc-grid">
+                <div>
+                    <div class="pago-enc-item-label">CLIENTE</div>
+                    <div class="pago-enc-item-valor">{{ incidencia.cliente_nombre|default:"—" }}</div>
+                </div>
+                <div>
+                    <div class="pago-enc-item-label">RFC</div>
+                    <div class="pago-enc-item-valor" style="font-family:monospace;">{{ incidencia.cliente_rfc|default:"—" }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cuerpo del panel -->
+        <div class="pago-body">
+            <!-- Desglose de artículos -->
+            <div class="pago-desglose">
+                <div class="pago-desglose-header">Desglose de multa</div>
+                {% for s in incidencia.sanciones %}
+                <div class="pago-desglose-fila">
+                    <span style="color:#374151;">{{ s.fundamento_legal }}</span>
+                    <span style="font-weight:600;">${{ s.monto_multa|floatformat:2 }}</span>
+                </div>
+                {% endfor %}
+                <div class="pago-desglose-total">
+                    <span>Total a pagar</span>
+                    <span>${{ incidencia.total_multa|floatformat:2|default:"0.00" }}</span>
+                </div>
+            </div>
+
+            <!-- Métodos de pago (solo Tarjeta y PayPal) -->
+            <p class="pago-metodos-label">Método de pago</p>
+            <div class="pago-metodos-grid">
+                <label class="metodo-card activo" onclick="seleccionarMetodo(this)">
+                    <input type="radio" name="metodo_pago" value="tarjeta" checked style="display:none;">
+                    <i data-lucide="credit-card" style="width:22px;height:22px;"></i>
+                    <span>Tarjeta</span>
+                </label>
+                <label class="metodo-card" onclick="seleccionarMetodo(this)">
+                    <input type="radio" name="metodo_pago" value="paypal" style="display:none;">
+                    <i data-lucide="wallet" style="width:22px;height:22px;"></i>
+                    <span>PayPal</span>
+                </label>
+            </div>
+
+            <!-- Concepto + Monto -->
+            <div class="pago-campos-grid">
+                <div class="pago-campo">
+                    <label>Concepto</label>
+                    <input type="text" id="sd-concepto" readonly
+                           value="Pago de multa — Incidencia #{{ incidencia.codigo }}">
+                </div>
+                <div class="pago-campo">
+                    <label>Monto (MXN)</label>
+                    <div class="pago-monto-wrap">
+                        <span class="pago-monto-prefix">$</span>
+                        <input type="number" id="sd-monto" readonly
+                               value="{{ incidencia.total_multa|floatformat:2 }}" step="0.01">
+                    </div>
+                </div>
+            </div>
+
+            <p class="pago-info-nota">
+                <i data-lucide="info" style="width:12px;height:12px;"></i>
+                El pago es ficticio y se registrará en el sistema como confirmado.
+            </p>
+            <div id="sd-pago-error"></div>
+        </div>
+
+        <!-- Pie de acciones -->
+        <div class="pago-footer">
+            <button class="btn-cancelar-pago" onclick="ocultarPanelPago()">Cancelar</button>
+            <button class="btn-confirmar-pago" id="btnConfirmarPago" onclick="confirmarPago()">
+                <i data-lucide="circle-dollar-sign" style="width:18px;height:18px;"></i>
+                Confirmar pago
+            </button>
+        </div>
+    </div>
+
+    <!-- ── Panel de recibo (visible después del pago) ── -->
+    <div id="panelRecibo" style="display:none;">
+        <div class="recibo-header">
+            <div class="recibo-icono">
+                <i data-lucide="check-circle-2" style="width:24px;height:24px;"></i>
+            </div>
+            <div>
+                <div class="recibo-titulo">¡Pago realizado con éxito!</div>
+                <div class="recibo-sub">Tu multa ha sido registrada como pagada.</div>
+            </div>
+        </div>
+        <div class="recibo-cuerpo">
+            <div class="recibo-fila">
+                <span class="recibo-fila-label">No. de transacción</span>
+                <span class="recibo-fila-valor" id="recibo-txn" style="font-family:monospace;">—</span>
+            </div>
+            <div class="recibo-fila">
+                <span class="recibo-fila-label">Fecha de pago</span>
+                <span class="recibo-fila-valor" id="recibo-fecha">—</span>
+            </div>
+            <div class="recibo-fila">
+                <span class="recibo-fila-label">Concepto</span>
+                <span class="recibo-fila-valor">Pago de multa — Incidencia #{{ incidencia.codigo }}</span>
+            </div>
+            <div class="recibo-fila">
+                <span class="recibo-fila-label">Método</span>
+                <span class="recibo-fila-valor" id="recibo-metodo">—</span>
+            </div>
+            <div class="recibo-total">
+                <span>Total pagado</span>
+                <span id="recibo-monto">—</span>
+            </div>
+        </div>
+    </div>
+
+</main>
+
+<!-- Modal logout -->
+<div class="modal-overlay" id="modalLogout">
+    <div class="modal-logout-box">
+        <img src="{% static 'home/img/siga_logo.png' %}" alt="SIGA" class="modal-logout-logo">
+        <p class="modal-logout-texto">¿Estás seguro de cerrar sesión?</p>
+        <div class="modal-logout-acciones">
+            <a href="{% url 'home:logout' %}" class="modal-logout-si">Sí</a>
+            <button type="button" class="modal-logout-cancelar" onclick="cerrarModalLogout()">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+{% include "components/toasts.html" %}
+
+<script>
+lucide.createIcons();
+function mostrarModalLogout() { document.getElementById('modalLogout').classList.add('activo'); }
+function cerrarModalLogout()  { document.getElementById('modalLogout').classList.remove('activo'); }
+
+function seleccionarMetodo(el) {
+    document.querySelectorAll('.metodo-card').forEach(c => c.classList.remove('activo'));
+    el.classList.add('activo');
+    el.querySelector('input[type=radio]').checked = true;
+}
+
+function mostrarPanelPago() {
+    document.getElementById('areaAccion').style.display = 'none';
+    document.getElementById('panelPago').style.display = 'block';
+    document.getElementById('panelPago').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function ocultarPanelPago() {
+    document.getElementById('panelPago').style.display = 'none';
+    document.getElementById('areaAccion').style.display = 'flex';
+    document.getElementById('sd-pago-error').style.display = 'none';
+    document.getElementById('sd-pago-error').textContent = '';
+}
+
+async function confirmarPago() {
+    const btn = document.getElementById('btnConfirmarPago');
+    const errDiv = document.getElementById('sd-pago-error');
+    errDiv.style.display = 'none';
+    errDiv.textContent = '';
+    btn.disabled = true;
+    btn.textContent = 'Procesando…';
+
+    const monto   = document.getElementById('sd-monto').value;
+    const concepto = document.getElementById('sd-concepto').value;
+    const metodo  = document.querySelector('input[name="metodo_pago"]:checked')?.value || 'tarjeta';
+
+    const formData = new FormData();
+    formData.append('monto', monto);
+    formData.append('concepto', concepto);
+
+    try {
+        const resp = await fetch('{% url "home:multa_pagar" incidencia.codigo %}', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+            body: formData,
+        });
+        const data = await resp.json();
+
+        if (resp.ok) {
+            // Ocultar panel de pago
+            document.getElementById('panelPago').style.display = 'none';
+            // Actualizar estado en encabezado
+            const estadoDiv = document.querySelector('.badge-pendiente-chip');
+            if (estadoDiv) {
+                estadoDiv.className = 'badge-pagada-chip';
+                estadoDiv.innerHTML = '<i data-lucide="check-circle-2" style="width:15px;height:15px;"></i> Pagada';
+                lucide.createIcons();
+            }
+            // Rellenar y mostrar recibo
+            document.getElementById('recibo-txn').textContent   = data.no_transaccion || '—';
+            document.getElementById('recibo-fecha').textContent = data.fecha_pago     || '—';
+            document.getElementById('recibo-monto').textContent = '$' + parseFloat(data.monto || monto).toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2});
+            document.getElementById('recibo-metodo').textContent = metodo.charAt(0).toUpperCase() + metodo.slice(1);
+            document.getElementById('panelRecibo').style.display = 'block';
+            document.getElementById('panelRecibo').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            showToast('Pago registrado correctamente.', 'success');
+        } else {
+            errDiv.textContent = data.error || 'Error al procesar el pago.';
+            errDiv.style.display = 'block';
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="circle-dollar-sign" style="width:18px;height:18px;"></i> Confirmar pago';
+            lucide.createIcons();
+        }
+    } catch (e) {
+        errDiv.textContent = 'Error de conexión. Intenta de nuevo.';
+        errDiv.style.display = 'block';
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="circle-dollar-sign" style="width:18px;height:18px;"></i> Confirmar pago';
+        lucide.createIcons();
+    }
+}
+</script>
+</body>
+</html>

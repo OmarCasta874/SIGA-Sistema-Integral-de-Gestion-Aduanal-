@@ -150,7 +150,7 @@
                         {% if 'Verde' in ped.semaforo.resultado %}
                             <span class="estado estado-pagado">Verde</span>
                         {% elif 'Rojo' in ped.semaforo.resultado %}
-                            <span class="estado estado-transmitido">Rojo</span>
+                            <span class="estado estado-pendiente">Rojo</span>
                         {% else %}
                             <span class="estado estado-pendiente">{{ ped.semaforo.resultado }}</span>
                         {% endif %}
