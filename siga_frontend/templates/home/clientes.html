@@ -468,7 +468,10 @@
 <div class="modal-overlay" id="modalEditarCliente">
     <div class="modal-box">
         <div class="modal-header">
-            <h3>Editar contacto</h3>
+            <div>
+                <h3>Editar Contacto</h3><br>
+                <p id="edit_nombre_cliente" class="modal-subtitulo"></p>
+            </div>
             <button class="modal-cerrar" onclick="cerrarModal('modalEditarCliente')"><i data-lucide="x"></i></button>
         </div>
         <form method="post" action="{% url 'home:clientes' %}">
@@ -687,6 +690,10 @@ async function abrirEditarCliente(id) {
         const resp = await fetch(`/api/cliente/${id}/`);
         if (resp.ok) {
             const data = await resp.json();
+
+            document.getElementById('edit_nombre_cliente').textContent = 
+                `${data.nombre} ${data.primer_apell || ''} ${data.seg_apell || ''}`.trim();
+
             document.getElementById('edit_telefono').value       = (data.telefonos && data.telefonos[0]) || '';
             document.getElementById('edit_correo_cliente').value = (data.correos   && data.correos[0])   || '';
         }

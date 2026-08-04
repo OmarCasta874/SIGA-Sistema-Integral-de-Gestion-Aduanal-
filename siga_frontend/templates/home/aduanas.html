@@ -237,7 +237,30 @@
             </div>
             <div class="campo-formulario">
                 <label>Ciudad</label>
-                <input type="text" name="ciudad" maxlength="60" required>
+                <select name="ciudad" id="nuevaCiudad" class="form-input" onchange="toggleNuevaCiudad()" required>
+                    <option value="">Selecciona una ciudad...</option>
+                    <option value="Tijuana">Tijuana</option>
+                    <option value="Ciudad Juárez">Ciudad Juárez</option>
+                    <option value="Nuevo Laredo">Nuevo Laredo</option>
+                    <option value="Manzanillo">Manzanillo</option>
+                    <option value="Veracruz">Veracruz</option>
+                    <option value="Lázaro Cárdenas">Lázaro Cárdenas</option>
+                    <option value="Monterrey">Monterrey</option>
+                    <option value="Ciudad de México">Ciudad de México</option>
+                    <option value="Nogales">Nogales</option>
+                    <option value="Matamoros">Matamoros</option>
+                    <option value="San Luis Potosí">San Luis Potosí</option>
+                    <option value="Sonora">Sonora</option>
+                    <option value="Culiacán">Culiacán</option>
+                    <option value="Puebla">Puebla</option>
+                    <option value="La Paz">La Paz</option>
+                    <option value="Michoacán">Michoacán</option>
+                    <option value="Otro">Otra ciudad...</option>
+                </select>
+            </div>
+            <div class="campo-formulario" id="nuevaOtraCiudadContainer" style="display: none;">
+                <label>Específica la ciudad</label>
+                <input type="text" id="nuevaOtraCiudad" maxlength="60">
             </div>
             <div class="modal-botones">
                 <button type="button" class="btn-cancelar" onclick="cerrarModalNuevaAduana()">Cancelar</button>
@@ -280,7 +303,30 @@
             </div>
             <div class="campo-formulario">
                 <label>Ciudad</label>
-                <input type="text" name="ciudad" id="editarCiudad" maxlength="60" required>
+                <select name="ciudad" id="editarCiudad" class="form-input" onchange="toggleEditarCiudad()" required>
+                    <option value="">Selecciona una ciudad...</option>
+                    <option value="Tijuana">Tijuana</option>
+                    <option value="Ciudad Juárez">Ciudad Juárez</option>
+                    <option value="Nuevo Laredo">Nuevo Laredo</option>
+                    <option value="Manzanillo">Manzanillo</option>
+                    <option value="Veracruz">Veracruz</option>
+                    <option value="Lázaro Cárdenas">Lázaro Cárdenas</option>
+                    <option value="Monterrey">Monterrey</option>
+                    <option value="Ciudad de México">Ciudad de México</option>
+                    <option value="Nogales">Nogales</option>
+                    <option value="Matamoros">Matamoros</option>
+                    <option value="San Luis Potosí">San Luis Potosí</option>
+                    <option value="Sonora">Sonora</option>
+                    <option value="Culiacán">Culiacán</option>
+                    <option value="Puebla">Puebla</option>
+                    <option value="La Paz">La Paz</option>
+                    <option value="Michoacán">Michoacán</option>
+                    <option value="Otro">Otra ciudad...</option>
+                </select>
+            </div>
+            <div class="campo-formulario" id="editarOtraCiudadContainer" style="display: none;">
+                <label>Específica la ciudad</label>
+                <input type="text" id="editarOtraCiudad" maxlength="60">
             </div>
             <div class="modal-botones">
                 <button type="button" class="btn-cancelar" onclick="cerrarModalEditar()">
@@ -355,7 +401,24 @@
             .then(data => {
                 document.getElementById('editarCodigo').value = data.codigo;
                 document.getElementById('editarNombre').value = data.nombre;
-                document.getElementById('editarCiudad').value = data.ciudad;
+                
+                const select = document.getElementById('editarCiudad');
+                const contenedor = document.getElementById('editarOtraCiudadContainer');
+                const input = document.getElementById('editarOtraCiudad');
+
+                const existe = [...select.options].some(op => op.value === data.ciudad);
+
+                if (existe) {
+                    select.value = data.ciudad;
+                    contenedor.style.display = "none";
+                    input.value = "";
+                    input.required = false;
+                } else {
+                    select.value = "Otro";
+                    contenedor.style.display = "block";
+                    input.value = data.ciudad;
+                    input.required = true;
+                }
 
                 document.getElementById('modalEditarAduana').classList.add('activo');
             })
@@ -378,6 +441,13 @@
         const form = document.getElementById("formEditarAduana");
 
         const formData = new FormData(form);
+
+        if (document.getElementById("editarCiudad").value === "Otro") {
+            formData.set(
+                "ciudad",
+                document.getElementById("editarOtraCiudad").value.trim()
+            );
+        }
 
         fetch(`/aduanas/${codigo}/editar/`, {
             method: "POST",
@@ -437,6 +507,48 @@
             );
         });
     }
+
+    function toggleNuevaCiudad() {
+        const select = document.getElementById("nuevaCiudad");
+        const contenedor = document.getElementById("nuevaOtraCiudadContainer");
+        const input = document.getElementById("nuevaOtraCiudad");
+
+        if (select.value === "Otro") {
+            contenedor.style.display = "block";
+            input.required = true;
+        } else {
+            contenedor.style.display = "none";
+            input.required = false;
+            input.value = "";
+        }
+    }
+
+    function toggleEditarCiudad() {
+        const select = document.getElementById("editarCiudad");
+        const contenedor = document.getElementById("editarOtraCiudadContainer");
+        const input = document.getElementById("editarOtraCiudad");
+
+        if (select.value === "Otro") {
+            contenedor.style.display = "block";
+            input.required = true;
+        } else {
+            contenedor.style.display = "none";
+            input.required = false;
+            input.value = "";
+        }
+    }
+
+    document.querySelector("#modalNuevaAduana form")
+    .addEventListener("submit", function () {
+        const select = document.getElementById("nuevaCiudad");
+
+        if (select.value === "Otro") {
+            select.insertAdjacentHTML(
+                "beforeend",
+                `<option value="${document.getElementById("nuevaOtraCiudad").value.trim()}" selected></option>`
+            );
+        }
+    });
 </script>
 </body>
 </html>

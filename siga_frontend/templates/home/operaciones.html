@@ -133,7 +133,6 @@
             <option value="">Todos los Tipos de Operación</option>
             <option value="Importación" data-mostrador-vacio="No hay operaciones de Importación.">Importación</option>
             <option value="Exportación" data-mostrador-vacio="No hay operaciones de Exportación.">Exportación</option>
-            <option value="Tránsito" data-mostrador-vacio="No hay operaciones de Tránsito.">Tránsito</option>
         </select>
         <select class="operaciones-select" data-ordenador data-ordenador-target="tbodyOperaciones" data-ordenador-columna="0">
             <option value="">Ordenar por</option>
@@ -283,7 +282,6 @@
                         <option value="">Selecciona...</option>
                         <option value="Importación">Importación</option>
                         <option value="Exportación">Exportación</option>
-                        <option value="Tránsito">Tránsito (próximamente)</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -730,13 +728,7 @@
             document.getElementById('paso-2-exportacion').style.display = '';
             renderizarPaquetes(cliente.value, 'exp-paquetes-container', 'exp-paquete');
 
-        } else {
-            alert('Tránsito estará disponible próximamente.');
-            document.getElementById('paso-1').style.display = '';
-            return;
-        }
-
-        lucide.createIcons();
+        } 
     }
 
     function pasarPaso3(tipo) {
