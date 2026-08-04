@@ -269,16 +269,16 @@
             <input type="hidden" name="usuario_id" id="edit_usuario_id">
             <div class="modal-grid">
                 <div class="campo-grupo">
-                    <label>Nombre *</label>
-                    <input type="text" name="nombre_pila" id="edit_nombre_pila" class="campo-input" required>
+                    <label>Nombre </label>
+                    <input type="text" name="nombre_pila" id="edit_nombre_pila" class="campo-input" readonly>
                 </div>
                 <div class="campo-grupo">
-                    <label>Primer apellido *</label>
-                    <input type="text" name="primer_apell" id="edit_primer_apell" class="campo-input" required>
+                    <label>Primer apellido </label>
+                    <input type="text" name="primer_apell" id="edit_primer_apell" class="campo-input" readonly>
                 </div>
                 <div class="campo-grupo">
                     <label>Segundo apellido</label>
-                    <input type="text" name="seg_apell" id="edit_seg_apell" class="campo-input">
+                    <input type="text" name="seg_apell" id="edit_seg_apell" class="campo-input" readonly>
                 </div>
                 <div class="campo-grupo">
                     <label>Nombre de usuario *</label>
@@ -317,6 +317,7 @@
 .campo-grupo label { font-size:13px; font-weight:500; color:#374151; }
 .campo-input { height:38px; padding:0 12px; border:1px solid #d1d5db; border-radius:8px; font-size:14px; color:#111827; background:#fff; }
 .campo-input:focus { outline:none; border-color:#2563eb; }
+.campo-input:read-only {cursor: not-allowed;}
 select.campo-input { cursor:pointer; background:#f9fafb; }
 .modal-acciones { display:flex; justify-content:flex-end; gap:10px; }
 .btn-cancelar-modal { height:38px; padding:0 18px; border:1px solid #d1d5db; border-radius:8px; background:#fff; color:#374151; font-size:14px; cursor:pointer; }

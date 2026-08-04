@@ -95,25 +95,25 @@
     <h1 class="page-title">Panel de control</h1>
     <div class="cards-grid">
         <div class="card">
-            <div class="card-label"><i data-lucide="check-circle-2" class="card-icon"></i> Total de pedimentos </div>
+            <div class="card-label"><i data-lucide="file-text" class="card-icon"></i> Total de pedimentos </div>
             <div class="card-number">
                 {{ dashboard.total_pedimentos|default:"0" }}
             </div>
         </div>
         <div class="card">
-            <div class="card-label"><i data-lucide="currency" class="card-icon"></i> Total de pagos</div>
+            <div class="card-label"><i data-lucide="circle-dollar-sign" class="card-icon"></i> Total de pagos</div>
             <div class="card-number">
                 {{ dashboard.total_pagos|default:"0" }}
             </div>
         </div>
         <div class="card">
-            <div class="card-label"><i data-lucide="lock" class="card-icon"></i> Total de clientes</div>
+            <div class="card-label"><i data-lucide="users" class="card-icon"></i> Total de clientes</div>
             <div class="card-number">
                 {{ dashboard.total_clientes|default:"0" }}
             </div>
         </div>
         <div class="card card-alert">
-            <div class="card-label"><i data-lucide="alarm-clock" class="card-icon"></i> Total de operaciones </div>
+            <div class="card-label"><i data-lucide="clipboard-list" class="card-icon"></i> Total de operaciones </div>
             <div class="card-number"> 
                 {{ dashboard.total_operaciones|default:"0" }} 
             </div>
