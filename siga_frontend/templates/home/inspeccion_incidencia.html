@@ -13,6 +13,103 @@
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script defer src="{% static 'home/js/sidebar.js' %}"></script>
     <script defer src="{% static 'home/js/toasts.js' %}"></script>
+    <style>
+        /* ── checklist con hint de artículo ── */
+        .checklist-seccion { font-size:11px; font-weight:700; color:#9CA3AF; text-transform:uppercase; letter-spacing:.6px; margin:10px 0 5px; }
+
+        /* overflow-x:hidden en .main convierte overflow-y a auto implícitamente,
+           lo que rompe position:sticky. Se anula solo en esta página. */
+        .main {
+            overflow: visible !important;
+        }
+        /* Panel split: crece con contenido, scroll de la página */
+        .rev-split {
+            height: auto !important;
+            min-height: 560px;
+            align-items: start;
+        }
+        .rev-left {
+            overflow-y: visible !important;
+            height: auto !important;
+        }
+        /* Panel derecho: sticky — sigue al usuario al hacer scroll */
+        .rev-right {
+            position: sticky !important;
+            top: 20px;
+            height: calc(100vh - 40px);
+            overflow: hidden !important;
+        }
+        .rev-tab-content {
+            overflow-y: auto;
+            flex: 1;
+        }
+        /* checklist wrapper: solo agrupa, sin restricciones */
+        .inc-checklist-scroll {
+            border-bottom: 1px solid #F3F4F6;
+            margin-bottom: 10px;
+            padding-bottom: 6px;
+        }
+        #incChecklist, #incChecklist2, #incChecklist3 { flex: none; }
+        .item-art-hint {
+            display: block;
+            font-size:10.5px; color:#9CA3AF; font-weight:500; letter-spacing:.2px;
+            margin-top:2px;
+        }
+        li.error-check.checked .item-art-hint { color:#DC2626; }
+
+        /* ── punto rojo en pestaña con incidencias ── */
+        .tab-badge {
+            display:none; width:8px; height:8px; border-radius:50%;
+            background:#DC2626; flex-shrink:0;
+            animation: pulse-red 1.5s infinite;
+        }
+        .tab-badge.visible { display:inline-block; }
+
+        /* ── banner de alerta dentro del panel ── */
+        .tab-alert {
+            display:none; align-items:center; gap:8px;
+            background:#FEF2F2; border:1px solid #FECACA; border-radius:8px;
+            padding:8px 14px; font-size:12.5px; color:#DC2626; font-weight:600;
+            margin-bottom:12px;
+        }
+        .tab-alert.visible { display:flex; }
+        .tab-alert-dot {
+            width:10px; height:10px; border-radius:50%; background:#DC2626;
+            flex-shrink:0; animation:pulse-red 1.5s infinite;
+        }
+
+        /* ── panel de sanciones (solo lectura) ── */
+        .san-panel { margin:8px 0 0; border:1px solid #FECACA; border-radius:10px; overflow:hidden; }
+        .san-panel-empty {
+            padding:14px 16px; font-size:12.5px; color:#9CA3AF;
+            text-align:center; background:#FFF9F9;
+        }
+        .san-card {
+            display:flex; align-items:stretch;
+            border-bottom:1px solid #FEE2E2; background:#FEF2F2;
+        }
+        .san-card:last-child { border-bottom:none; }
+        .san-card-left {
+            flex:1; padding:10px 14px; display:flex; flex-direction:column; gap:2px;
+        }
+        .san-card-art  { font-size:11px; font-weight:700; color:#DC2626; letter-spacing:.3px; }
+        .san-card-desc { font-size:12.5px; color:#374151; }
+        .san-card-sep  { width:1px; background:#FECACA; flex-shrink:0; }
+        .san-card-right {
+            width:110px; flex-shrink:0;
+            display:flex; align-items:center; justify-content:center;
+            padding:10px 12px;
+        }
+        .san-card-monto { font-size:14px; font-weight:800; color:#991B1B; }
+
+        /* ── total ── */
+        .san-total-box {
+            background:#111827; color:#fff; border-radius:8px;
+            padding:10px 14px; display:flex; justify-content:space-between;
+            align-items:center; margin-top:8px; font-size:13px;
+        }
+        .san-total-box span:last-child { font-weight:800; font-size:15px; color:#FCA5A5; }
+    </style>
 </head>
 <body>
 <aside class="sidebar">
@@ -51,34 +148,105 @@
         <!-- ══ IZQUIERDA: FORMULARIO INCIDENCIA ══ -->
         <div class="rev-left">
             <h2 style="color:#DC2626;"><i data-lucide="alert-triangle" style="width:16px;height:16px;"></i> Irregularidades encontradas</h2>
-            <p style="font-size:12.5px;color:#6B7280;margin:0 0 12px;">Marca las irregularidades detectadas. Las marcas aparecerán en la vista del paquete.</p>
 
+            <!-- ── INVERSA del checklist de inspeccion_revisar ── -->
+            <div class="inc-checklist-scroll">
+            <p class="checklist-seccion">Pedimento</p>
             <ul class="checklist-items" id="incChecklist">
-                <li data-key="pago" data-target="doc">
-                    <input type="checkbox" id="ic0"><label for="ic0">Pago incompleto o no acreditado</label>
+                <li data-key="pedimento" data-target="doc"
+                    data-articulo="Art. 184, Fracc. I LA"
+                    data-monto="10500"
+                    data-desc="Pedimento no presentado o no vigente">
+                    <input type="checkbox" id="ic0">
+                    <label for="ic0">Pedimento no presentado o no vigente<span class="item-art-hint">Art. 184, Fracc. I LA · $10,500</span></label>
                 </li>
-                <li data-key="permiso" data-target="product">
-                    <input type="checkbox" id="ic1"><label for="ic1">Producto sin permiso de importación/exportación</label>
+                <li data-key="rfc" data-target="doc"
+                    data-articulo="Art. 184, Fracc. II LA"
+                    data-monto="7800"
+                    data-desc="RFC o identificación inválida o no coincide">
+                    <input type="checkbox" id="ic1">
+                    <label for="ic1">RFC o identificación inválida o no coincide<span class="item-art-hint">Art. 184, Fracc. II LA · $7,800</span></label>
                 </li>
-                <li data-key="peso" data-target="container">
-                    <input type="checkbox" id="ic2"><label for="ic2">Peso declarado no coincide con el físico</label>
+                <li data-key="valor" data-target="doc"
+                    data-articulo="Art. 178 LA"
+                    data-monto="15000"
+                    data-desc="Valor declarado no coincide con factura">
+                    <input type="checkbox" id="ic2">
+                    <label for="ic2">Valor declarado no coincide con factura<span class="item-art-hint">Art. 178 LA · $15,000</span></label>
                 </li>
-                <li data-key="rfc" data-target="doc">
-                    <input type="checkbox" id="ic3"><label for="ic3">RFC / identificación inválida o no coincide</label>
-                </li>
-                <li data-key="documentacion" data-target="doc">
-                    <input type="checkbox" id="ic4"><label for="ic4">Documentación incompleta</label>
-                </li>
-                <li data-key="valor" data-target="product">
-                    <input type="checkbox" id="ic5"><label for="ic5">Valor subdeclarado</label>
-                </li>
-                <li data-key="embalaje" data-target="container">
-                    <input type="checkbox" id="ic6"><label for="ic6">Embalaje dañado o deficiente</label>
-                </li>
-                <li data-key="serie" data-target="product">
-                    <input type="checkbox" id="ic7"><label for="ic7">Número de serie no coincide</label>
+                <li data-key="codigos" data-target="doc"
+                    data-articulo="Art. 184, Fracc. IV LA"
+                    data-monto="12000"
+                    data-desc="Códigos arancelarios (HS) incorrectos">
+                    <input type="checkbox" id="ic3">
+                    <label for="ic3">Códigos arancelarios (HS) incorrectos<span class="item-art-hint">Art. 184, Fracc. IV LA · $12,000</span></label>
                 </li>
             </ul>
+
+            <p class="checklist-seccion">Paquete / Mercancía</p>
+            <ul class="checklist-items" id="incChecklist2">
+                <li data-key="peso" data-target="container"
+                    data-articulo="Art. 184, Fracc. V LA"
+                    data-monto="6500"
+                    data-desc="Peso o dimensiones declaradas incorrectas">
+                    <input type="checkbox" id="ic4">
+                    <label for="ic4">Peso o dimensiones declaradas incorrectas<span class="item-art-hint">Art. 184, Fracc. V LA · $6,500</span></label>
+                </li>
+                <li data-key="etiquetado" data-target="container"
+                    data-articulo="Art. 184, Fracc. VI LA"
+                    data-monto="5000"
+                    data-desc="Etiquetado o marcado incorrecto o ausente">
+                    <input type="checkbox" id="ic5">
+                    <label for="ic5">Etiquetado o marcado incorrecto o ausente<span class="item-art-hint">Art. 184, Fracc. VI LA · $5,000</span></label>
+                </li>
+                <li data-key="embalaje" data-target="container"
+                    data-articulo="Art. 184, Fracc. VII LA"
+                    data-monto="4500"
+                    data-desc="Embalaje dañado o deficiente">
+                    <input type="checkbox" id="ic6">
+                    <label for="ic6">Embalaje dañado o deficiente<span class="item-art-hint">Art. 184, Fracc. VII LA · $4,500</span></label>
+                </li>
+                <li data-key="serie" data-target="product"
+                    data-articulo="Art. 184, Fracc. VIII LA"
+                    data-monto="8000"
+                    data-desc="Número de serie no coincide o no registrado">
+                    <input type="checkbox" id="ic7">
+                    <label for="ic7">Número de serie no coincide o no registrado<span class="item-art-hint">Art. 184, Fracc. VIII LA · $8,000</span></label>
+                </li>
+                <li data-key="fisica" data-target="product"
+                    data-articulo="Art. 176 LA"
+                    data-monto="18000"
+                    data-desc="Mercancía no conforme con lo declarado">
+                    <input type="checkbox" id="ic8">
+                    <label for="ic8">Mercancía no conforme con lo declarado<span class="item-art-hint">Art. 176 LA · $18,000</span></label>
+                </li>
+            </ul>
+
+            <p class="checklist-seccion">Pago</p>
+            <ul class="checklist-items" id="incChecklist3">
+                <li data-key="pago_completo" data-target="doc"
+                    data-articulo="Art. 183, Fracc. I LA"
+                    data-monto="20000"
+                    data-desc="Pago de contribuciones incompleto">
+                    <input type="checkbox" id="ic9">
+                    <label for="ic9">Pago de contribuciones incompleto<span class="item-art-hint">Art. 183, Fracc. I LA · $20,000</span></label>
+                </li>
+                <li data-key="comprobante" data-target="doc"
+                    data-articulo="Art. 183, Fracc. II LA"
+                    data-monto="9000"
+                    data-desc="Comprobante de pago no presentado">
+                    <input type="checkbox" id="ic10">
+                    <label for="ic10">Comprobante de pago no presentado<span class="item-art-hint">Art. 183, Fracc. II LA · $9,000</span></label>
+                </li>
+                <li data-key="monto_pago" data-target="doc"
+                    data-articulo="Art. 183, Fracc. III LA"
+                    data-monto="11000"
+                    data-desc="Monto pagado no coincide con pedimento">
+                    <input type="checkbox" id="ic11">
+                    <label for="ic11">Monto pagado no coincide con pedimento<span class="item-art-hint">Art. 183, Fracc. III LA · $11,000</span></label>
+                </li>
+            </ul>
+            </div><!-- /inc-checklist-scroll -->
 
             <p class="inc-seccion-titulo"><i data-lucide="gavel" style="width:13px;height:13px;vertical-align:middle;"></i> Detalles de la incidencia</p>
 
@@ -97,20 +265,23 @@
                 <textarea id="incDescripcion" rows="3" placeholder="Describe brevemente la irregularidad..."></textarea>
             </div>
 
-            <p class="inc-seccion-titulo" style="margin-top:8px;"><i data-lucide="receipt" style="width:13px;height:13px;vertical-align:middle;"></i> Sanción (si aplica)</p>
+            <!-- ── SANCIONES — panel solo lectura ── -->
+            <p class="inc-seccion-titulo" style="margin-top:8px;">
+                <i data-lucide="receipt" style="width:13px;height:13px;vertical-align:middle;"></i>
+                Sanciones aplicables
+            </p>
 
-            <div class="inc-campo">
-                <label>Monto de la multa ($)</label>
-                <input type="number" id="sanMonto" step="0.01" min="0" placeholder="0.00">
+            <div class="san-panel" id="sanPanel">
+                <div class="san-panel-empty" id="sanEmpty">Sin irregularidades marcadas aún.</div>
             </div>
 
-            <div class="inc-campo">
-                <label>Fundamento legal</label>
-                <textarea id="sanFundamento" rows="2" placeholder="Ej: Art. 176 Ley Aduanera..."></textarea>
+            <div class="san-total-box" id="sanTotalBox" style="display:none;">
+                <span><i data-lucide="sigma" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"></i> Total multa</span>
+                <span id="sanTotalValor">$0.00</span>
             </div>
 
-            <button class="btn-registrar-inc" onclick="registrarIncidencia()">
-                <i data-lucide="send"></i> Registrar incidencia y sanción
+            <button class="btn-registrar-inc" onclick="registrarIncidencia()" style="margin-top:16px;">
+                <i data-lucide="send"></i> Registrar incidencia y sanciones
             </button>
         </div>
 
@@ -119,19 +290,25 @@
             <div class="rev-tabs">
                 <button class="rev-tab active" onclick="switchTab('pedimento', this)">
                     <i data-lucide="file-text"></i> Pedimento
+                    <span class="tab-badge" id="badge-pedimento"></span>
                 </button>
                 <button class="rev-tab" onclick="switchTab('paquete', this)">
                     <i data-lucide="package"></i> Paquete
+                    <span class="tab-badge" id="badge-paquete"></span>
                 </button>
                 <button class="rev-tab" onclick="switchTab('pago', this)">
                     <i data-lucide="credit-card"></i> Pago
+                    <span class="tab-badge" id="badge-pago"></span>
                 </button>
             </div>
 
             <div class="rev-tab-content">
                 <!-- PEDIMENTO -->
-                <!-- PEDIMENTO — formato SAT oficial completo -->
                 <div class="tab-panel active" id="tab-pedimento">
+                    <div class="tab-alert" id="alert-pedimento">
+                        <span class="tab-alert-dot"></span>
+                        Incidencia documental detectada en el pedimento
+                    </div>
                     {% if pedimento %}
                     <div class="sat-wrap">
                         <table class="sat-table">
@@ -257,7 +434,7 @@
                                 <td colspan="8" style="padding:4px 6px;">
                                     <table class="sat-sub" style="width:100%;">
                                         <tr>
-                                            <th>DESCRIPCIÓN</th><th>CANT.</th><th>PESO (KG)</th><th>VALOR UNIT.</th><th>IGI EST.</th>
+                                            <th>DESCRIPCIÓN</th><th>CANT.</th><th>PESO (KG)</th><th>VALOR UNIT.</th><th>IGI EST.</th><th>FRACC. ARANC.</th>
                                         </tr>
                                         {% for pq in paquetes %}
                                             {% for prod in pq.productos %}
@@ -267,12 +444,13 @@
                                                 <td>{{ prod.peso }}</td>
                                                 <td>${{ prod.valor_unitario }}</td>
                                                 <td>${{ prod.igi_importe|default:"0.00" }}</td>
+                                                <td style="font-family:monospace;">{{ prod.fraccion_arancelaria|default:"—" }}</td>
                                             </tr>
                                             {% empty %}
-                                            <tr><td colspan="5" style="color:#9CA3AF;">Sin productos registrados</td></tr>
+                                            <tr><td colspan="6" style="color:#9CA3AF;">Sin productos registrados</td></tr>
                                             {% endfor %}
                                         {% empty %}
-                                        <tr><td colspan="5" style="color:#9CA3AF;">Sin paquetes registrados</td></tr>
+                                        <tr><td colspan="6" style="color:#9CA3AF;">Sin paquetes registrados</td></tr>
                                         {% endfor %}
                                     </table>
                                 </td>
@@ -317,6 +495,10 @@
 
                 <!-- PAGO -->
                 <div class="tab-panel" id="tab-pago">
+                    <div class="tab-alert" id="alert-pago">
+                        <span class="tab-alert-dot"></span>
+                        Incidencia de pago detectada
+                    </div>
                     {% if pago %}
                     <div style="padding:4px;">
                         <div style="background:linear-gradient(135deg,#1e3a5f 0%,#2563EB 100%);border-radius:10px;padding:18px 20px;color:#fff;margin-bottom:14px;">
@@ -371,6 +553,111 @@ const CSRF      = '{{ csrf_token }}';
 const URL_LISTA = "{% url 'home:inspecciones' %}";
 const BG_COLORS = ['#4F46E5','#7C3AED','#DB2777','#D97706','#059669','#0891B2','#DC2626','#0284C7','#7C2D12','#166534'];
 
+// ── estado de marcas y sanciones ──────────────────────────────
+let marcasActivas = {};
+// sancionesList: array de { id, key (o null si manual), articulo, monto, desc }
+let sancionesList = [];
+let sancionIdSeq  = 0;
+
+// ── agrupación de todos los checklist items ───────────────────
+const allChecklistItems = [
+    ...document.querySelectorAll('#incChecklist li'),
+    ...document.querySelectorAll('#incChecklist2 li'),
+    ...document.querySelectorAll('#incChecklist3 li'),
+];
+
+allChecklistItems.forEach(li => {
+    li.classList.add('error-check');
+    const cb  = li.querySelector('input[type="checkbox"]');
+    const key = li.dataset.key;
+    cb.addEventListener('change', () => {
+        li.classList.toggle('checked', cb.checked);
+        marcasActivas[key] = cb.checked;
+        renderAerial(marcasActivas);
+        updateTabAlerts();
+
+        if (cb.checked) {
+            addSancion(key, li.dataset.articulo, parseFloat(li.dataset.monto), li.dataset.desc);
+        } else {
+            removeSancionByKey(key);
+        }
+    });
+});
+
+// ── indicadores por pestaña ───────────────────────────────────
+function updateTabAlerts() {
+    const hayPedimento = marcasActivas.pedimento || marcasActivas.rfc
+                      || marcasActivas.valor      || marcasActivas.codigos;
+    const hayPaquete   = marcasActivas.peso       || marcasActivas.etiquetado
+                      || marcasActivas.embalaje   || marcasActivas.serie || marcasActivas.fisica;
+    const hayPago      = marcasActivas.pago_completo || marcasActivas.comprobante
+                      || marcasActivas.monto_pago;
+
+    document.getElementById('badge-pedimento').classList.toggle('visible', !!hayPedimento);
+    document.getElementById('badge-paquete').classList.toggle('visible', !!hayPaquete);
+    document.getElementById('badge-pago').classList.toggle('visible', !!hayPago);
+
+    document.getElementById('alert-pedimento').classList.toggle('visible', !!hayPedimento);
+    document.getElementById('alert-pago').classList.toggle('visible', !!hayPago);
+}
+
+// ── gestión de sanciones ──────────────────────────────────────
+function addSancion(key, articulo, monto, desc) {
+    if (key && sancionesList.some(s => s.key === key)) return;
+    sancionesList.push({ key: key || null, articulo, monto, desc });
+    renderSanciones();
+}
+
+function removeSancionByKey(key) {
+    const idx = sancionesList.findIndex(s => s.key === key);
+    if (idx !== -1) {
+        sancionesList.splice(idx, 1);
+        renderSanciones();
+    }
+}
+
+function renderSanciones() {
+    const panel    = document.getElementById('sanPanel');
+    const empty    = document.getElementById('sanEmpty');
+    const totalBox = document.getElementById('sanTotalBox');
+    const totalVal = document.getElementById('sanTotalValor');
+
+    if (sancionesList.length === 0) {
+        panel.innerHTML = '<div class="san-panel-empty" id="sanEmpty">Sin irregularidades marcadas aún.</div>';
+        totalBox.style.display = 'none';
+        return;
+    }
+
+    let total = 0;
+    panel.innerHTML = sancionesList.map(s => {
+        total += s.monto;
+        return `
+        <div class="san-card">
+            <div class="san-card-left">
+                <span class="san-card-art">⚖ ${s.articulo}</span>
+                <span class="san-card-desc">${s.desc}</span>
+            </div>
+            <div class="san-card-sep"></div>
+            <div class="san-card-right">
+                <span class="san-card-monto">$${s.monto.toLocaleString('es-MX', {minimumFractionDigits:2})}</span>
+            </div>
+        </div>`;
+    }).join('');
+
+    totalBox.style.display = 'flex';
+    totalVal.textContent = '$' + total.toLocaleString('es-MX', {minimumFractionDigits:2});
+}
+
+// ── tabs ──────────────────────────────────────────────────────
+function switchTab(name, btn) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.rev-tab').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    btn.classList.add('active');
+    if (name === 'paquete') renderAerial(marcasActivas);
+}
+
+// ── vista aérea con marcas rojas ──────────────────────────────
 function _productoIcon(nombre) {
     const n = nombre.toLowerCase();
     if (n.includes('electr') || n.includes('comput') || n.includes('telef') || n.includes('celul')) return '💻';
@@ -385,35 +672,11 @@ function _productoIcon(nombre) {
     return '📦';
 }
 
-// ── estado de marcas ─────────────────────────────────────────
-let marcasActivas = {};
-
-document.querySelectorAll('#incChecklist li').forEach(li => {
-    const cb  = li.querySelector('input[type="checkbox"]');
-    const key = li.dataset.key;
-    li.classList.add('error-check');
-    cb.addEventListener('change', () => {
-        li.classList.toggle('checked', cb.checked);
-        marcasActivas[key] = cb.checked;
-        renderAerial(marcasActivas);
-    });
-});
-
-// ── tabs ─────────────────────────────────────────────────────
-function switchTab(name, btn) {
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.rev-tab').forEach(b => b.classList.remove('active'));
-    document.getElementById('tab-' + name).classList.add('active');
-    btn.classList.add('active');
-    if (name === 'paquete') renderAerial(marcasActivas);
-}
-
-// ── vista aérea con marcas rojas ─────────────────────────────
 function renderAerial(marcas = {}) {
     const wrapper = document.getElementById('aerialWrapper');
     if (!wrapper) return;
 
-    const embalaje = (PAQUETE.tipo_embalaje?.nombre || 'Caja').toLowerCase();
+    const embalaje  = (PAQUETE.tipo_embalaje?.nombre || 'Caja').toLowerCase();
     const productos = PAQUETE.productos || [];
 
     let containerClass = 'aerial-caja';
@@ -423,12 +686,13 @@ function renderAerial(marcas = {}) {
     else if (embalaje.includes('tambor')) { containerClass = 'aerial-tambor-outer'; label = 'TAMBOR'; }
     else if (embalaje.includes('conten')) { containerClass = 'aerial-contenedor'; label = 'CONTENEDOR'; }
 
-    const hayContainerError = marcas.peso || marcas.embalaje;
-    const hayProductoError  = marcas.permiso || marcas.valor || marcas.serie;
-    const hayDocError       = marcas.pago || marcas.rfc || marcas.documentacion;
+    const hayContainerError = marcas.peso || marcas.etiquetado || marcas.embalaje;
+    const hayProductoError  = marcas.serie || marcas.fisica;
+    const hayDocError       = marcas.pedimento || marcas.rfc || marcas.valor || marcas.codigos
+                           || marcas.pago_completo || marcas.comprobante || marcas.monto_pago;
 
     let prodsHtml = productos.map((p, i) => {
-        const bg = BG_COLORS[i % BG_COLORS.length];
+        const bg   = BG_COLORS[i % BG_COLORS.length];
         const icon = _productoIcon(p.nombre);
         const desc = p.descripcion ? `<p class="aerial-product-desc">${p.descripcion}</p>` : '';
         return `
@@ -474,24 +738,21 @@ function renderAerial(marcas = {}) {
     `;
 }
 
-// ── registrar incidencia ──────────────────────────────────────
+// ── registrar incidencia + todas las sanciones ─────────────────
 async function registrarIncidencia() {
-    const checks = Object.keys(marcasActivas).filter(k => marcasActivas[k]);
-    if (checks.length === 0) {
+    const checks = allChecklistItems.filter(li => li.querySelector('input').checked);
+    if (checks.length === 0 && sancionesList.length === 0) {
         showToast('Marca al menos una irregularidad.', 'error');
         return;
     }
     const gravedad = document.getElementById('incGravedad').value;
     if (!gravedad) { showToast('Selecciona la gravedad.', 'error'); return; }
 
-    const descripcionItems = checks.map(k => {
-        const li = document.querySelector(`#incChecklist li[data-key="${k}"] label`);
-        return li ? li.textContent.trim() : k;
-    });
+    const descripcionItems = checks.map(li => li.querySelector('label').textContent.trim());
     const descripcionExtra = document.getElementById('incDescripcion').value.trim();
     const descripcion = descripcionItems.join('; ') + (descripcionExtra ? '. ' + descripcionExtra : '.');
 
-    // 1. Guardar resultado de la inspección
+    // 1. Guardar resultado de inspección
     await fetch(`/api/inspeccion/${INSP_PK}/resultado/`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
@@ -505,24 +766,26 @@ async function registrarIncidencia() {
         body: JSON.stringify({ gravedad, descripcion }),
     });
     const incData = await incResp.json();
-
     if (!incResp.ok) {
         showToast(incData.error || 'Error al registrar incidencia.', 'error');
         return;
     }
 
-    // 3. Crear sanción si hay monto
-    const monto = document.getElementById('sanMonto').value;
-    const fundamento = document.getElementById('sanFundamento').value.trim();
-    if (monto && parseFloat(monto) > 0) {
-        await fetch(`/api/incidencia/${incData.codigo}/sancion/`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
-            body: JSON.stringify({ monto_multa: parseFloat(monto), fundamento_legal: fundamento || 'Sin especificar' }),
-        });
+    // 3. Crear todas las sanciones en paralelo
+    if (sancionesList.length > 0) {
+        await Promise.all(sancionesList.map(s =>
+            fetch(`/api/incidencia/${incData.codigo}/sancion/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+                body: JSON.stringify({
+                    monto_multa: s.monto,
+                    fundamento_legal: s.articulo + ' — ' + s.desc,
+                }),
+            })
+        ));
     }
 
-    showToast('Incidencia registrada correctamente.');
+    showToast('Incidencia y sanciones registradas correctamente.');
     setTimeout(() => window.location.href = URL_LISTA, 1200);
 }
 
@@ -533,6 +796,7 @@ function mostrarModalLogout() {
 document.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
     renderAerial({});
+    renderSanciones();
 });
 </script>
 </body>

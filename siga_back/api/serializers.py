@@ -271,7 +271,7 @@ class CategoriaProductosSerializer(serializers.ModelSerializer):
         f = obj.fraccion_arancelaria
         if not f or len(f) < 8:
             return f
-        return f'{f[0:4]}.{f[4:6]}.{f[6:8]}.{f[8:10]}'
+        return f'{f[0:4]}.{f[4:6]}.{f[6:8]}'
 
     def get_embalajes_permitidos(self, obj):
         return list(obj.embalajes.values_list('tipo_embalaje_id', flat=True))
@@ -524,16 +524,26 @@ class SegundaInspeccionSerializer(serializers.ModelSerializer):
 
 class ProductoSerializer(serializers.ModelSerializer):
     igi_importe = serializers.SerializerMethodField()
+    fraccion_arancelaria = serializers.SerializerMethodField()
 
     class Meta:
         model = Producto
-        fields = ['codigo', 'nombre', 'descripcion', 'peso', 'valor_unitario', 'cantidad', 'igi_importe']
+        fields = ['codigo', 'nombre', 'descripcion', 'peso', 'valor_unitario', 'cantidad', 'igi_importe', 'fraccion_arancelaria']
 
     def get_igi_importe(self, obj):
         rel = obj.categorias_rel.select_related('categorias').first()
         if rel and rel.categorias.IGI:
             return float(obj.valor_unitario * rel.categorias.IGI / 100)
         return 0.0
+
+    def get_fraccion_arancelaria(self, obj):
+        rel = obj.categorias_rel.select_related('categorias').first()
+        if rel:
+            f = rel.categorias.fraccion_arancelaria or ''
+            if not f:
+                return None
+            return f'{f[0:4]}.{f[4:6]}.{f[6:8]}' if len(f) >= 8 else f
+        return None
 
 
 class ProductoCreateSerializer(serializers.ModelSerializer):

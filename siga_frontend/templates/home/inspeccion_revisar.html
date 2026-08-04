@@ -238,7 +238,7 @@
                                 <td colspan="8" style="padding:4px 6px;">
                                     <table class="sat-sub" style="width:100%;">
                                         <tr>
-                                            <th>DESCRIPCIÓN</th><th>CANT.</th><th>PESO (KG)</th><th>VALOR UNIT.</th><th>IGI EST.</th>
+                                            <th>DESCRIPCIÓN</th><th>CANT.</th><th>PESO (KG)</th><th>VALOR UNIT.</th><th>IGI EST.</th><th>FRACC. ARANC.</th>
                                         </tr>
                                         {% for pq in paquetes %}
                                             {% for prod in pq.productos %}
@@ -248,12 +248,13 @@
                                                 <td>{{ prod.peso }}</td>
                                                 <td>${{ prod.valor_unitario }}</td>
                                                 <td>${{ prod.igi_importe|default:"0.00" }}</td>
+                                                <td style="font-family:monospace;">{{ prod.fraccion_arancelaria|default:"—" }}</td>
                                             </tr>
                                             {% empty %}
-                                            <tr><td colspan="5" style="color:#9CA3AF;">Sin productos registrados</td></tr>
+                                            <tr><td colspan="6" style="color:#9CA3AF;">Sin productos registrados</td></tr>
                                             {% endfor %}
                                         {% empty %}
-                                        <tr><td colspan="5" style="color:#9CA3AF;">Sin paquetes registrados</td></tr>
+                                        <tr><td colspan="6" style="color:#9CA3AF;">Sin paquetes registrados</td></tr>
                                         {% endfor %}
                                     </table>
                                 </td>

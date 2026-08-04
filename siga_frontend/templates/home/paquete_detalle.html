@@ -292,6 +292,7 @@
                             <th>Peso</th>
                             <th>Valor unit.</th>
                             <th>Cantidad</th>
+                            <th>Fracc. Aranc.</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -302,6 +303,7 @@
                             <td>{{ prod.peso }} Kg</td>
                             <td>${{ prod.valor_unitario }}</td>
                             <td>{{ prod.cantidad }}</td>
+                            <td style="font-family:monospace; color:#374151;">{{ prod.fraccion_arancelaria|default:"—" }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
