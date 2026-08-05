@@ -466,6 +466,7 @@
                                 <th>PESO (KG)</th>
                                 <th>VALOR UNIT.</th>
                                 <th>IGI EST.</th>
+                                <th>FRACC. ARANC.</th>
                             </tr>
                             {% for pq in paquetes_pedimento %}
                                 {% for prod in pq.productos %}
@@ -475,10 +476,11 @@
                                     <td>{{ prod.peso }}</td>
                                     <td>${{ prod.valor_unitario }}</td>
                                     <td>${{ prod.igi_importe|default:"0.00" }}</td>
+                                    <td style="font-family:monospace;">{{ prod.fraccion_arancelaria|default:"—" }}</td>
                                 </tr>
                                 {% endfor %}
                             {% empty %}
-                            <tr><td colspan="5" style="color:#9CA3AF;">Sin productos registrados</td></tr>
+                            <tr><td colspan="6" style="color:#9CA3AF;">Sin productos registrados</td></tr>
                             {% endfor %}
                         </table>
                     </td>
@@ -678,6 +680,27 @@
 
                     <!-- Paquete vinculado desde operaciones (automático) -->
                     <input type="hidden" name="paquete" id="ped-paquete-hidden" value="{{ paquete_preseleccionado }}">
+
+                    <!-- Selector de paquete -->
+                    {% if paquetes %}
+                    <div class="form-group">
+                        <label>Paquete a despachar</label>
+                        <div class="permiso-cards" id="paquete-cards-container">
+                            {% for pq in paquetes %}
+                            <div class="permiso-card {% if pq.pedimento_num and pq.pedimento_num != '—' %}permiso-card-usado{% endif %} {% if paquete_preseleccionado and pq.codigo|stringformat:'s' == paquete_preseleccionado %}selected{% endif %}"
+                                 onclick="seleccionarPaquete({{ pq.codigo }}, this)"
+                                 title="{% if pq.pedimento_num and pq.pedimento_num != '—' %}Ya vinculado a pedimento{% else %}Disponible{% endif %}">
+                                <div class="permiso-card-tipo">
+                                    {{ pq.tipo_embalaje.nombre|default:"Paquete" }} #{{ pq.codigo }}
+                                    {% if pq.pedimento_num and pq.pedimento_num != '—' %}<span class="permiso-vencido" style="background:#F59E0B;color:#78350F;margin-left:6px;">CON PED.</span>{% endif %}
+                                </div>
+                                <div class="permiso-card-vig">{{ pq.peso }} kg · {{ pq.dimensions|default:"—" }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <p id="ped-warn-paquete" style="display:none;margin-top:6px;font-size:12px;color:#DC2626;"></p>
+                    </div>
+                    {% endif %}
 
                     <!-- Campos de transporte -->
                     <div class="form-row">
@@ -883,6 +906,7 @@
                                             <th>PESO (KG)</th>
                                             <th>VALOR UNIT.</th>
                                             <th>IGI EST.</th>
+                                            <th>FRACC. ARANC.</th>
                                         </tr>
                                         {% for pq in paquetes_pedimento %}
                                             {% for prod in pq.productos %}
@@ -892,10 +916,11 @@
                                                 <td>{{ prod.peso }}</td>
                                                 <td>${{ prod.valor_unitario }}</td>
                                                 <td>${{ prod.igi_importe|default:"0.00" }}</td>
+                                                <td style="font-family:monospace;">{{ prod.fraccion_arancelaria|default:"—" }}</td>
                                             </tr>
                                             {% endfor %}
                                         {% empty %}
-                                        <tr><td colspan="5" style="color:#9CA3AF;">Sin productos registrados</td></tr>
+                                        <tr><td colspan="6" style="color:#9CA3AF;">Sin productos registrados</td></tr>
                                         {% endfor %}
                                     </table>
                                 </td>
@@ -1271,6 +1296,7 @@
                                             <th>PESO (KG)</th>
                                             <th>VALOR UNIT.</th>
                                             <th>IGI EST.</th>
+                                            <th>FRACC. ARANC.</th>
                                         </tr>
                                         {% for pq in paquetes_pedimento %}
                                             {% for prod in pq.productos %}
@@ -1280,10 +1306,11 @@
                                                 <td>{{ prod.peso }}</td>
                                                 <td>${{ prod.valor_unitario }}</td>
                                                 <td>${{ prod.igi_importe|default:"0.00" }}</td>
+                                                <td style="font-family:monospace;">{{ prod.fraccion_arancelaria|default:"—" }}</td>
                                             </tr>
                                             {% endfor %}
                                         {% empty %}
-                                        <tr><td colspan="5" style="color:#9CA3AF;">Sin productos registrados</td></tr>
+                                        <tr><td colspan="6" style="color:#9CA3AF;">Sin productos registrados</td></tr>
                                         {% endfor %}
                                     </table>
                                 </td>
@@ -1450,6 +1477,8 @@ function seleccionarPaquete(codigo, cardEl) {
     document.querySelectorAll('#paquete-cards-container .permiso-card').forEach(c => c.classList.remove('selected'));
     cardEl.classList.add('selected');
     document.getElementById('ped-paquete-hidden').value = codigo;
+    const warnPaq = document.getElementById('ped-warn-paquete');
+    if (warnPaq) warnPaq.style.display = 'none';
 }
 
 /* ── Modal abrir/cerrar ───────────────────────────── */
@@ -1475,7 +1504,15 @@ function pedPaso2() {
 
     {% if paquetes %}
     if (!document.getElementById('ped-paquete-hidden').value) {
-        alert('Selecciona el paquete que se asociará a este pedimento.'); return;
+        const warnPaq = document.getElementById('ped-warn-paquete');
+        if (warnPaq) {
+            warnPaq.textContent = '⚠ Selecciona el paquete que se asociará a este pedimento.';
+            warnPaq.style.display = '';
+            warnPaq.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        } else {
+            alert('Selecciona el paquete que se asociará a este pedimento.');
+        }
+        return;
     }
     {% endif %}
 

@@ -271,7 +271,7 @@ class CategoriaProductosSerializer(serializers.ModelSerializer):
         f = obj.fraccion_arancelaria
         if not f or len(f) < 8:
             return f
-        return f'{f[0:4]}.{f[4:6]}.{f[6:8]}.{f[8:10]}'
+        return f'{f[0:4]}.{f[4:6]}.{f[6:8]}'
 
     def get_embalajes_permitidos(self, obj):
         return list(obj.embalajes.values_list('tipo_embalaje_id', flat=True))
@@ -420,20 +420,35 @@ class PagoSerializer(serializers.ModelSerializer):
             'pedimento_num', 'operacion_id', 'cliente_nombre', 'estado',
         ]
 
+    def _pedimento_via_incidencia(self, obj):
+        try:
+            return obj.incidencia.inspeccion.semaforo.pedimentos.first()
+        except Exception:
+            return None
+
     def get_estado(self, obj):
         return obj.estado_pago.concepto if obj.estado_pago_id else 'Sin estado'
 
     def get_pedimento_num(self, obj):
-        return obj.pedimento_id or '—'
+        if obj.pedimento_id:
+            return obj.pedimento_id
+        ped = self._pedimento_via_incidencia(obj)
+        return ped.numero_pedimento if ped else '—'
 
     def get_operacion_id(self, obj):
         if obj.pedimento_id and obj.pedimento.ope_aduanera_id:
             return obj.pedimento.ope_aduanera_id
-        return None
+        ped = self._pedimento_via_incidencia(obj)
+        return ped.ope_aduanera_id if ped else None
 
     def get_cliente_nombre(self, obj):
         if obj.pedimento_id and obj.pedimento.ope_aduanera_id:
             c = obj.pedimento.ope_aduanera.cliente
+            if c:
+                return f'{c.nombre} {c.primer_apell or ""}'.strip()
+        ped = self._pedimento_via_incidencia(obj)
+        if ped and ped.ope_aduanera_id:
+            c = ped.ope_aduanera.cliente
             if c:
                 return f'{c.nombre} {c.primer_apell or ""}'.strip()
         return '—'
@@ -524,16 +539,26 @@ class SegundaInspeccionSerializer(serializers.ModelSerializer):
 
 class ProductoSerializer(serializers.ModelSerializer):
     igi_importe = serializers.SerializerMethodField()
+    fraccion_arancelaria = serializers.SerializerMethodField()
 
     class Meta:
         model = Producto
-        fields = ['codigo', 'nombre', 'descripcion', 'peso', 'valor_unitario', 'cantidad', 'igi_importe']
+        fields = ['codigo', 'nombre', 'descripcion', 'peso', 'valor_unitario', 'cantidad', 'igi_importe', 'fraccion_arancelaria']
 
     def get_igi_importe(self, obj):
         rel = obj.categorias_rel.select_related('categorias').first()
         if rel and rel.categorias.IGI:
             return float(obj.valor_unitario * rel.categorias.IGI / 100)
         return 0.0
+
+    def get_fraccion_arancelaria(self, obj):
+        rel = obj.categorias_rel.select_related('categorias').first()
+        if rel:
+            f = rel.categorias.fraccion_arancelaria or ''
+            if not f:
+                return None
+            return f'{f[0:4]}.{f[4:6]}.{f[6:8]}' if len(f) >= 8 else f
+        return None
 
 
 class ProductoCreateSerializer(serializers.ModelSerializer):
