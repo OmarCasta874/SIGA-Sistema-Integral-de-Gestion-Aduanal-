@@ -65,26 +65,32 @@ def login_view(request):
 
     if request.method == 'POST':
         form = LoginForm(request, data=request.POST)
+        
         if form.is_valid():
-            # 1) Sesión Django (para @login_required)
-            auth_login(request, form.get_user())
-            # 2) Token API para todas las llamadas posteriores
             try:
                 resp = api.post(request, '/auth/login/', {
                     'correo':    request.POST.get('correo', ''),
                     'contrasena': request.POST.get('contrasena', ''),
                 })
-                if resp.status_code == 200:
-                    data = resp.json()
-                    request.session['api_token']    = data.get('token', '')
-                    usuario_data = data.get('usuario', {})
-                    request.session['usuario_rol']   = usuario_data.get('rol', 'Administrador')
-                    request.session['usuario_activo'] = usuario_data.get('activo', True)
             except Exception:
-                pass
-            if getattr(form.get_user(), 'rol', '') == 'Inspector':
-                return redirect('home:inspecciones')
-            return redirect('home:dashboard')
+                resp = None
+
+            if resp is not None and resp.status_code == 200:
+                data = resp.json()
+                auth_login(request, form.get_user())
+                request.session['api_token']     = data.get('token', '')
+                usuario_data = data.get('usuario', {})
+                request.session['usuario_rol']   = usuario_data.get('rol', 'Administrador')
+                request.session['usuario_activo'] = usuario_data.get('activo', True)
+
+                if getattr(form.get_user(), 'rol', '') == 'Inspector':
+                    return redirect('home:inspecciones')
+                return redirect('home:dashboard')
+            else:
+                error_msg = 'Error al iniciar sesión.'
+                if resp is not None:
+                    error_msg = api.safe_json(resp).get('error', error_msg)
+                form.add_error(None, error_msg)
     else:
         form = LoginForm(request)
 

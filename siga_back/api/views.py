@@ -116,7 +116,11 @@ class AuthLoginView(APIView):
                 {'error': 'Tu cuenta está desactivada. Contacta al administrador.'},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        Token.objects.filter(user=user).delete()
+        if Token.objects.filter(user=user).exists():
+            return Response(
+                {'error': 'Ya existe una sesión activa para este usuario en otro dispositivo.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         token = Token.objects.create(user=user)
         _registrar_bitacora(
             usuario=user,
