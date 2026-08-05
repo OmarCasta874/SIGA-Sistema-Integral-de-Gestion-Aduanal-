@@ -294,7 +294,7 @@
                 </div>
                 <div class="campo-grupo">
                     <label>Rol *</label>
-                    <select name="rol" id="edit_rol" class="campo-input">
+                    <select name="rol" id="edit_rol" class="select-campo-input">
                         <option value="Administrador">Administrador</option>
                         <option value="Inspector">Inspector</option>
                     </select>
@@ -318,7 +318,16 @@
 .campo-input { height:38px; padding:0 12px; border:1px solid #d1d5db; border-radius:8px; font-size:14px; color:#111827; background:#fff; }
 .campo-input:focus { outline:none; border-color:#2563eb; }
 .campo-input:read-only {cursor: not-allowed;}
-select.campo-input { cursor:pointer; background:#f9fafb; }
+.select-campo-input { 
+    height:38px;
+    padding:0 12px; 
+    border:1px solid #d1d5db; 
+    border-radius:8px; 
+    font-size:14px; 
+    color:#111827; 
+    background:#fff;
+    cursor:pointer; 
+}
 .modal-acciones { display:flex; justify-content:flex-end; gap:10px; }
 .btn-cancelar-modal { height:38px; padding:0 18px; border:1px solid #d1d5db; border-radius:8px; background:#fff; color:#374151; font-size:14px; cursor:pointer; }
 .btn-cancelar-modal:hover { background:#f3f4f6; }
