@@ -1233,13 +1233,11 @@ def sanciones_view(request):
     pagadas   = sum(1 for i in incidencias if i.get('pagada'))
     pendientes = total - pagadas
 
-    incidencias = incidencias[::-1]
-
     paginador           = Paginator(incidencias, 5)
     incidencias_paginadas = paginador.get_page(request.GET.get('pagina', 1))
 
     return render(request, 'home/sanciones.html', {
-        'incidencias':  incidencias_paginadas,
+        'sanciones':    incidencias_paginadas,
         'query':        query,
         'stat_total':   total,
         'stat_pagadas': pagadas,

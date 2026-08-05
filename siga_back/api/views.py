@@ -587,7 +587,11 @@ class PagoViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = Pago.objects.select_related(
-            'estado_pago', 'pedimento__ope_aduanera__cliente'
+            'estado_pago',
+            'pedimento__ope_aduanera__cliente',
+            'incidencia__inspeccion__semaforo',
+        ).prefetch_related(
+            'incidencia__inspeccion__semaforo__pedimentos__ope_aduanera__cliente',
         ).order_by('-fecha_pago')
         pedimento_num = self.request.query_params.get('pedimento')
         if pedimento_num:

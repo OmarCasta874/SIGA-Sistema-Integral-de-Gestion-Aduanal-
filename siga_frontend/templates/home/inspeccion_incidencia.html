@@ -748,9 +748,11 @@ async function registrarIncidencia() {
     const gravedad = document.getElementById('incGravedad').value;
     if (!gravedad) { showToast('Selecciona la gravedad.', 'error'); return; }
 
-    const descripcionItems = checks.map(li => li.querySelector('label').textContent.trim());
+    // Usar dataset.desc para evitar concatenar el texto del hint y no exceder VARCHAR(250)
+    const descripcionItems = checks.map(li => li.dataset.desc || li.querySelector('label').firstChild.textContent.trim());
     const descripcionExtra = document.getElementById('incDescripcion').value.trim();
-    const descripcion = descripcionItems.join('; ') + (descripcionExtra ? '. ' + descripcionExtra : '.');
+    let descripcion = descripcionItems.join('; ') + (descripcionExtra ? '. ' + descripcionExtra : '.');
+    if (descripcion.length > 248) descripcion = descripcion.slice(0, 247) + '…';
 
     // 1. Guardar resultado de inspección
     await fetch(`/api/inspeccion/${INSP_PK}/resultado/`, {
@@ -767,13 +769,14 @@ async function registrarIncidencia() {
     });
     const incData = await incResp.json();
     if (!incResp.ok) {
-        showToast(incData.error || 'Error al registrar incidencia.', 'error');
+        const detalle = incData.descripcion?.[0] || incData.error || JSON.stringify(incData);
+        showToast('Error al registrar incidencia: ' + detalle, 'error');
         return;
     }
 
-    // 3. Crear todas las sanciones en paralelo
+    // 3. Crear todas las sanciones en paralelo con manejo de errores
     if (sancionesList.length > 0) {
-        await Promise.all(sancionesList.map(s =>
+        const sanResults = await Promise.all(sancionesList.map(s =>
             fetch(`/api/incidencia/${incData.codigo}/sancion/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
@@ -781,8 +784,14 @@ async function registrarIncidencia() {
                     monto_multa: s.monto,
                     fundamento_legal: s.articulo + ' — ' + s.desc,
                 }),
-            })
+            }).then(async r => ({ ok: r.ok, status: r.status, data: await r.json().catch(() => ({})) }))
         ));
+        const fallidas = sanResults.filter(r => !r.ok);
+        if (fallidas.length > 0) {
+            const errMsg = fallidas.map(r => JSON.stringify(r.data)).join(' | ');
+            showToast(`${fallidas.length} sanción(es) no se guardaron: ${errMsg}`, 'error');
+            return;
+        }
     }
 
     showToast('Incidencia y sanciones registradas correctamente.');

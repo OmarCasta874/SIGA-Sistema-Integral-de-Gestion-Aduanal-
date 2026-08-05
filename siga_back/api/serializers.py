@@ -420,20 +420,35 @@ class PagoSerializer(serializers.ModelSerializer):
             'pedimento_num', 'operacion_id', 'cliente_nombre', 'estado',
         ]
 
+    def _pedimento_via_incidencia(self, obj):
+        try:
+            return obj.incidencia.inspeccion.semaforo.pedimentos.first()
+        except Exception:
+            return None
+
     def get_estado(self, obj):
         return obj.estado_pago.concepto if obj.estado_pago_id else 'Sin estado'
 
     def get_pedimento_num(self, obj):
-        return obj.pedimento_id or '—'
+        if obj.pedimento_id:
+            return obj.pedimento_id
+        ped = self._pedimento_via_incidencia(obj)
+        return ped.numero_pedimento if ped else '—'
 
     def get_operacion_id(self, obj):
         if obj.pedimento_id and obj.pedimento.ope_aduanera_id:
             return obj.pedimento.ope_aduanera_id
-        return None
+        ped = self._pedimento_via_incidencia(obj)
+        return ped.ope_aduanera_id if ped else None
 
     def get_cliente_nombre(self, obj):
         if obj.pedimento_id and obj.pedimento.ope_aduanera_id:
             c = obj.pedimento.ope_aduanera.cliente
+            if c:
+                return f'{c.nombre} {c.primer_apell or ""}'.strip()
+        ped = self._pedimento_via_incidencia(obj)
+        if ped and ped.ope_aduanera_id:
+            c = ped.ope_aduanera.cliente
             if c:
                 return f'{c.nombre} {c.primer_apell or ""}'.strip()
         return '—'
