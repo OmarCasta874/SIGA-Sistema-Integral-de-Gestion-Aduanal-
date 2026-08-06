@@ -1442,7 +1442,7 @@ def inspecciones_view(request):
     es_admin     = not es_inspector
 
     if es_inspector:
-        inspecciones = [i for i in inspecciones if i.get('estado', 'En revisión') == 'En revisión']
+        inspecciones = [i for i in inspecciones if i.get('estado') in ('En revisión', 'Segunda inspección')]
 
     estado_filtro = request.GET.get('estado', '')
     if estado_filtro and es_admin:
@@ -1549,7 +1549,7 @@ def inspeccion_revisar_view(request, pk):
         messages.error(request, 'Inspección no encontrada.')
         return redirect('home:inspecciones')
 
-    if insp.get('estado', 'En revisión') != 'En revisión':
+    if insp.get('estado') not in ('En revisión', 'Segunda inspección'):
         messages.warning(request, 'Esta inspección ya fue procesada.')
         return redirect('home:inspecciones')
 
