@@ -508,6 +508,10 @@ INSERT INTO aduana (codigo, ciudad, nombre) VALUES (12, 'Sonora', 'Aduana de Son
 INSERT INTO aduana (codigo, ciudad, nombre) VALUES (13, 'Culiacán', 'Aduana de Culiacán');
 INSERT INTO aduana (codigo, ciudad, nombre) VALUES (14, 'Puebla', 'Aduana de Puebla');
 INSERT INTO aduana (codigo, ciudad, nombre) VALUES (15, 'La Paz', 'Aduana de La Paz');
+INSERT INTO aduana (codigo, ciudad, nombre) VALUES (16, 'Tampico', 'Aduana de Tampico');
+INSERT INTO aduana (codigo, ciudad, nombre) VALUES (17, 'Altamira', 'Aduana de Altamira');
+INSERT INTO aduana (codigo, ciudad, nombre) VALUES (18, 'Tapachula', 'Aduana de Tapachula');
+INSERT INTO aduana (codigo, ciudad, nombre) VALUES (19, 'Ciudad Hidalgo', 'Aduana de Ciudad Hidalgo');
 
 -- bitacora
 INSERT INTO bitacora (numero, descripcion, fecha, hora) VALUES (1, 'Inicio de sesión del usuario admin01 en el sistema.', '2024-01-10', '08:02:00');

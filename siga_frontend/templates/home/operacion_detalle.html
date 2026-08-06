@@ -42,6 +42,12 @@
         .alerta-success { background:#D1FAE5; color:#065F46; border:1px solid #A7F3D0; }
         .alerta-error   { background:#FEE2E2; color:#991B1B; border:1px solid #FECACA; }
 
+        /* ── Alerta vencimiento de pago ── */
+        .alerta-vencimiento { display:flex; align-items:center; gap:12px; background:#FEE2E2; border:2px solid #FCA5A5; border-radius:10px; padding:14px 18px; margin-bottom:16px; }
+        .alerta-vencimiento-icon { color:#DC2626; flex-shrink:0; }
+        .alerta-vencimiento-texto strong { display:block; font-size:14px; font-weight:700; color:#991B1B; }
+        .alerta-vencimiento-texto span { font-size:13px; color:#B91C1C; }
+
         /* ── Pedimento SAT display (static, when pedimento exists) ── */
         .ped-doc { background:#fff; border:2px solid #1e3a5f; border-radius:6px; margin-bottom:20px; font-size:13px; overflow:hidden; }
         .ped-doc-titulo { background:#1e3a5f; color:#fff; text-align:center; padding:8px; font-size:12px; font-weight:700; letter-spacing:2px; }
@@ -310,6 +316,26 @@
                 <i data-lucide="play" style="width:14px;height:14px;"></i>
                 Continuar pago
             </button>
+        </div>
+        {% endif %}
+
+        {% if horas_restantes_pago is not None %}
+        <div class="alerta-vencimiento">
+            <div class="alerta-vencimiento-icon">
+                <i data-lucide="clock-alert" style="width:28px;height:28px;"></i>
+            </div>
+            <div class="alerta-vencimiento-texto">
+                <strong>Pago pendiente — ¡límite de pago próximo!</strong>
+                <span>
+                    {% if horas_restantes_pago == 0 %}
+                        El plazo de pago ha vencido. Contacta al cliente de inmediato.
+                    {% elif horas_restantes_pago == 1 %}
+                        Queda 1 hora para completar el pago de este pedimento.
+                    {% else %}
+                        Quedan {{ horas_restantes_pago }} hora{% if horas_restantes_pago != 1 %}s{% endif %} (menos de 2 días) para que el cliente realice el pago.
+                    {% endif %}
+                </span>
+            </div>
         </div>
         {% endif %}
 
@@ -989,6 +1015,17 @@
             <!-- ─── PASO 3: Registrar pago ─── -->
             <div id="ped-paso-3" style="display:none;">
                 <div class="modal-body">
+
+                    <!-- Alerta de vencimiento (solo visible al reanudar pago con fecha_limite) -->
+                    <div id="alerta-vencimiento-modal" style="display:none;margin-bottom:14px;" class="alerta-vencimiento">
+                        <div class="alerta-vencimiento-icon">
+                            <i data-lucide="clock-alert" style="width:22px;height:22px;"></i>
+                        </div>
+                        <div class="alerta-vencimiento-texto">
+                            <strong>Plazo de pago próximo a vencer</strong>
+                            <span id="alerta-vencimiento-texto-modal">Quedan 2 días para completar el pago de este pedimento.</span>
+                        </div>
+                    </div>
 
                     <!-- Encabezado del recibo -->
                     <div style="background:linear-gradient(135deg,#1e3a5f 0%,#2563EB 100%);border-radius:10px;padding:20px 24px;color:#fff;margin-bottom:16px;">
@@ -1807,12 +1844,42 @@ function reanudarPago() {
     marcarCompleto('ped-prog-1', 'ped-linea-1', 'ped-prog-2');
     marcarCompleto('ped-prog-2', 'ped-linea-2', 'ped-prog-3');
     setText('ped-subtitulo', 'Paso 3 de 4 — Registrar pago');
+
+    // Mostrar alerta de vencimiento si hay fecha_limite configurada
+    {% if horas_restantes_pago is not None %}
+    const alertaModal = document.getElementById('alerta-vencimiento-modal');
+    if (alertaModal) {
+        const horasRest = {{ horas_restantes_pago }};
+        let textoAlerta;
+        if (horasRest === 0) {
+            textoAlerta = 'El plazo de pago ha vencido. Contacta al cliente de inmediato.';
+        } else if (horasRest === 1) {
+            textoAlerta = 'Queda 1 hora para completar el pago de este pedimento.';
+        } else {
+            textoAlerta = `Quedan ${horasRest} horas (menos de 2 días) para que el cliente realice el pago.`;
+        }
+        document.getElementById('alerta-vencimiento-texto-modal').textContent = textoAlerta;
+        alertaModal.style.display = 'flex';
+    }
+    {% endif %}
+
     abrirModalPedimento();
     lucide.createIcons();
 }
 
-function pagarDespues() {
+async function pagarDespues() {
+    const pedNum = document.getElementById('pago-num-pedimento')?.textContent.trim();
+    if (pedNum) {
+        const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const fd   = new FormData();
+        fd.append('csrfmiddlewaretoken', csrf);
+        fd.append('numero_pedimento', pedNum);
+        try {
+            await fetch('{% url "home:api_diferir_pago" %}', { method: 'POST', body: fd });
+        } catch {}
+    }
     cerrarModalPedimento();
+    window.location.reload();
 }
 
 function seleccionarMetodo(el) {

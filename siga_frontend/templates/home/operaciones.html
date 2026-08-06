@@ -300,13 +300,11 @@
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Aduana</label>
-                        <select id="op-aduana" class="form-input" required>
-                            <option value="">— Seleccionar aduana —</option>
-                            {% for aduana in aduanas %}
-                            <option value="{{ aduana.codigo }}">{{ aduana.nombre }}</option>
-                            {% endfor %}
-                        </select>
+                        <label>Aduana de despacho</label>
+                        <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:#F0F9FF;border:1px solid #BAE6FD;border-radius:8px;font-size:13px;color:#0369A1;">
+                            <i data-lucide="info" style="width:15px;height:15px;flex-shrink:0;"></i>
+                            Se detectará automáticamente al seleccionar el país en el siguiente paso.
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>Fecha de apertura</label>
@@ -348,7 +346,8 @@
                         </div>
                         <div class="form-group">
                             <label>País de origen <span style="color:#EF4444">*</span></label>
-                            <select name="pais_origen" id="imp-pais-origen" class="form-input">
+                            <select name="pais_origen" id="imp-pais-origen" class="form-input"
+                                    onchange="onPaisChange(this.value, 'importacion')">
                                 <option value="">Seleccionar...</option>
                                 <option value="Estados Unidos">Estados Unidos</option>
                                 <option value="China">China</option>
@@ -385,6 +384,10 @@
                                 <option value="Uruguay">Uruguay</option>
                                 <option value="México">México</option>
                             </select>
+                            <div id="imp-aduana-badge-box" style="display:none;margin-top:8px;align-items:center;gap:8px;padding:8px 12px;background:#DCFCE7;border:1px solid #86EFAC;border-radius:8px;font-size:13px;color:#15803D;">
+                                <i data-lucide="building-2" style="width:14px;height:14px;flex-shrink:0;"></i>
+                                Aduana asignada: <strong id="imp-aduana-badge">—</strong>
+                            </div>
                         </div>
                     </div>
                     <div class="form-group">
@@ -444,7 +447,8 @@
                         </div>
                         <div class="form-group">
                             <label>País de destino <span style="color:#EF4444">*</span></label>
-                            <select name="pais_destino" id="exp-pais-destino" class="form-input">
+                            <select name="pais_destino" id="exp-pais-destino" class="form-input"
+                                    onchange="onPaisChange(this.value, 'exportacion')">
                                 <option value="">Seleccionar...</option>
                                 <option value="Estados Unidos">Estados Unidos</option>
                                 <option value="China">China</option>
@@ -481,6 +485,10 @@
                                 <option value="Uruguay">Uruguay</option>
                                 <option value="México">México</option>
                             </select>
+                            <div id="exp-aduana-badge-box" style="display:none;margin-top:8px;align-items:center;gap:8px;padding:8px 12px;background:#DCFCE7;border:1px solid #86EFAC;border-radius:8px;font-size:13px;color:#15803D;">
+                                <i data-lucide="building-2" style="width:14px;height:14px;flex-shrink:0;"></i>
+                                Aduana asignada: <strong id="exp-aduana-badge">—</strong>
+                            </div>
                         </div>
                     </div>
                     <div class="form-group">
@@ -670,13 +678,80 @@
         container.appendChild(grid);
     }
 
+    // ── Detección automática de aduana según país ─────────────────
+    const ADUANAS_LIST = [
+        {% for a in aduanas %}{ codigo: '{{ a.codigo }}', nombre: '{{ a.nombre }}' },{% endfor %}
+    ];
+
+    const PAIS_ADUANA_KEYWORDS = {
+        'Estados Unidos': ['tijuana', 'nogales', 'juárez', 'juarez', 'laredo', 'matamoros'],
+        'Canadá':    ['tijuana', 'nogales', 'juárez', 'juarez', 'laredo'],
+        'China':          ['manzanillo', 'lázaro', 'lazaro', 'veracruz'],
+        'Japón':     ['manzanillo', 'lázaro', 'lazaro'],
+        'Corea del Sur':  ['manzanillo', 'lázaro', 'lazaro'],
+        'Vietnam':        ['manzanillo', 'lázaro', 'lazaro'],
+        'Indonesia':      ['manzanillo', 'lázaro', 'lazaro'],
+        'Singapur':       ['manzanillo', 'lázaro', 'lazaro'],
+        'Australia':      ['manzanillo', 'lázaro', 'lazaro'],
+        'India':          ['manzanillo', 'veracruz', 'tampico'],
+        'Alemania':       ['veracruz', 'tampico', 'altamira'],
+        'España':    ['veracruz', 'tampico', 'altamira'],
+        'Francia':        ['veracruz', 'tampico', 'altamira'],
+        'Italia':         ['veracruz', 'tampico', 'altamira'],
+        'Reino Unido':    ['veracruz', 'tampico', 'altamira'],
+        'Países Bajos': ['veracruz', 'tampico', 'altamira'],
+        'Turquía':   ['veracruz', 'tampico'],
+        'Rusia':          ['veracruz', 'tampico'],
+        'Israel':         ['veracruz', 'tampico'],
+        'Arabia Saudita': ['veracruz', 'tampico'],
+        'Emiratos Árabes Unidos': ['veracruz', 'tampico'],
+        'Brasil':         ['veracruz', 'tampico', 'altamira'],
+        'Argentina':      ['veracruz', 'tampico'],
+        'Colombia':       ['veracruz', 'tampico'],
+        'Chile':          ['manzanillo', 'veracruz'],
+        'Perú':      ['manzanillo', 'veracruz'],
+        'Ecuador':        ['manzanillo', 'veracruz'],
+        'Bolivia':        ['manzanillo', 'veracruz'],
+        'Uruguay':        ['veracruz', 'tampico'],
+        'Venezuela':      ['veracruz', 'tampico'],
+        'Guatemala':      ['tapachula', 'ciudad hidalgo', 'hidalgo'],
+        'Costa Rica':     ['tapachula', 'veracruz'],
+        'Panamá':    ['tapachula', 'veracruz'],
+        'méxico':    ['tijuana'],
+    };
+
+    let aduanaDetectada = null;
+
+    function detectarAduana(pais) {
+        const keywords = PAIS_ADUANA_KEYWORDS[pais] || ['tijuana'];
+        for (const kw of keywords) {
+            const match = ADUANAS_LIST.find(a => a.nombre.toLowerCase().includes(kw));
+            if (match) return match;
+        }
+        return ADUANAS_LIST[0] || null;
+    }
+
+    function onPaisChange(pais, tipo) {
+        if (!pais) return;
+        aduanaDetectada = detectarAduana(pais);
+        if (!aduanaDetectada) return;
+
+        const hiddenId  = tipo === 'importacion' ? 'imp-aduana' : 'exp-aduana';
+        const badgeBoxId = tipo === 'importacion' ? 'imp-aduana-badge-box' : 'exp-aduana-badge-box';
+        const badgeId   = tipo === 'importacion' ? 'imp-aduana-badge' : 'exp-aduana-badge';
+
+        document.getElementById(hiddenId).value = aduanaDetectada.codigo;
+        document.getElementById(badgeId).textContent = aduanaDetectada.nombre;
+        const box = document.getElementById(badgeBoxId);
+        if (box) { box.style.display = 'flex'; lucide.createIcons(); }
+    }
+
     // ── Modal Nueva Operación: 3 pasos ────────────────────────────
     let tipoOperacionActual = null;
 
     function pasarPaso2() {
         const tipo    = document.getElementById('op-tipo').value;
         const cliente = document.getElementById('op-cliente');
-        const aduana  = document.getElementById('op-aduana').value;
 
         if (!tipo) {
             alert('Selecciona el tipo de operación.');
@@ -689,10 +764,6 @@
         const paqCliente = PAQUETES_POR_CLIENTE[String(cliente.value)] || [];
         if (!paqCliente.length) {
             alert('Este cliente no tiene paquetes registrados.\nDebes registrar al menos un paquete antes de crear una operación.');
-            return;
-        }
-        if (!aduana) {
-            alert('Selecciona una aduana.');
             return;
         }
 
@@ -712,7 +783,6 @@
             document.getElementById('prog-2-label').textContent         = 'Importación';
             document.getElementById('modal-subtitulo').textContent      = 'Paso 2 de 3 — Datos de importación';
             document.getElementById('imp-cliente').value                = cliente.value;
-            document.getElementById('imp-aduana').value                 = aduana;
             document.getElementById('imp-nombre-cliente').textContent   = nombreCliente.split('—')[0].trim();
             document.getElementById('imp-paquete').value                = '';
             document.getElementById('paso-2-importacion').style.display = '';
@@ -722,13 +792,11 @@
             document.getElementById('prog-2-label').textContent         = 'Exportación';
             document.getElementById('modal-subtitulo').textContent      = 'Paso 2 de 3 — Datos de exportación';
             document.getElementById('exp-cliente').value                = cliente.value;
-            document.getElementById('exp-aduana').value                 = aduana;
             document.getElementById('exp-nombre-cliente').textContent   = nombreCliente.split('—')[0].trim();
             document.getElementById('exp-paquete').value                = '';
             document.getElementById('paso-2-exportacion').style.display = '';
             renderizarPaquetes(cliente.value, 'exp-paquetes-container', 'exp-paquete');
-
-        } 
+        }
     }
 
     function pasarPaso3(tipo) {
@@ -786,8 +854,7 @@
         const cliente = document.getElementById('op-cliente');
         document.getElementById('resumen-tipo').textContent    = tipoOperacionActual;
         document.getElementById('resumen-cliente').textContent = cliente.options[cliente.selectedIndex].text;
-        const selAduana = document.getElementById('op-aduana');
-        document.getElementById('resumen-aduana').textContent  = selAduana.options[selAduana.selectedIndex]?.text || '';
+        document.getElementById('resumen-aduana').textContent  = aduanaDetectada ? aduanaDetectada.nombre : '—';
         document.getElementById('resumen-fecha').textContent   = document.getElementById('op-fecha').value;
 
         // Paso 2

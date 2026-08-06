@@ -432,6 +432,16 @@ def operacion_detalle_view(request, pk):
     estado_pedimento = None
     if pedimento:
         estado_pedimento = 'Pagado' if paso >= 3 else 'Generado'
+
+    horas_restantes_pago = None
+    if pedimento and paso == 2:
+        fecha_limite_raw = pedimento.get('fecha_limite')
+        if fecha_limite_raw:
+            from django.utils.dateparse import parse_datetime
+            fecha_limite_dt = parse_datetime(str(fecha_limite_raw))
+            if fecha_limite_dt:
+                delta = fecha_limite_dt - timezone.now()
+                horas_restantes_pago = max(0, int(delta.total_seconds() / 3600))
     try:
         paquetes = api.safe_json(api.get(request, f'/paquetes/?cliente={cliente_id}'), [])
     except Exception:
@@ -514,6 +524,7 @@ def operacion_detalle_view(request, pk):
         'auto_pais_destino': auto_pais_destino,
         'auto_pais_origen':  auto_pais_origen,
         'abrir_modal':      abrir_modal,
+        'horas_restantes_pago': horas_restantes_pago,
     })
 
 
@@ -578,6 +589,16 @@ def factura_crear_view(request):
         return JsonResponse({'error': 'JSON inválido.'}, status=400)
     resp = api.post(request, '/facturas/crear/', body)
     return JsonResponse(resp.json(), status=resp.status_code)
+
+
+@login_required
+def diferir_pago_view(request):
+    from django.http import JsonResponse
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido.'}, status=405)
+    numero = request.POST.get('numero_pedimento', '')
+    resp = api.post(request, '/pedimentos/diferir-pago/', {'numero_pedimento': numero})
+    return JsonResponse(api.safe_json(resp, {}), status=resp.status_code)
 
 
 @login_required

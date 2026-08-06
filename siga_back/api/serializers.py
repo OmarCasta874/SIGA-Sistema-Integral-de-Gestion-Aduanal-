@@ -304,7 +304,7 @@ class PedimentoSerializer(serializers.ModelSerializer):
             'aduana_codigo', 'aduana_nombre', 'tipo_operacion',
             'tipo_exportacion', 'tipo_importacion',
             'medio_transporte', 'pais_origen_mercancia', 'pais_destino',
-            'incoterm', 'tipo_cambio',
+            'incoterm', 'tipo_cambio', 'fecha_limite',
         ]
 
     def _op(self, obj):

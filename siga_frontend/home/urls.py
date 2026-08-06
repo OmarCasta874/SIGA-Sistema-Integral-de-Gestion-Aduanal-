@@ -25,6 +25,7 @@ urlpatterns = [
     path('bitacora/', views.bitacora_view, name='bitacora'),
     path('api/operacion/', views.api_datos_operacion,  name='api_operacion'),
     path('api/pago/crear/', views.pago_crear_view, name='api_pago_crear'),
+    path('api/pedimento/diferir-pago/', views.diferir_pago_view, name='api_diferir_pago'),
     path('api/factura/crear/', views.factura_crear_view, name='api_factura_crear'),
     path('api/factura/<int:codigo>/pdf/', views.factura_pdf_view, name='api_factura_pdf'),
     path('pagos/', views.pagos_view, name='pagos'),

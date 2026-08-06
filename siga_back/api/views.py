@@ -475,6 +475,18 @@ class PedimentoViewSet(viewsets.ReadOnlyModelViewSet):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
+    @action(detail=False, methods=['post'], url_path='diferir-pago')
+    def diferir_pago(self, request):
+        numero = request.data.get('numero_pedimento')
+        if not numero:
+            return Response({'error': 'numero_pedimento es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
+        ped = get_object_or_404(Pedimento, numero_pedimento=numero)
+        if ped.semaforo_id:
+            return Response({'error': 'El pedimento ya fue pagado.'}, status=status.HTTP_400_BAD_REQUEST)
+        ped.fecha_limite = timezone.now() + timedelta(hours=48)
+        ped.save(update_fields=['fecha_limite'])
+        return Response({'fecha_limite': ped.fecha_limite})
+
 
 # ── Catálogos (read-only) ──────────────────────────────────────────────────────
 
