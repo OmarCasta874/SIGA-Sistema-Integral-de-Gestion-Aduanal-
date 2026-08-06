@@ -43,11 +43,27 @@ from .serializers import (
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _generar_semaforo():
-    resultado = random.choices(
-        ['Verde - Desaduanamiento libre', 'Rojo - Reconocimiento aduanero'],
-        weights=[0, 100],
+    color = random.choices(
+        ['Verde', 'Rojo'],
+        weights=[20, 80],
         k=1,
     )[0]
+    
+    if color == 'Verde':
+        resultado = random.choice([
+            'Verde - Desaduanamiento libre',
+            'Verde - Despacho libre sin inspección física',
+            'Verde - Liberación inmediata de la mercancía',
+        ])
+    else:
+        resultado = random.choice([
+            'Rojo - Reconocimiento aduanero',
+            'Rojo - Inspección física necesaria',
+            'Rojo - Inspección documental requerida',
+            'Rojo - Inspección física requerida',
+            'Rojo - Inspección física y documental requerida',
+        ])
+    
     return SemaforoFiscal.objects.create(hora=datetime.now().time(), resultado=resultado)
 
 

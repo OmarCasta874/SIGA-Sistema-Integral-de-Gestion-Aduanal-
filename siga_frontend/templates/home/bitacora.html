@@ -141,30 +141,32 @@
         </select>
     </div>
 
+    <h2 class="bitacora-subtitle">
+        <i data-lucide="log-in"></i>
+        Historial de Inicios de Sesión
+    </h2>
     <div class="bitacora-panel">
         <table class="tabla-bitacora">
             <thead>
                 <tr>
-                    <th>Numero</th>
-                    <th>Descripción</th>
-                    <th>Hora</th>
+                    <th>Número</th>
+                    <th>Usuario</th>
                     <th>Fecha</th>
-                    <th>Estado</th>
+                    <th>Hora</th>
                 </tr>
             </thead>
-            <tbody id="tbodyBitacora">
-                {% for entrada in entradas %}
+            <tbody id="tbodyLogins">
+                {% for entrada in logins %}
                 <tr>
                     <td>{{ entrada.numero }}</td>
-                    <td>{{ entrada.descripcion }}</td>
-                    <td>{{ entrada.hora|slice:":5" }}</td>
+                    <td>{{ entrada.usuario_nombre }}</td>
                     <td>{{ entrada.fecha }}</td>
-                    <td><span class="bitacora-estado-pill estado-exitoso">Registrado</span></td>
+                    <td>{{ entrada.hora|slice:":5" }}</td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="5" style="text-align:center;">
-                        No hay registros en la bitácora.
+                    <td colspan="4" style="text-align: center;">
+                        No hay registros de inicio de sesión.
                     </td>
                 </tr>
                 {% endfor %}
@@ -172,26 +174,99 @@
         </table>
 
         <div class="tabla-paginacion">
-            {% if entradas.has_previous %}
-                <a href="?pagina={{ entradas.previous_page_number }}&q={{ query }}" class="pagina-btn pagina-flecha">
+            {% if logins.has_previous %}
+                <a href="?pagina_login={{ logins.previous_page_number }}&q={{ query }}" class="pagina-btn pagina-flecha">
                     <i data-lucide="chevron-left"></i>
                 </a>
             {% else %}
-                <button class="pagina-btn pagina-flecha" disabled><i data-lucide="chevron-left"></i></button>
+                <button class="pagina-btn pagina-flecha" disabled>
+                    <i data-lucide="chevron-left"></i>
+                </button>
             {% endif %}
-            {% for num in entradas.paginator.page_range %}
-                {% if entradas.number == num %}
+
+            {% for num in logins.paginator.page_range %}
+                {% if logins.number == num %}
                     <button class="pagina-btn pagina-activa">{{ num }}</button>
-                {% elif num >= entradas.number|add:"-2" and num <= entradas.number|add:"2" %}
-                    <a href="?pagina={{ num }}&q={{ query }}" class="pagina-btn">{{ num }}</a>
+                {% elif num >= logins.number|add:"-2" and num <= logins.number|add:"2" %}
+                    <a href="?pagina_login={{ num }}&q={{ query }}" class="pagina-btn">{{ num }}</a>
                 {% endif %}
             {% endfor %}
-            {% if entradas.has_next %}
-                <a href="?pagina={{ entradas.next_page_number }}&q={{ query }}" class="pagina-btn pagina-flecha">
+
+            {% if logins.has_next %}
+                <a href="?pagina_login={{ logins.next_page_number }}&q={{ query }}" class="pagina-btn pagina-flecha">
                     <i data-lucide="chevron-right"></i>
                 </a>
             {% else %}
-                <button class="pagina-btn pagina-flecha" disabled><i data-lucide="chevron-right"></i></button>
+                <button class="pagina-btn pagina-flecha" disabled>
+                    <i data-lucide="chevron-right"></i>
+                </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <br><br>
+
+    <h2 class="bitacora-subtitle">
+        <i data-lucide="clipboard-list"></i>
+        Historial de Aperturas de Operaciones Aduaneras
+    </h2>
+    <div class="bitacora-panel">
+        <table class="tabla-bitacora">
+            <thead>
+                <tr>
+                    <th>Número</th>
+                    <th>Usuario</th>
+                    <th>Descripción</th>
+                    <th>Fecha</th>
+                    <th>Hora</th>
+                </tr>
+            </thead>
+            <tbody id="tbodyOperaciones">
+                {% for entrada in operaciones %}
+                <tr>
+                    <td>{{ entrada.numero }}</td>
+                    <td>{{ entrada.usuario_nombre }}</td>
+                    <td>{{ entrada.descripcion }}</td>
+                    <td>{{ entrada.fecha }}</td>
+                    <td>{{ entrada.hora|slice:":5" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align: center;">
+                        No hay aperturas de operaciones registradas.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="tabla-paginacion">
+            {% if operaciones.has_previous %}
+                <a href="?pagina_operacion={{ operaciones.previous_page_number }}&q={{ query }}" class="pagina-btn pagina-flecha">
+                    <i data-lucide="chevron-left"></i>
+                </a>
+            {% else %}
+                <button class="pagina-btn pagina-flecha" disabled>
+                    <i data-lucide="chevron-left"></i>
+                </button>
+            {% endif %}
+
+            {% for num in operaciones.paginator.page_range %}
+                {% if operaciones.number == num %}
+                    <button class="pagina-btn pagina-activa">{{ num }}</button>
+                {% elif num >= operaciones.number|add:"-2" and num <= operaciones.number|add:"2" %}
+                    <a href="?pagina_operacion={{ num }}&q={{ query }}" class="pagina-btn">{{ num }}</a>
+                {% endif %}
+            {% endfor %}
+
+            {% if operaciones.has_next %}
+                <a href="?pagina_operacion={{ operaciones.next_page_number }}&q={{ query }}" class="pagina-btn pagina-flecha">
+                    <i data-lucide="chevron-right"></i>
+                </a>
+            {% else %}
+                <button class="pagina-btn pagina-flecha" disabled>
+                    <i data-lucide="chevron-right"></i>
+                </button>
             {% endif %}
         </div>
     </div>

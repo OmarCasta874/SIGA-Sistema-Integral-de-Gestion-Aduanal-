@@ -884,7 +884,17 @@ def bitacora_view(request):
 
     if query:
         q        = query.lower()
-        entradas = [e for e in entradas if q in e.get('descripcion', '').lower()]
+        entradas = [
+            e for e in entradas 
+            if (
+                q in e.get('descripcion', '').lower()
+                or q in (e.get('usuario_nombre') or '').lower()
+            )
+        ]
+        
+    logins = [e for e in entradas if e.get('modulo') == 'Login']
+        
+    operaciones = [e for e in entradas if (e.get('modulo') == 'Operaciones' and e.get('tipo_accion') == 'Creación' )]
         
     hoy = timezone.localdate().isoformat()
     total_registros = len(entradas)
@@ -907,9 +917,16 @@ def bitacora_view(request):
         ultimo_registro = entradas_ordenadas[0].get('fecha', '-')
         ultima_hora = entradas_ordenadas[0].get('hora', '-')
 
-    paginador = Paginator(entradas, 5)
+    paginador_logins = Paginator(logins, 5)
+    paginador_operaciones = Paginator(operaciones, 5)
+    
     return render(request, 'home/bitacora.html', {
-        'entradas': paginador.get_page(request.GET.get('pagina', 1)),
+        'logins': paginador_logins.get_page(
+            request.GET.get('pagina_login', 1)
+        ),
+        'operaciones': paginador_operaciones.get_page(
+            request.GET.get('pagina_operacion', 1)    
+        ),
         'query':    query,
         
         'total_registros': total_registros,

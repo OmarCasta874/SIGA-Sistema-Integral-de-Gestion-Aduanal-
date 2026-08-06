@@ -169,6 +169,13 @@
     color: #DC2626;
 }
 
+.bitacora-subtitle {
+    margin: 35px 0 15px;
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: #1F2937;
+}
+
 /* SIDEBAR COLAPSADO (modo mini) */
 
 .sidebar {

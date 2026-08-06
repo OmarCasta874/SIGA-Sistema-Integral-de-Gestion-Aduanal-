@@ -142,7 +142,16 @@
                     <td>{{ pedimento.cliente }}</td>
                     <td>{{ pedimento.regimen }}</td>
                     <td>{{ pedimento.estado}}</td>
-                    <td>{{ pedimento.semaforo }}</td>
+                    <td>
+                        <span class="estado-semaforo
+                            {% if pedimento.semaforo|slice:":5" == 'Verde' %}
+                                semaforo-verde
+                            {% elif pedimento.semaforo|slice:":4" == 'Rojo' %}
+                                semaforo-rojo
+                            {% endif %}">
+                            {{ pedimento.semaforo }}
+                        </span>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>

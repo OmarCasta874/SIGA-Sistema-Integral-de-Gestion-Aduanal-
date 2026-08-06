@@ -284,6 +284,14 @@ body {
 .semaforo-rojo { background: #fee2e2; color: #dc2626; }
 .semaforo-amarillo { background: #fef3c7; color: #d97706; }
 
+.estado-semaforo {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
 /* HISTORIAL */
 
 .fila-inferior {
