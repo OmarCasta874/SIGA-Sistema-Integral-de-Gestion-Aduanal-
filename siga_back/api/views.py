@@ -6,13 +6,13 @@ from django.contrib.auth import authenticate
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
-from django.db import models
+from django.db import DatabaseError, OperationalError, models
 from rest_framework import viewsets, status
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import action, api_view, authentication_classes, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.views import APIView
+from rest_framework.views import APIView, exception_handler as drf_exception_handler
 from rest_framework.authtoken.models import Token
 
 from home.models import (
@@ -83,6 +83,22 @@ def _generar_numero_pedimento(codigo_aduana):
     cod = str(codigo_aduana).zfill(2)
     consecutivo = str(Pedimento.objects.count() + 1).zfill(6)
     return f'{anio_2d} {cod} {patente} {ultimo_digito} {consecutivo}'
+
+
+def _db_error_response(entity_name):
+    return Response(
+        {'error': f'No se pudo cargar la información de {entity_name}. Intente de nuevo en otro momento.'},
+        status=status.HTTP_503_SERVICE_UNAVAILABLE,
+    )
+
+
+def custom_exception_handler(exc, context):
+    if isinstance(exc, (DatabaseError, OperationalError)):
+        return Response(
+            {'error': 'No se pudo completar la operación. La base de datos o el servidor no está disponible.'},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    return drf_exception_handler(exc, context)
 
 
 # ── Auth ───────────────────────────────────────────────────────────────────────
