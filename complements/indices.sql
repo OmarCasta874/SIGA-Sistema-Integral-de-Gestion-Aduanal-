@@ -129,3 +129,5 @@ SHOW INDEX FROM tipo_permiso;
 --32. TABLA USUARIO
 
 SHOW INDEX FROM usuario;
+
+SHOW CREATE TABLE permiso;

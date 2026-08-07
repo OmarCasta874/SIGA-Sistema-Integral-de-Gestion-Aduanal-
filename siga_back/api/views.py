@@ -6,7 +6,7 @@ from django.contrib.auth import authenticate
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
-from django.db import models
+from django.db import models, DatabaseError
 from rest_framework import viewsets, status
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import action, api_view, authentication_classes, permission_classes
@@ -61,18 +61,7 @@ def _parse_date(value):
     raise ValueError(f'No se puede convertir a fecha: {value!r}')
 
 
-def _generar_folio_permiso(autoridad):
-    anio = timezone.localdate().year
-    prefijo = f'PERM-{autoridad}-{anio}-'
-    claves = Permiso.objects.filter(tipo_permiso=autoridad).values_list('clave_numerica', flat=True)
-    max_num = 0
-    for clave in claves:
-        if clave.startswith(prefijo):
-            try:
-                max_num = max(max_num, int(clave[len(prefijo):]))
-            except (ValueError, IndexError):
-                pass
-    return f'{prefijo}{str(max_num + 1).zfill(3)}'
+
 
 
 def _generar_numero_pedimento(codigo_aduana):
@@ -259,42 +248,47 @@ class ClienteViewSet(viewsets.ModelViewSet):
         except (ValueError, TypeError):
             return Response({'error': 'Fecha de vigencia inválida. Use el formato YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        existente = Permiso.objects.filter(cliente=cliente, tipo_permiso=autoridad).first()
-        if existente:
-            existente.vigencia = vigencia_date
-            existente.descripcion = descripcion
-            existente.save(update_fields=['vigencia', 'descripcion'])
-            hoy = timezone.localdate()
-            return Response(
-                {
-                    'clave':       existente.clave_numerica,
-                    'tipo':        existente.tipo_permiso,
-                    'vigencia':    vigencia_date.strftime('%d/%m/%Y'),
-                    'vigente':     vigencia_date >= hoy,
-                    'descripcion': existente.descripcion or '',
-                    'folio':       existente.clave_numerica,
-                    'renovado':    True,
-                },
-                status=status.HTTP_200_OK,
+        try:
+            Permiso.objects.create(
+                clave_numerica="TEMP",
+                tipo_permiso=autoridad,
+                vigencia=vigencia_date,
+                descripcion=descripcion,
+                cliente=cliente,
             )
-
-        folio = _generar_folio_permiso(autoridad)
-        Permiso.objects.create(
-            clave_numerica=folio,
-            tipo_permiso=autoridad,
-            vigencia=vigencia_date,
-            descripcion=descripcion,
-            cliente=cliente,
-        )
+            permiso = Permiso.objects.get(
+                cliente=cliente,
+                tipo_permiso=autoridad,
+            )
+        except DatabaseError as e:
+            mensaje = str(e)
+            
+            if "RENOVACION|" in mensaje:
+                partes = mensaje.split("|")
+                
+                return Response(
+                    {
+                        "error": partes[2],
+                        "folio": partes[1],
+                        "renovado": True,
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
+                
+            return Response(
+                {"error": mensaje},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+                
         hoy = timezone.localdate()
         return Response(
             {
-                'clave':       folio,
-                'tipo':        autoridad,
-                'vigencia':    vigencia_date.strftime('%d/%m/%Y'),
+                'clave':       permiso.clave_numerica,
+                'tipo':        permiso.tipo_permiso,
+                'vigencia':    vigencia_date.strftime("%d/%m/%Y"),
                 'vigente':     vigencia_date >= hoy,
-                'descripcion': descripcion,
-                'folio':       folio,
+                'descripcion': permiso.descripcion or "",
+                'folio':       permiso.clave_numerica,
                 'renovado':    False,
             },
             status=status.HTTP_201_CREATED,
