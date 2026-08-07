@@ -619,3 +619,17 @@ body.sidebar-colapsado .nav-label {
 body.sidebar-colapsado .nav-item .badge {
     display: none;
 }
+
+.btn-eliminar-prod {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #ef4444;
+    padding: 4px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    transition: background .15s;
+}
+.btn-eliminar-prod:hover { background: #fee2e2; }
+.btn-eliminar-prod svg { width: 16px; height: 16px; }
