@@ -1435,6 +1435,17 @@ def paquete_detalle_view(request, pk):
 
 
 @login_required
+def api_producto_eliminar(request, paq_pk, prod_pk):
+    if request.method != 'DELETE':
+        return JsonResponse({'error': 'Método no permitido.'}, status=405)
+    resp = api.delete(request, f'/paquetes/{paq_pk}/productos/{prod_pk}/')
+    if resp.status_code == 204:
+        return JsonResponse({}, status=204)
+    error = api.safe_json(resp, {}).get('error', 'Error al eliminar el producto.')
+    return JsonResponse({'error': error}, status=resp.status_code)
+
+
+@login_required
 @solo_admin
 def paquete_eliminar_view(request, pk):
     if request.method != 'POST':

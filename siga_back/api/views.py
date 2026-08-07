@@ -1094,6 +1094,16 @@ class PaqueteViewSet(viewsets.ModelViewSet):
             return PaqueteCreateSerializer
         return PaqueteSerializer
 
+    @action(detail=True, methods=['delete'], url_path='productos/(?P<prod_pk>[0-9]+)')
+    def eliminar_producto(self, request, pk=None, prod_pk=None):
+        paquete = self.get_object()
+        try:
+            producto = paquete.productos.get(pk=prod_pk)
+        except Producto.DoesNotExist:
+            return Response({'error': 'Producto no encontrado en este paquete.'}, status=status.HTTP_404_NOT_FOUND)
+        producto.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     @action(detail=True, methods=['post'], url_path='productos')
     def agregar_producto(self, request, pk=None):
         paquete = self.get_object()
