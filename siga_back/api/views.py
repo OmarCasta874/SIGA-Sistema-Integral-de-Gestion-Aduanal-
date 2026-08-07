@@ -6,7 +6,11 @@ from django.contrib.auth import authenticate
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
-from django.db import DatabaseError, OperationalError, models
+from django.db import transaction
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
+
+from django.db import DatabaseError, OperationalError, models, transaction
 from rest_framework import viewsets, status
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import action, api_view, authentication_classes, permission_classes
@@ -199,34 +203,75 @@ class ClienteViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='contacto')
     def contacto(self, request, pk=None):
-        cliente  = self.get_object()
-        telefono = request.data.get('telefono', '').strip()
-        correo   = request.data.get('correo_electronico', '').strip()
+        cliente = self.get_object()
 
-        if telefono:
-            tel = cliente.telefonos.first()
-            if tel:
-                tel.numTelefono = telefono
-                tel.save()
-            else:
-                Telefono.objects.create(numTelefono=telefono, cliente=cliente)
+        telefono = request.data.get('telefono', '').strip()
+        correo = request.data.get('correo_electronico', '').strip()
 
         if correo:
-            cor = cliente.correos.first()
-            if cor:
-                cor.correoElec = correo
-                cor.save()
-            else:
-                CorreoElectronico.objects.create(
-                    correoElec=correo, cliente=cliente, usuario=request.user
+            try:
+                validate_email(correo)
+            except ValidationError:
+                return Response(
+                    {
+                        'ok': False,
+                        'error': 'Ingrese un correo electrónico válido.'
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
                 )
 
-        _registrar_bitacora(
-            usuario=request.user, modulo='Clientes', tipo_accion='Edición',
-            descripcion=f'Contacto actualizado: {cliente}',
-        )
-        return Response({'ok': True})
+        try:
+            with transaction.atomic():
 
+                if telefono:
+                    tel = cliente.telefonos.first()
+
+                    if tel:
+                        tel.numTelefono = telefono
+                        tel.save()
+                        #raise Exception("prueba de rollback") #Error intencional para prueba
+                    else:
+                        Telefono.objects.create(
+                            numTelefono=telefono,
+                            cliente=cliente
+                        )
+
+                if correo:
+                    cor = cliente.correos.first()
+
+                    if cor:
+                        cor.correoElec = correo
+                        cor.save()
+                    else:
+                        CorreoElectronico.objects.create(
+                            correoElec=correo,
+                            cliente=cliente,
+                            usuario=request.user
+                        )
+
+                _registrar_bitacora(
+                    usuario=request.user,
+                    modulo='Clientes',
+                    tipo_accion='Edición',
+                    descripcion=f'Contacto actualizado: {cliente}',
+                )
+
+            return Response(
+                {
+                    'ok': True,
+                    'mensaje': 'Contacto actualizado correctamente.'
+                },
+                status=status.HTTP_200_OK
+            )
+
+        except Exception:
+            return Response(
+                {
+                    'ok': False,
+                    'error': 'La actualización no pudo completarse. '
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     @action(detail=True, methods=['post'], url_path='toggle-activo')
     def toggle_activo(self, request, pk=None):
         cliente = self.get_object()
