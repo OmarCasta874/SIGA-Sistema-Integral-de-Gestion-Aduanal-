@@ -6,7 +6,7 @@ from django.contrib.auth import authenticate
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
-from django.db import models, DatabaseError
+from django.db import models, DatabaseError, connection, transaction
 from rest_framework import viewsets, status
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import action, api_view, authentication_classes, permission_classes
@@ -354,30 +354,60 @@ class OperacionViewSet(viewsets.ModelViewSet):
         cliente = get_object_or_404(Cliente, numero=cliente_id)
         aduana = get_object_or_404(Aduana, codigo=aduana_id)
         estado = get_object_or_404(EstadoOpeAduanera, codigo=1)  # "En proceso"
-
-        if not Paquete.objects.filter(cliente=cliente).exists():
+        
+        try:
+            with transaction.atomic():
+                with connection.cursor() as cursor:
+                    cursor.execute("""
+                        INSERT INTO operacion_aduanera
+                        (
+                            fecha_inicio,
+                            tipo_operacion,
+                            estado_ope_aduanera,
+                            cliente,
+                            usuario,
+                            aduana
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """, [
+                        timezone.localdate(),
+                        tipo_operacion,
+                        estado.codigo,
+                        cliente.numero,
+                        request.user.ID_usuario,
+                        aduana.codigo,
+                    ])
+                    
+                    operacion_id = cursor.lastrowid
+                    
+                op = (
+                    OperacionAduanera.objects
+                    .select_related(
+                        'cliente',
+                        'aduana',
+                        'estado_ope_aduanera',
+                        'bitacora',
+                    )
+                    .get(ID_operacion=operacion_id)
+                )
+                
+                if op.bitacora_id:
+                    Bitacora.objects.filter(pk=op.bitacora_id).update(usuario=request.user)
+                    
+        except DatabaseError as e:
+            mensaje = str(e)
+            
+            if 'OPERACION BLOQUEADA: ' in mensaje:
+                return Response(
+                    {'error': mensaje},
+                    status=status.HTTP_409_CONFLICT,
+                )
+                
             return Response(
-                {'error': f'El cliente {cliente} no tiene paquetes registrados. Registra al menos un paquete antes de crear una operación.'},
-                status=status.HTTP_400_BAD_REQUEST,
+                {'error': mensaje},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-
-        bitacora = Bitacora.objects.create(
-            descripcion=f'Apertura de operación aduanera | Tipo: {tipo_operacion} | Cliente: {cliente}',
-            fecha=timezone.localdate(),
-            hora=datetime.now().time(),
-            usuario=request.user,
-            modulo='Operaciones',
-            tipo_accion='Creación',
-        )
-        op = OperacionAduanera.objects.create(
-            tipo_operacion=tipo_operacion,
-            cliente=cliente,
-            aduana=aduana,
-            usuario=request.user,
-            bitacora=bitacora,
-            fecha_inicio=timezone.localdate(),
-            estado_ope_aduanera=estado,
-        )
+        
         return Response(
             OperacionDetalleSerializer(op).data,
             status=status.HTTP_201_CREATED,
