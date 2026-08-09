@@ -6,7 +6,7 @@ from django.contrib.auth import authenticate
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
-from django.db import models, DatabaseError, connection, transaction
+from django.db import models, DatabaseError, connection, transaction, IntegrityError
 from rest_framework import viewsets, status
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import action, api_view, authentication_classes, permission_classes
@@ -457,30 +457,46 @@ class OperacionViewSet(viewsets.ModelViewSet):
             .filter(paquete__cliente=op.cliente)
             .aggregate(total=models.Sum('valor_unitario'))['total'] or 0
         )
+        
+        try:
+            with transaction.atomic():
+                ped = Pedimento.objects.create(
+                    numero_pedimento=numero_pedimento,
+                    clave_pedimento=clave_pedimento,
+                    fecha_registro=timezone.localdate(),
+                    valor_total=valor_total,
+                    regimen_adu=regimen,
+                    permiso=permiso,
+                    ope_aduanera=op,
+                    medio_transporte=medio_transporte,
+                    pais_origen_mercancia=pais_origen,
+                    pais_destino=pais_destino,
+                    incoterm=incoterm,
+                    tipo_cambio=tipo_cambio,
+                )
 
-        ped = Pedimento.objects.create(
-            numero_pedimento=numero_pedimento,
-            clave_pedimento=clave_pedimento,
-            fecha_registro=timezone.localdate(),
-            valor_total=valor_total,
-            regimen_adu=regimen,
-            permiso=permiso,
-            ope_aduanera=op,
-            medio_transporte=medio_transporte,
-            pais_origen_mercancia=pais_origen,
-            pais_destino=pais_destino,
-            incoterm=incoterm,
-            tipo_cambio=tipo_cambio,
-        )
+                # Vincular paquete seleccionado a este pedimento
+                if paquete_codigo:
+                    Paquete.objects.filter(codigo=paquete_codigo).update(pedimento=ped)
 
-        # Vincular paquete seleccionado a este pedimento
-        if paquete_codigo:
-            Paquete.objects.filter(codigo=paquete_codigo).update(pedimento=ped)
-
-        # RF31: actualizar estado de operación a "Pendiente de pago"
-        estado_pendiente = get_object_or_404(EstadoOpeAduanera, codigo=4)
-        op.estado_ope_aduanera = estado_pendiente
-        op.save(update_fields=['estado_ope_aduanera'])
+                # RF31: actualizar estado de operación a "Pendiente de pago"
+                estado_pendiente = get_object_or_404(EstadoOpeAduanera, codigo=4)
+                op.estado_ope_aduanera = estado_pendiente
+                op.save(update_fields=['estado_ope_aduanera'])
+                
+        except DatabaseError as e:
+            mensaje = str(e)
+            
+            if 'PEDIMENTO BLOQUEADO: ' in mensaje:
+                return Response(
+                    {'error': mensaje},
+                    status=status.HTTP_409_CONFLICT
+                )
+                
+            return Response(
+                {'error': mensaje},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
         return Response(
             {

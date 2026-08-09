@@ -204,9 +204,8 @@ BEGIN
     SELECT COUNT(*)
     INTO   tieneProductos
     FROM   producto pr
-    JOIN   paquete  pa ON pr.paquete = pa.codigo
-    WHERE  pa.pedimento  = NEW.numero_pedimento
-       OR  pa.cliente    = (
+    INNER JOIN   paquete  pa ON pr.paquete = pa.codigo
+    WHERE  pa.cliente = (
                SELECT cliente
                FROM   operacion_aduanera
                WHERE  ID_operacion = NEW.ope_aduanera
@@ -221,13 +220,15 @@ BEGIN
         );
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = msg;
 
+    END IF;
+
     -- 3. Evaluar el semáforo fiscal asignado al pedimento
     SELECT resultado INTO resultadoSemaforo
     FROM semaforo_fiscal
     WHERE ID = NEW.semaforo
     LIMIT 1;
 
-    -- Si el semáforo es rojo, crear automáticamente la orden de inspección física
+    -- 4. Si el semáforo es rojo, crear automáticamente la orden de inspección física
     IF resultadoSemaforo LIKE '%Rojo%' THEN
     INSERT INTO inspeccion (fecha_inspeccion, hora_inicio, resultado, semaforo)
     VALUES (CURDATE(), CURTIME(), 'Pendiente', NEW.semaforo);
