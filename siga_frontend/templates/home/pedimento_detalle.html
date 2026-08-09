@@ -289,6 +289,32 @@
             </tr>
 
             <tr>
+                <td colspan="8" style="padding: 10px 6px;">
+                    <span class="sat-lbl" style="font-size: 9px;">
+                        RESUMEN DE MERCANCÍAS
+                    </span>
+                    <table class="sat-sub" style="width: 100%; margin-top:6px;">
+                        <tr>
+                            <th>TOTAL DE PAQUETES</th>
+                            <th>TOTAL DE PRODUCTOS</th>
+                            <th>VALOR TOTAL DE MERCANCÍA</th>
+                        </tr>
+                        <tr>
+                            <td style="text-align: center; font-weight: 700;">
+                                {{ calculo_operacion.total_paquetes }}
+                            </td>
+                            <td style="text-align: center; font-weight: 700;">
+                                {{ calculo_operacion.total_productos }}
+                            </td>
+                            <td style="text-align: center; font-weight: 700;">
+                                ${{ calculo_operacion.valor_total }}
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+
+            <tr>
                 <td colspan="8" class="sat-section-hdr">DESCRIPCIÓN DE MERCANCÍAS</td>
             </tr>
             <tr>

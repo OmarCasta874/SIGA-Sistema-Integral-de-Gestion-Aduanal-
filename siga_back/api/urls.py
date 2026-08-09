@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
-from .views import DashboardAPIView, PerfilAPIView, IncidenciaViewSet
+from .views import DashboardAPIView, PerfilAPIView, IncidenciaViewSet, VencimientosAPIView
 
 router = DefaultRouter()
 router.register(r'clientes', views.ClienteViewSet, basename='cliente')
@@ -35,6 +35,7 @@ urlpatterns = [
     ),
     path('dashboard/', DashboardAPIView.as_view(), name='dashboard'),
     path('perfil/', PerfilAPIView.as_view(), name='perfil_usuario'),
+    path('vencimientos/', VencimientosAPIView.as_view(), name='api-vencimientos'),
     path('facturas/crear/', views.factura_crear, name='factura-crear'),
     path('facturas/<int:codigo>/pdf/', views.factura_pdf, name='factura-pdf'),
     path('', include(router.urls)),
