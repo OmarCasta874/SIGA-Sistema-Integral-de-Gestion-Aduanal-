@@ -6,13 +6,15 @@ from django.contrib.auth import authenticate
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
-from django.db import models, DatabaseError, connection, transaction, IntegrityError
+from django.db import models, DatabaseError, OperationalError, connection, transaction, IntegrityError
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
 from rest_framework import viewsets, status
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import action, api_view, authentication_classes, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.views import APIView
+from rest_framework.views import APIView, exception_handler as drf_exception_handler
 from rest_framework.authtoken.models import Token
 
 from home.models import (
@@ -72,6 +74,22 @@ def _generar_numero_pedimento(codigo_aduana):
     cod = str(codigo_aduana).zfill(2)
     consecutivo = str(Pedimento.objects.count() + 1).zfill(6)
     return f'{anio_2d} {cod} {patente} {ultimo_digito} {consecutivo}'
+
+
+def _db_error_response(entity_name):
+    return Response(
+        {'error': f'No se pudo cargar la información de {entity_name}. Intente de nuevo en otro momento.'},
+        status=status.HTTP_503_SERVICE_UNAVAILABLE,
+    )
+
+
+def custom_exception_handler(exc, context):
+    if isinstance(exc, (DatabaseError, OperationalError)):
+        return Response(
+            {'error': 'No se pudo completar la operación. La base de datos o el servidor no está disponible.'},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    return drf_exception_handler(exc, context)
 
 
 # ── Auth ───────────────────────────────────────────────────────────────────────
@@ -172,34 +190,75 @@ class ClienteViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='contacto')
     def contacto(self, request, pk=None):
-        cliente  = self.get_object()
-        telefono = request.data.get('telefono', '').strip()
-        correo   = request.data.get('correo_electronico', '').strip()
+        cliente = self.get_object()
 
-        if telefono:
-            tel = cliente.telefonos.first()
-            if tel:
-                tel.numTelefono = telefono
-                tel.save()
-            else:
-                Telefono.objects.create(numTelefono=telefono, cliente=cliente)
+        telefono = request.data.get('telefono', '').strip()
+        correo = request.data.get('correo_electronico', '').strip()
 
         if correo:
-            cor = cliente.correos.first()
-            if cor:
-                cor.correoElec = correo
-                cor.save()
-            else:
-                CorreoElectronico.objects.create(
-                    correoElec=correo, cliente=cliente, usuario=request.user
+            try:
+                validate_email(correo)
+            except ValidationError:
+                return Response(
+                    {
+                        'ok': False,
+                        'error': 'Ingrese un correo electrónico válido.'
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
                 )
 
-        _registrar_bitacora(
-            usuario=request.user, modulo='Clientes', tipo_accion='Edición',
-            descripcion=f'Contacto actualizado: {cliente}',
-        )
-        return Response({'ok': True})
+        try:
+            with transaction.atomic():
 
+                if telefono:
+                    tel = cliente.telefonos.first()
+
+                    if tel:
+                        tel.numTelefono = telefono
+                        tel.save()
+                        #raise Exception("prueba de rollback") #Error intencional para prueba
+                    else:
+                        Telefono.objects.create(
+                            numTelefono=telefono,
+                            cliente=cliente
+                        )
+
+                if correo:
+                    cor = cliente.correos.first()
+
+                    if cor:
+                        cor.correoElec = correo
+                        cor.save()
+                    else:
+                        CorreoElectronico.objects.create(
+                            correoElec=correo,
+                            cliente=cliente,
+                            usuario=request.user
+                        )
+
+                _registrar_bitacora(
+                    usuario=request.user,
+                    modulo='Clientes',
+                    tipo_accion='Edición',
+                    descripcion=f'Contacto actualizado: {cliente}',
+                )
+
+            return Response(
+                {
+                    'ok': True,
+                    'mensaje': 'Contacto actualizado correctamente.'
+                },
+                status=status.HTTP_200_OK
+            )
+
+        except Exception:
+            return Response(
+                {
+                    'ok': False,
+                    'error': 'La actualización no pudo completarse. '
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     @action(detail=True, methods=['post'], url_path='toggle-activo')
     def toggle_activo(self, request, pk=None):
         cliente = self.get_object()
