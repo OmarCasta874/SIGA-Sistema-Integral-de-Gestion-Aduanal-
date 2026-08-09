@@ -712,7 +712,6 @@ def factura_crear(request):
     factura = Factura.objects.create(
         IVA=iva,
         subtotal=subtotal,
-        total=total,
         folio_fiscal=str(_uuid.uuid4()).upper(),
         fecha_factura=timezone.localdate(),
         ID_operacion=op,
