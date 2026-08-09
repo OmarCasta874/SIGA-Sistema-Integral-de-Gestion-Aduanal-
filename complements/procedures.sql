@@ -5,6 +5,8 @@
 -- Al crear una operación aduanera, calculará la cantidad de paquetes, 
 -- productos y su valor total.
 
+DROP PROCEDURE IF EXISTS sp_calcular_valor_operacion;
+
 DELIMITER $$
 
 CREATE PROCEDURE sp_calcular_valor_operacion(
@@ -20,13 +22,21 @@ BEGIN
             0
         ) AS valor_total
     FROM operacion_aduanera oa
+
+    LEFT JOIN pedimento pe
+        ON pe.ope_aduanera = oa.ID_operacion
+
     LEFT JOIN paquete pa
-        ON pa.cliente = oa.cliente
+        ON pa.pedimento = pe.numero_pedimento
+
     LEFT JOIN producto pr
         ON pr.paquete = pa.codigo
+
     WHERE oa.ID_operacion = p_operacion
+
     GROUP BY oa.ID_operacion;
 END $$
+
 DELIMITER ;
 
 CALL sp_calcular_valor_operacion(3);
