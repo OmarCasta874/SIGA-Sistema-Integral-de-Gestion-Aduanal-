@@ -6,7 +6,7 @@ from django.contrib.auth import authenticate
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
-from django.db import models
+from django.db import models, DatabaseError, connection, transaction, IntegrityError
 from rest_framework import viewsets, status
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import action, api_view, authentication_classes, permission_classes
@@ -61,18 +61,7 @@ def _parse_date(value):
     raise ValueError(f'No se puede convertir a fecha: {value!r}')
 
 
-def _generar_folio_permiso(autoridad):
-    anio = timezone.localdate().year
-    prefijo = f'PERM-{autoridad}-{anio}-'
-    claves = Permiso.objects.filter(tipo_permiso=autoridad).values_list('clave_numerica', flat=True)
-    max_num = 0
-    for clave in claves:
-        if clave.startswith(prefijo):
-            try:
-                max_num = max(max_num, int(clave[len(prefijo):]))
-            except (ValueError, IndexError):
-                pass
-    return f'{prefijo}{str(max_num + 1).zfill(3)}'
+
 
 
 def _generar_numero_pedimento(codigo_aduana):
@@ -259,42 +248,47 @@ class ClienteViewSet(viewsets.ModelViewSet):
         except (ValueError, TypeError):
             return Response({'error': 'Fecha de vigencia inválida. Use el formato YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        existente = Permiso.objects.filter(cliente=cliente, tipo_permiso=autoridad).first()
-        if existente:
-            existente.vigencia = vigencia_date
-            existente.descripcion = descripcion
-            existente.save(update_fields=['vigencia', 'descripcion'])
-            hoy = timezone.localdate()
-            return Response(
-                {
-                    'clave':       existente.clave_numerica,
-                    'tipo':        existente.tipo_permiso,
-                    'vigencia':    vigencia_date.strftime('%d/%m/%Y'),
-                    'vigente':     vigencia_date >= hoy,
-                    'descripcion': existente.descripcion or '',
-                    'folio':       existente.clave_numerica,
-                    'renovado':    True,
-                },
-                status=status.HTTP_200_OK,
+        try:
+            Permiso.objects.create(
+                clave_numerica="TEMP",
+                tipo_permiso=autoridad,
+                vigencia=vigencia_date,
+                descripcion=descripcion,
+                cliente=cliente,
             )
-
-        folio = _generar_folio_permiso(autoridad)
-        Permiso.objects.create(
-            clave_numerica=folio,
-            tipo_permiso=autoridad,
-            vigencia=vigencia_date,
-            descripcion=descripcion,
-            cliente=cliente,
-        )
+            permiso = Permiso.objects.get(
+                cliente=cliente,
+                tipo_permiso=autoridad,
+            )
+        except DatabaseError as e:
+            mensaje = str(e)
+            
+            if "RENOVACION|" in mensaje:
+                partes = mensaje.split("|")
+                
+                return Response(
+                    {
+                        "error": partes[2],
+                        "folio": partes[1],
+                        "renovado": True,
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
+                
+            return Response(
+                {"error": mensaje},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+                
         hoy = timezone.localdate()
         return Response(
             {
-                'clave':       folio,
-                'tipo':        autoridad,
-                'vigencia':    vigencia_date.strftime('%d/%m/%Y'),
+                'clave':       permiso.clave_numerica,
+                'tipo':        permiso.tipo_permiso,
+                'vigencia':    vigencia_date.strftime("%d/%m/%Y"),
                 'vigente':     vigencia_date >= hoy,
-                'descripcion': descripcion,
-                'folio':       folio,
+                'descripcion': permiso.descripcion or "",
+                'folio':       permiso.clave_numerica,
                 'renovado':    False,
             },
             status=status.HTTP_201_CREATED,
@@ -360,30 +354,60 @@ class OperacionViewSet(viewsets.ModelViewSet):
         cliente = get_object_or_404(Cliente, numero=cliente_id)
         aduana = get_object_or_404(Aduana, codigo=aduana_id)
         estado = get_object_or_404(EstadoOpeAduanera, codigo=1)  # "En proceso"
-
-        if not Paquete.objects.filter(cliente=cliente).exists():
+        
+        try:
+            with transaction.atomic():
+                with connection.cursor() as cursor:
+                    cursor.execute("""
+                        INSERT INTO operacion_aduanera
+                        (
+                            fecha_inicio,
+                            tipo_operacion,
+                            estado_ope_aduanera,
+                            cliente,
+                            usuario,
+                            aduana
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """, [
+                        timezone.localdate(),
+                        tipo_operacion,
+                        estado.codigo,
+                        cliente.numero,
+                        request.user.ID_usuario,
+                        aduana.codigo,
+                    ])
+                    
+                    operacion_id = cursor.lastrowid
+                    
+                op = (
+                    OperacionAduanera.objects
+                    .select_related(
+                        'cliente',
+                        'aduana',
+                        'estado_ope_aduanera',
+                        'bitacora',
+                    )
+                    .get(ID_operacion=operacion_id)
+                )
+                
+                if op.bitacora_id:
+                    Bitacora.objects.filter(pk=op.bitacora_id).update(usuario=request.user)
+                    
+        except DatabaseError as e:
+            mensaje = str(e)
+            
+            if 'OPERACION BLOQUEADA: ' in mensaje:
+                return Response(
+                    {'error': mensaje},
+                    status=status.HTTP_409_CONFLICT,
+                )
+                
             return Response(
-                {'error': f'El cliente {cliente} no tiene paquetes registrados. Registra al menos un paquete antes de crear una operación.'},
-                status=status.HTTP_400_BAD_REQUEST,
+                {'error': mensaje},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-
-        bitacora = Bitacora.objects.create(
-            descripcion=f'Apertura de operación aduanera | Tipo: {tipo_operacion} | Cliente: {cliente}',
-            fecha=timezone.localdate(),
-            hora=datetime.now().time(),
-            usuario=request.user,
-            modulo='Operaciones',
-            tipo_accion='Creación',
-        )
-        op = OperacionAduanera.objects.create(
-            tipo_operacion=tipo_operacion,
-            cliente=cliente,
-            aduana=aduana,
-            usuario=request.user,
-            bitacora=bitacora,
-            fecha_inicio=timezone.localdate(),
-            estado_ope_aduanera=estado,
-        )
+        
         return Response(
             OperacionDetalleSerializer(op).data,
             status=status.HTTP_201_CREATED,
@@ -433,30 +457,46 @@ class OperacionViewSet(viewsets.ModelViewSet):
             .filter(paquete__cliente=op.cliente)
             .aggregate(total=models.Sum('valor_unitario'))['total'] or 0
         )
+        
+        try:
+            with transaction.atomic():
+                ped = Pedimento.objects.create(
+                    numero_pedimento=numero_pedimento,
+                    clave_pedimento=clave_pedimento,
+                    fecha_registro=timezone.localdate(),
+                    valor_total=valor_total,
+                    regimen_adu=regimen,
+                    permiso=permiso,
+                    ope_aduanera=op,
+                    medio_transporte=medio_transporte,
+                    pais_origen_mercancia=pais_origen,
+                    pais_destino=pais_destino,
+                    incoterm=incoterm,
+                    tipo_cambio=tipo_cambio,
+                )
 
-        ped = Pedimento.objects.create(
-            numero_pedimento=numero_pedimento,
-            clave_pedimento=clave_pedimento,
-            fecha_registro=timezone.localdate(),
-            valor_total=valor_total,
-            regimen_adu=regimen,
-            permiso=permiso,
-            ope_aduanera=op,
-            medio_transporte=medio_transporte,
-            pais_origen_mercancia=pais_origen,
-            pais_destino=pais_destino,
-            incoterm=incoterm,
-            tipo_cambio=tipo_cambio,
-        )
+                # Vincular paquete seleccionado a este pedimento
+                if paquete_codigo:
+                    Paquete.objects.filter(codigo=paquete_codigo).update(pedimento=ped)
 
-        # Vincular paquete seleccionado a este pedimento
-        if paquete_codigo:
-            Paquete.objects.filter(codigo=paquete_codigo).update(pedimento=ped)
-
-        # RF31: actualizar estado de operación a "Pendiente de pago"
-        estado_pendiente = get_object_or_404(EstadoOpeAduanera, codigo=4)
-        op.estado_ope_aduanera = estado_pendiente
-        op.save(update_fields=['estado_ope_aduanera'])
+                # RF31: actualizar estado de operación a "Pendiente de pago"
+                estado_pendiente = get_object_or_404(EstadoOpeAduanera, codigo=4)
+                op.estado_ope_aduanera = estado_pendiente
+                op.save(update_fields=['estado_ope_aduanera'])
+                
+        except DatabaseError as e:
+            mensaje = str(e)
+            
+            if 'PEDIMENTO BLOQUEADO: ' in mensaje:
+                return Response(
+                    {'error': mensaje},
+                    status=status.HTTP_409_CONFLICT
+                )
+                
+            return Response(
+                {'error': mensaje},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
         return Response(
             {

@@ -915,7 +915,12 @@ def bitacora_view(request):
         
     logins = [e for e in entradas if e.get('modulo') == 'Login']
         
-    operaciones = [e for e in entradas if (e.get('modulo') == 'Operaciones' and e.get('tipo_accion') == 'Creación' )]
+    operaciones = [
+        e for e in entradas 
+        if (
+            (e.get('modulo') == 'Operaciones' and e.get('tipo_accion') == 'Creación' )
+        )
+    ]
         
     hoy = timezone.localdate().isoformat()
     total_registros = len(entradas)
@@ -1127,14 +1132,20 @@ def permisos_view(request):
 
     try:
         resp      = api.get(request, '/permisos/')
+        print("RESPUESTA PERMISOS: ", api.safe_json(resp))
         todos     = api.safe_json(resp, []) if resp.status_code == 200 else []
+        print("PERMISOS API: ", todos)
     except Exception:
         todos = []
         messages.error(request, 'No fue posible obtener los permisos.')
 
     tipos_disponibles = sorted({p.get('tipo_permiso', '') for p in todos if p.get('tipo_permiso')})
 
-    permisos = todos
+    permisos = sorted(
+        todos,
+        key=lambda p: p.get('vigencia', ''),
+        reverse=True
+    )
     if tipo_filtro:
         permisos = [p for p in permisos if p.get('tipo_permiso') == tipo_filtro]
     if query:
