@@ -6,13 +6,15 @@ from django.contrib.auth import authenticate
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
-from django.db import models
+from django.db import models, DatabaseError, OperationalError, connection, transaction, IntegrityError
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
 from rest_framework import viewsets, status
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import action, api_view, authentication_classes, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.views import APIView
+from rest_framework.views import APIView, exception_handler as drf_exception_handler
 from rest_framework.authtoken.models import Token
 
 from home.models import (
@@ -60,19 +62,35 @@ def _parse_date(value):
         return date.fromisoformat(value[:10])
     raise ValueError(f'No se puede convertir a fecha: {value!r}')
 
+def actualizar_valor_operacion(operacion_id):
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "CALL sp_calcular_valor_operacion(%s)",
+            [operacion_id]
+        )
+        resultado = cursor.fetchone()
+        
+        while cursor.nextset():
+            pass
+        
+    if not resultado:
+        return None
+    
+    valor_total = resultado[3]
+    
+    Pedimento.objects.filter(
+        ope_aduanera_id=operacion_id
+    ).update(
+        valor_total=valor_total
+    )
+    
+    return {
+        'operacion_id': resultado[0],
+        'total_paquetes': resultado[1],
+        'total_productos': resultado[2],
+        'valor_total': valor_total,
+    }
 
-def _generar_folio_permiso(autoridad):
-    anio = timezone.localdate().year
-    prefijo = f'PERM-{autoridad}-{anio}-'
-    claves = Permiso.objects.filter(tipo_permiso=autoridad).values_list('clave_numerica', flat=True)
-    max_num = 0
-    for clave in claves:
-        if clave.startswith(prefijo):
-            try:
-                max_num = max(max_num, int(clave[len(prefijo):]))
-            except (ValueError, IndexError):
-                pass
-    return f'{prefijo}{str(max_num + 1).zfill(3)}'
 
 
 def _generar_numero_pedimento(codigo_aduana):
@@ -83,6 +101,22 @@ def _generar_numero_pedimento(codigo_aduana):
     cod = str(codigo_aduana).zfill(2)
     consecutivo = str(Pedimento.objects.count() + 1).zfill(6)
     return f'{anio_2d} {cod} {patente} {ultimo_digito} {consecutivo}'
+
+
+def _db_error_response(entity_name):
+    return Response(
+        {'error': f'No se pudo cargar la información de {entity_name}. Intente de nuevo en otro momento.'},
+        status=status.HTTP_503_SERVICE_UNAVAILABLE,
+    )
+
+
+def custom_exception_handler(exc, context):
+    if isinstance(exc, (DatabaseError, OperationalError)):
+        return Response(
+            {'error': 'No se pudo completar la operación. La base de datos o el servidor no está disponible.'},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    return drf_exception_handler(exc, context)
 
 
 # ── Auth ───────────────────────────────────────────────────────────────────────
@@ -183,34 +217,75 @@ class ClienteViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='contacto')
     def contacto(self, request, pk=None):
-        cliente  = self.get_object()
-        telefono = request.data.get('telefono', '').strip()
-        correo   = request.data.get('correo_electronico', '').strip()
+        cliente = self.get_object()
 
-        if telefono:
-            tel = cliente.telefonos.first()
-            if tel:
-                tel.numTelefono = telefono
-                tel.save()
-            else:
-                Telefono.objects.create(numTelefono=telefono, cliente=cliente)
+        telefono = request.data.get('telefono', '').strip()
+        correo = request.data.get('correo_electronico', '').strip()
 
         if correo:
-            cor = cliente.correos.first()
-            if cor:
-                cor.correoElec = correo
-                cor.save()
-            else:
-                CorreoElectronico.objects.create(
-                    correoElec=correo, cliente=cliente, usuario=request.user
+            try:
+                validate_email(correo)
+            except ValidationError:
+                return Response(
+                    {
+                        'ok': False,
+                        'error': 'Ingrese un correo electrónico válido.'
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
                 )
 
-        _registrar_bitacora(
-            usuario=request.user, modulo='Clientes', tipo_accion='Edición',
-            descripcion=f'Contacto actualizado: {cliente}',
-        )
-        return Response({'ok': True})
+        try:
+            with transaction.atomic():
 
+                if telefono:
+                    tel = cliente.telefonos.first()
+
+                    if tel:
+                        tel.numTelefono = telefono
+                        tel.save()
+                        #raise Exception("prueba de rollback") #Error intencional para prueba
+                    else:
+                        Telefono.objects.create(
+                            numTelefono=telefono,
+                            cliente=cliente
+                        )
+
+                if correo:
+                    cor = cliente.correos.first()
+
+                    if cor:
+                        cor.correoElec = correo
+                        cor.save()
+                    else:
+                        CorreoElectronico.objects.create(
+                            correoElec=correo,
+                            cliente=cliente,
+                            usuario=request.user
+                        )
+
+                _registrar_bitacora(
+                    usuario=request.user,
+                    modulo='Clientes',
+                    tipo_accion='Edición',
+                    descripcion=f'Contacto actualizado: {cliente}',
+                )
+
+            return Response(
+                {
+                    'ok': True,
+                    'mensaje': 'Contacto actualizado correctamente.'
+                },
+                status=status.HTTP_200_OK
+            )
+
+        except Exception:
+            return Response(
+                {
+                    'ok': False,
+                    'error': 'La actualización no pudo completarse. '
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     @action(detail=True, methods=['post'], url_path='toggle-activo')
     def toggle_activo(self, request, pk=None):
         cliente = self.get_object()
@@ -259,46 +334,77 @@ class ClienteViewSet(viewsets.ModelViewSet):
         except (ValueError, TypeError):
             return Response({'error': 'Fecha de vigencia inválida. Use el formato YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        existente = Permiso.objects.filter(cliente=cliente, tipo_permiso=autoridad).first()
-        if existente:
-            existente.vigencia = vigencia_date
-            existente.descripcion = descripcion
-            existente.save(update_fields=['vigencia', 'descripcion'])
-            hoy = timezone.localdate()
-            return Response(
-                {
-                    'clave':       existente.clave_numerica,
-                    'tipo':        existente.tipo_permiso,
-                    'vigencia':    vigencia_date.strftime('%d/%m/%Y'),
-                    'vigente':     vigencia_date >= hoy,
-                    'descripcion': existente.descripcion or '',
-                    'folio':       existente.clave_numerica,
-                    'renovado':    True,
-                },
-                status=status.HTTP_200_OK,
+        try:
+            Permiso.objects.create(
+                clave_numerica="TEMP",
+                tipo_permiso=autoridad,
+                vigencia=vigencia_date,
+                descripcion=descripcion,
+                cliente=cliente,
             )
-
-        folio = _generar_folio_permiso(autoridad)
-        Permiso.objects.create(
-            clave_numerica=folio,
-            tipo_permiso=autoridad,
-            vigencia=vigencia_date,
-            descripcion=descripcion,
-            cliente=cliente,
-        )
+            permiso = Permiso.objects.get(
+                cliente=cliente,
+                tipo_permiso=autoridad,
+            )
+        except DatabaseError as e:
+            mensaje = str(e)
+            
+            if "RENOVACION|" in mensaje:
+                partes = mensaje.split("|")
+                
+                return Response(
+                    {
+                        "error": partes[2],
+                        "folio": partes[1],
+                        "renovado": True,
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
+                
+            return Response(
+                {"error": mensaje},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+                
         hoy = timezone.localdate()
         return Response(
             {
-                'clave':       folio,
-                'tipo':        autoridad,
-                'vigencia':    vigencia_date.strftime('%d/%m/%Y'),
+                'clave':       permiso.clave_numerica,
+                'tipo':        permiso.tipo_permiso,
+                'vigencia':    vigencia_date.strftime("%d/%m/%Y"),
                 'vigente':     vigencia_date >= hoy,
-                'descripcion': descripcion,
-                'folio':       folio,
+                'descripcion': permiso.descripcion or "",
+                'folio':       permiso.clave_numerica,
                 'renovado':    False,
             },
             status=status.HTTP_201_CREATED,
         )
+        
+    @action(detail=True, methods=['get'], url_path='resumen-financiero')
+    def resumen_financiero(self, request, pk=None):
+        cliente = self.get_object()
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "CALL sp_resumen_financiero_cliente(%s)",
+                [cliente.pk]
+            )
+            resultado = cursor.fetchone()
+            
+            while cursor.nextset():
+                pass
+            
+        if not resultado:
+            return Response({'error': 'No encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        
+        return Response({
+            'cliente': resultado[0],
+            'nombre_cliente': resultado[1],
+            'total_pedimentos': resultado[2],
+            'pagos_realizados': resultado[3],
+            'pagos_pendientes': resultado[4],
+            'total_pagado': resultado[5],
+            'saldo_pendiente': resultado[6],
+        })
 
 
 class PermisoDeleteView(APIView):
@@ -338,6 +444,32 @@ class AduanaViewSet(viewsets.ModelViewSet):
             "estado": aduana.estado,
             "mensaje": f"La aduana ahora está {aduana.estado}."
         }, status=status.HTTP_200_OK)
+        
+    @action(detail=True, methods=['get'], url_path='estadisticas')
+    def estadisticas(self, request, pk=None):
+        aduana = self.get_object()
+        
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "CALL sp_estadisticas_aduana(%s)", [aduana.pk]
+            )
+            resultado = cursor.fetchone()
+            while cursor.nextset():
+                pass
+            
+        if not resultado:
+            return Response({'error': 'No encontrada'}, status=status.HTTP_404_NOT_FOUND)
+            
+        return Response({
+            'aduana': resultado[0],
+            'nombre_aduana': resultado[1],
+            'total_operaciones': resultado[2],
+            'importaciones': resultado[3],
+            'exportaciones': resultado[4],
+            'total_pedimentos': resultado[5],
+            'semaforo_verde': resultado[6],
+            'semaforo_rojo': resultado[7],
+        })
 
 
 # ── Operaciones ────────────────────────────────────────────────────────────────
@@ -360,30 +492,60 @@ class OperacionViewSet(viewsets.ModelViewSet):
         cliente = get_object_or_404(Cliente, numero=cliente_id)
         aduana = get_object_or_404(Aduana, codigo=aduana_id)
         estado = get_object_or_404(EstadoOpeAduanera, codigo=1)  # "En proceso"
-
-        if not Paquete.objects.filter(cliente=cliente).exists():
+        
+        try:
+            with transaction.atomic():
+                with connection.cursor() as cursor:
+                    cursor.execute("""
+                        INSERT INTO operacion_aduanera
+                        (
+                            fecha_inicio,
+                            tipo_operacion,
+                            estado_ope_aduanera,
+                            cliente,
+                            usuario,
+                            aduana
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """, [
+                        timezone.localdate(),
+                        tipo_operacion,
+                        estado.codigo,
+                        cliente.numero,
+                        request.user.ID_usuario,
+                        aduana.codigo,
+                    ])
+                    
+                    operacion_id = cursor.lastrowid
+                    
+                op = (
+                    OperacionAduanera.objects
+                    .select_related(
+                        'cliente',
+                        'aduana',
+                        'estado_ope_aduanera',
+                        'bitacora',
+                    )
+                    .get(ID_operacion=operacion_id)
+                )
+                
+                if op.bitacora_id:
+                    Bitacora.objects.filter(pk=op.bitacora_id).update(usuario=request.user)
+                    
+        except DatabaseError as e:
+            mensaje = str(e)
+            
+            if 'OPERACION BLOQUEADA: ' in mensaje:
+                return Response(
+                    {'error': mensaje},
+                    status=status.HTTP_409_CONFLICT,
+                )
+                
             return Response(
-                {'error': f'El cliente {cliente} no tiene paquetes registrados. Registra al menos un paquete antes de crear una operación.'},
-                status=status.HTTP_400_BAD_REQUEST,
+                {'error': mensaje},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-
-        bitacora = Bitacora.objects.create(
-            descripcion=f'Apertura de operación aduanera | Tipo: {tipo_operacion} | Cliente: {cliente}',
-            fecha=timezone.localdate(),
-            hora=datetime.now().time(),
-            usuario=request.user,
-            modulo='Operaciones',
-            tipo_accion='Creación',
-        )
-        op = OperacionAduanera.objects.create(
-            tipo_operacion=tipo_operacion,
-            cliente=cliente,
-            aduana=aduana,
-            usuario=request.user,
-            bitacora=bitacora,
-            fecha_inicio=timezone.localdate(),
-            estado_ope_aduanera=estado,
-        )
+        
         return Response(
             OperacionDetalleSerializer(op).data,
             status=status.HTTP_201_CREATED,
@@ -427,44 +589,91 @@ class OperacionViewSet(viewsets.ModelViewSet):
         permiso = get_object_or_404(Permiso, clave_numerica=permiso_clave)
 
         numero_pedimento = _generar_numero_pedimento(op.aduana_id)
+        # El semáforo se genera aquí para que el trigger t_generar_pedimento
+        # pueda evaluarlo en el BEFORE INSERT y crear la inspección si es rojo.
+        semaforo = _generar_semaforo()
 
-        valor_total = (
-            Producto.objects
-            .filter(paquete__cliente=op.cliente)
-            .aggregate(total=models.Sum('valor_unitario'))['total'] or 0
-        )
+        try:
+            with transaction.atomic():
+                ped = Pedimento.objects.create(
+                    numero_pedimento=numero_pedimento,
+                    clave_pedimento=clave_pedimento,
+                    fecha_registro=timezone.localdate(),
+                    regimen_adu=regimen,
+                    permiso=permiso,
+                    ope_aduanera=op,
+                    medio_transporte=medio_transporte,
+                    pais_origen_mercancia=pais_origen,
+                    pais_destino=pais_destino,
+                    incoterm=incoterm,
+                    tipo_cambio=tipo_cambio,
+                    semaforo=semaforo,
+                )
 
-        ped = Pedimento.objects.create(
-            numero_pedimento=numero_pedimento,
-            clave_pedimento=clave_pedimento,
-            fecha_registro=timezone.localdate(),
-            valor_total=valor_total,
-            regimen_adu=regimen,
-            permiso=permiso,
-            ope_aduanera=op,
-            medio_transporte=medio_transporte,
-            pais_origen_mercancia=pais_origen,
-            pais_destino=pais_destino,
-            incoterm=incoterm,
-            tipo_cambio=tipo_cambio,
-        )
+                # Vincular paquete seleccionado a este pedimento
+                if paquete_codigo:
+                    Paquete.objects.filter(codigo=paquete_codigo).update(pedimento=ped)
+                    actualizar_valor_operacion(op.ID_operacion)
 
-        # Vincular paquete seleccionado a este pedimento
-        if paquete_codigo:
-            Paquete.objects.filter(codigo=paquete_codigo).update(pedimento=ped)
-
-        # RF31: actualizar estado de operación a "Pendiente de pago"
-        estado_pendiente = get_object_or_404(EstadoOpeAduanera, codigo=4)
-        op.estado_ope_aduanera = estado_pendiente
-        op.save(update_fields=['estado_ope_aduanera'])
+                # RF31: actualizar estado de operación a "Pendiente de pago"
+                estado_pendiente = get_object_or_404(EstadoOpeAduanera, codigo=4)
+                op.estado_ope_aduanera = estado_pendiente
+                op.save(update_fields=['estado_ope_aduanera'])
+                
+        except DatabaseError as e:
+            mensaje = str(e)
+            
+            if 'PEDIMENTO BLOQUEADO: ' in mensaje:
+                return Response(
+                    {'error': mensaje},
+                    status=status.HTTP_409_CONFLICT
+                )
+                
+            return Response(
+                {'error': mensaje},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
         return Response(
             {
-                'numero_pedimento': ped.numero_pedimento,
-                'valor_total':      float(ped.valor_total),
+                'numero_pedimento':  ped.numero_pedimento,
+                'valor_total':       float(ped.valor_total),
+                'semaforo_resultado': semaforo.resultado,
+                'inspeccion_creada': 'Rojo' in semaforo.resultado,
             },
             status=status.HTTP_201_CREATED,
         )
+        
+    @action(detail=True, methods=['get'], url_path='resumen')
+    def resumen(self, request, pk=None):
+        op = self.get_object()
+        
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "CALL sp_resumen_operacion(%s)",
+                [op.pk]
+            )
+            resultado = cursor.fetchone()
+            while cursor.nextset():
+                pass
+            
+        if not resultado:
+            return Response(
+                {'error': 'No se encontró la operación.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+            
+        return Response({
+            'operacion_id': resultado[0],
+            'cliente': resultado[1],
+            'rfc': resultado[2],
+            'tipo_operacion': resultado[3],
+            'estado': resultado[4],
+            'aduana': resultado[5],
+            'nombre_aduana': resultado[6],
+            'numero_pedimento': resultado[7],
+            'valor_total': resultado[8],
+        })
 
 
 # ── Pedimentos ─────────────────────────────────────────────────────────────────
@@ -481,11 +690,44 @@ class PedimentoViewSet(viewsets.ReadOnlyModelViewSet):
         if not numero:
             return Response({'error': 'numero_pedimento es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
         ped = get_object_or_404(Pedimento, numero_pedimento=numero)
-        if ped.semaforo_id:
+        if ped.pagos.exists():
             return Response({'error': 'El pedimento ya fue pagado.'}, status=status.HTTP_400_BAD_REQUEST)
         ped.fecha_limite = timezone.now() + timedelta(hours=48)
         ped.save(update_fields=['fecha_limite'])
         return Response({'fecha_limite': ped.fecha_limite})
+    
+    @action(detail=True, methods=['get'], url_path='calculo-operacion')
+    def calculo_operacion(self, request, pk=None):
+        pedimento = self.get_object()
+        
+        operacion_id = pedimento.ope_aduanera_id
+        
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "CALL sp_calcular_valor_operacion(%s)",
+                [operacion_id]
+            )
+            
+            resultado = cursor.fetchone()
+            
+            while cursor.nextset():
+                pass
+            
+        if not resultado:
+            return Response(
+                {
+                    'total_paquetes': 0,
+                    'total_productos': 0,
+                    'valor_total': 0,
+                }
+            )
+            
+        return Response({
+            'operacion_id': resultado[0],
+            'total_paquetes': resultado[1],
+            'total_productos': resultado[2],
+            'valor_total': resultado[3],
+        })
 
 
 # ── Catálogos (read-only) ──────────────────────────────────────────────────────
@@ -625,23 +867,31 @@ class PagoViewSet(viewsets.ModelViewSet):
         if not monto:
             return Response({'error': 'El monto es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        ped = get_object_or_404(Pedimento, numero_pedimento=pedimento_num)
+        ped = get_object_or_404(
+            Pedimento.objects.select_related('semaforo', 'ope_aduanera'),
+            numero_pedimento=pedimento_num,
+        )
 
         if ped.pagos.exists():
             return Response({'error': 'Este pedimento ya tiene un pago registrado.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # RF33: generar semáforo al registrar el pago
-        semaforo = _generar_semaforo()
-        ped.semaforo = semaforo
-        ped.save(update_fields=['semaforo'])
+        # El semáforo fue generado al crear el pedimento; el trigger t_generar_pedimento
+        # ya se encargó de crear la inspección si el resultado fue rojo.
+        semaforo = ped.semaforo
 
-        # RF51: si semáforo rojo → generar inspección automática
-        if 'Rojo' in semaforo.resultado:
-            Inspeccion.objects.create(
-                fecha_inspeccion=timezone.localdate(),
-                hora_inicio=datetime.now().time(),
-                semaforo=semaforo,
-            )
+        # RF33: el semáforo ya no se genera aquí — se genera al crear el pedimento
+        # para que el trigger de BD pueda evaluarlo en el BEFORE INSERT.
+        # semaforo = _generar_semaforo()
+        # ped.semaforo = semaforo
+        # ped.save(update_fields=['semaforo'])
+
+        # RF51: la inspección ahora la crea el trigger t_generar_pedimento en BD.
+        # if 'Rojo' in semaforo.resultado:
+        #     Inspeccion.objects.create(
+        #         fecha_inspeccion=timezone.localdate(),
+        #         hora_inicio=datetime.now().time(),
+        #         semaforo=semaforo,
+        #     )
 
         estado_pagado = get_object_or_404(EstadoPago, codigo=1)
         num_pago      = Pago.objects.count() + 1
@@ -712,7 +962,6 @@ def factura_crear(request):
     factura = Factura.objects.create(
         IVA=iva,
         subtotal=subtotal,
-        total=total,
         folio_fiscal=str(_uuid.uuid4()).upper(),
         fecha_factura=timezone.localdate(),
         ID_operacion=op,
@@ -1054,6 +1303,23 @@ class DashboardAPIView(APIView):
 
         return Response(data)
     
+# -- Vencimientos ---------------------------------------------------------------
+class VencimientosAPIView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        dias = int(request.GET.get('dias', 30))
+        with connection.cursor() as cursor:
+            cursor.execute("CALL sp_consultar_vencimientos(%s)", [dias])
+            columnas = [col[0] for col in cursor.description]
+            filas = cursor.fetchall()
+            while cursor.nextset():
+                pass
+            
+        resultados = [dict(zip(columnas, fila)) for fila in filas]
+        return Response(resultados)
+    
 # -- Sanción --------------------------------------------------------------------
 class SancionViewSet(viewsets.ModelViewSet):
     queryset = Sancion.objects.select_related(
@@ -1101,8 +1367,26 @@ class PaqueteViewSet(viewsets.ModelViewSet):
             producto = paquete.productos.get(pk=prod_pk)
         except Producto.DoesNotExist:
             return Response({'error': 'Producto no encontrado en este paquete.'}, status=status.HTTP_404_NOT_FOUND)
+        
+        operacion_id = None
+        
+        if paquete.pedimento_id:
+            operacion_id = paquete.pedimento.ope_aduanera_id
+        
         producto.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        
+        resultado_sp = None
+        
+        if operacion_id:
+            resultado_sp = actualizar_valor_operacion(operacion_id)
+            
+        return Response(
+            {
+                'mensaje': 'Producto eliminado correctamente. ',
+                'calculo_operacion': resultado_sp,
+            },
+            status=status.HTTP_200_OK
+        )
 
     @action(detail=True, methods=['post'], url_path='productos')
     def agregar_producto(self, request, pk=None):
@@ -1134,6 +1418,7 @@ class PaqueteViewSet(viewsets.ModelViewSet):
         ser = ProductoCreateSerializer(data=data)
         if ser.is_valid():
             producto = ser.save()
+               
             categoria_id = request.data.get('categoria')
             if categoria_id:
                 try:
@@ -1141,7 +1426,22 @@ class PaqueteViewSet(viewsets.ModelViewSet):
                     CategoriasProductosRel.objects.create(categorias=cat, productos=producto)
                 except Exception:
                     pass
-            return Response(ser.data, status=status.HTTP_201_CREATED)
+            
+            resultado_sp = None
+            
+            if paquete.pedimento_id:
+                resultado_sp = actualizar_valor_operacion(
+                    paquete.pedimento.ope_aduanera_id
+                )
+                
+            return Response(
+                {
+                  'producto': ser.data,
+                  'calculo_operacion': resultado_sp,  
+                },
+                status=status.HTTP_201_CREATED
+            )
+                
         return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class SemaforoFiscalViewSet(viewsets.ReadOnlyModelViewSet):
@@ -1283,6 +1583,21 @@ class IncidenciaViewSet(viewsets.ModelViewSet):
             incidencia=incidencia,
             estado_pago=estado_pagado,
         )
+
+        # Al pagar la multa la mercancía es devuelta — operación concluye como Devuelta
+        try:
+            pedimento = incidencia.inspeccion.semaforo.pedimentos.first()
+            if pedimento:
+                op = pedimento.ope_aduanera
+                estado_devuelta = EstadoOpeAduanera.objects.filter(
+                    descripcion='Cerrada'
+                ).first()
+                if estado_devuelta and op:
+                    op.estado_ope_aduanera = estado_devuelta
+                    op.fecha_final = timezone.localdate()
+                    op.save(update_fields=['estado_ope_aduanera', 'fecha_final'])
+        except Exception:
+            pass
 
         return Response({
             'no_transaccion': pago.no_transaccion,

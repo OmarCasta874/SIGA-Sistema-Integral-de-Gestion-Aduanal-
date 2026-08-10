@@ -423,6 +423,29 @@
                 </div>
             </div>
 
+            <!-- Resumen financiero -->
+            <div class="detalle-card" style="margin-top:16px;">
+                <h3>Resumen financiero</h3>
+                <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:0;">
+                    <div class="detalle-row" style="flex-direction:column; align-items:flex-start; padding:10px 14px;">
+                        <span class="detalle-label">Pedimentos</span>
+                        <span id="rf-total-pedimentos" style="font-weight:600;">—</span>
+                    </div>
+                    <div class="detalle-row" style="flex-direction:column; align-items:flex-start; padding:10px 14px;">
+                        <span class="detalle-label">Pagos realizados</span>
+                        <span id="rf-pagos-realizados" style="font-weight:600;color:#16A34A;">—</span>
+                    </div>
+                    <div class="detalle-row" style="flex-direction:column; align-items:flex-start; padding:10px 14px;">
+                        <span class="detalle-label">Pagos pendientes</span>
+                        <span id="rf-pagos-pendientes" style="font-weight:600;color:#DC2626;">—</span>
+                    </div>
+                    <div class="detalle-row" style="flex-direction:column; align-items:flex-start; padding:10px 14px;">
+                        <span class="detalle-label">Saldo pendiente</span>
+                        <span id="rf-saldo-pendiente" style="font-weight:600;">—</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- Tabla de permisos -->
             <div id="seccion-permisos" style="margin-top:16px;">
                 <h3 style="font-size:14px; font-weight:600; color:#111827; margin-bottom:12px;">Permisos registrados</h3>
@@ -674,6 +697,12 @@ async function abrirDetalleCliente(id) {
                 </tr>
             `).join('');
         }
+
+        const rf = data.resumen_financiero || {};
+        document.getElementById('rf-total-pedimentos').textContent = rf.total_pedimentos ?? '—';
+        document.getElementById('rf-pagos-realizados').textContent = rf.pagos_realizados ?? '—';
+        document.getElementById('rf-pagos-pendientes').textContent = rf.pagos_pendientes ?? '—';
+        document.getElementById('rf-saldo-pendiente').textContent  = rf.saldo_pendiente != null ? `$${rf.saldo_pendiente}` : '—';
 
     } catch(e) {
         console.error('Error al cargar cliente:', e);

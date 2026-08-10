@@ -175,6 +175,8 @@
                     {% with nombre=operacion.estado_nombre|default:"" %}
                     {% if "completad" in nombre|lower or "liberado" in nombre|lower or "aprobad" in nombre|lower or "finaliz" in nombre|lower or "pagado" in nombre|lower %}
                         <span class="estado-op estado-liberado">{{ nombre }}</span>
+                    {% elif "cerrada" in nombre|lower %}
+                        <span class="estado-op" style="background:#FEE2E2;color:#B91C1C;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;">{{ nombre }}</span>
                     {% elif "proceso" in nombre|lower or "pendiente" in nombre|lower or "revision" in nombre|lower or "revisión" in nombre|lower %}
                         <span class="estado-op estado-pago-pendiente">{{ nombre }}</span>
                     {% elif nombre %}

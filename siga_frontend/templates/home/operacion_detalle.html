@@ -19,7 +19,7 @@
         .tipo-importación { background:#DBEAFE; color:#1D4ED8; }
         .tipo-exportación { background:#D1FAE5; color:#065F46; }
         .tipo-tránsito    { background:#FEF3C7; color:#92400E; }
-        .estado-op-pill   { display:inline-block; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:600; background:#F3F4F6; color:#374151; }
+        .estado-op-pill   { display:inline-block; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:600; background:#F3F4F6; color:#A7F3D0; }
         .detalle-card  { background:#fff; border:1px solid #E5E7EB; border-radius:10px; padding:20px; }
         .detalle-card h3 { font-size:15px; font-weight:700; color:#111827; margin-bottom:14px; }
         .detalle-row   { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #F3F4F6; font-size:14px; }
@@ -87,6 +87,10 @@
         .btn-guardar   { background:#2563EB; color:#fff; border:none; border-radius:8px; padding:10px 18px; font-size:14px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
         .btn-guardar:hover  { background:#1D4ED8; }
         .btn-cancelar:hover { background:#E5E7EB; }
+        .btn-guardar:disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
 
         /* ── Método de pago ── */
         .metodo-pago-card { display:flex; flex-direction:column; align-items:center; gap:6px; padding:12px 8px; border:2px solid #E5E7EB; border-radius:10px; cursor:pointer; font-size:12px; font-weight:600; color:#6B7280; transition:border-color .15s, color .15s, background .15s; }
@@ -237,15 +241,14 @@
     <div class="op-header">
         <span class="op-title">Operación #{{ op.ID_operacion }}</span>
         <span class="tipo-badge tipo-{{ op.tipo_operacion|lower }}">{{ op.tipo_operacion }}</span>
-        {% if paso == 3 and op.estado_codigo == 5 %}
-            <span class="estado-op-pill" style="background:#FEF3C7;color:#B45309;">En revisión</span>
-        {% elif paso == 3 %}
-            <span class="estado-op-pill" style="background:#DCFCE7;color:#16A34A;">Completada</span>
-        {% elif paso == 2 %}
-            <span class="estado-op-pill" style="background:#FEF3C7;color:#B45309;">Pendiente de pago</span>
-        {% else %}
-            <span class="estado-op-pill" style="background:#FEF3C7;color:#B45309;">En proceso</span>
-        {% endif %}
+        <span class="estado-op-pill" style="
+            {% if resumen_operacion.estado == 'Completada' %}background:#DCFCE7;color:#16A34A;
+            {% elif resumen_operacion.estado == 'Cerrada' %}background:#FEE2E2;color:#B91C1C;
+            {% elif resumen_operacion.estado == 'En revisión' %}background:#FEF3C7;color:#B45309;
+            {% elif resumen_operacion.estado == 'Pendiente de pago' %}background:#FEF3C7;color:#B45309;
+            {% else %}background:#FEF3C7;color:#B45309;{% endif %}">
+            {{ resumen_operacion.estado|default:"—" }}
+        </span>
     </div>
 
     <!-- Card: datos de la operación -->
@@ -254,30 +257,29 @@
         <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:0;">
             <div class="detalle-row" style="flex-direction:column; align-items:flex-start; padding:10px 14px;">
                 <span class="detalle-label">Cliente</span>
-                <span style="font-weight:600;">{{ op.cliente.nombre }} {{ op.cliente.primer_apell|default:'' }}</span>
-                <span style="font-size:12px;color:#6B7280;">RFC: {{ op.cliente.RFC }}</span>
+                <span style="font-weight:600;">{{ resumen_operacion.cliente|default:"-" }}</span>
+                <span style="font-size:12px;color:#6B7280;">RFC: {{ resumen_operacion.rfc|default:"-" }}</span>
             </div>
             <div class="detalle-row" style="flex-direction:column; align-items:flex-start; padding:10px 14px;">
                 <span class="detalle-label">Aduana</span>
-                <span style="font-weight:600;">{{ op.aduana.nombre }}</span>
-                <span style="font-size:12px;color:#6B7280;">Clave: {{ op.aduana.codigo }}</span>
+                <span style="font-weight:600;">{{ resumen_operacion.nombre_aduana|default:"-" }}</span>
+                <span style="font-size:12px;color:#6B7280;">Clave: {{ resumen_operacion.aduana|default:"-" }}</span>
             </div>
             <div class="detalle-row" style="flex-direction:column; align-items:flex-start; padding:10px 14px;">
                 <span class="detalle-label">Tipo / Fecha apertura</span>
-                <span style="font-weight:600;">{{ op.tipo_operacion }}</span>
+                <span style="font-weight:600;">{{ resumen_operacion.tipo_operacion|default:"-" }}</span>
                 <span style="font-size:12px;color:#6B7280;">{{ op.fecha_inicio }}</span>
             </div>
             <div class="detalle-row" style="flex-direction:column; align-items:flex-start; padding:10px 14px;">
                 <span class="detalle-label">Estado</span>
-                {% if paso == 3 and op.estado_codigo == 5 %}
-                    <span class="estado-op-pill" style="margin-top:4px;background:#FEF3C7;color:#B45309;">En revisión</span>
-                {% elif paso == 3 %}
-                    <span class="estado-op-pill" style="margin-top:4px;background:#DCFCE7;color:#16A34A;">Completada</span>
-                {% elif paso == 2 %}
-                    <span class="estado-op-pill" style="margin-top:4px;background:#FEF3C7;color:#B45309;">Pendiente de pago</span>
-                {% else %}
-                    <span class="estado-op-pill" style="margin-top:4px;background:#FEF3C7;color:#B45309;">En proceso</span>
-                {% endif %}
+                <span class="estado-op-pill" style="
+                    {% if resumen_operacion.estado == 'Completada' %}background:#DCFCE7;color:#16A34A;
+                    {% elif resumen_operacion.estado == 'Cerrada' %}background:#FEE2E2;color:#B91C1C;
+                    {% elif resumen_operacion.estado == 'En revisión' %}background:#FEF3C7;color:#B45309;
+                    {% elif resumen_operacion.estado == 'Pendiente de pago' %}background:#FEF3C7;color:#B45309;
+                    {% else %}background:#FEF3C7;color:#B45309;{% endif %}">
+                    {{ resumen_operacion.estado|default:"—" }}
+                </span>
             </div>
         </div>
     </div>
@@ -1431,6 +1433,11 @@ const setText = (id, val) => { const el = document.getElementById(id); if (el) e
 
 /* ── Auto-completar clave y régimen al cargar ─────── */
 window.addEventListener('DOMContentLoaded', () => {
+    if (sessionStorage.getItem('pedimentoGenerado')) {
+        sessionStorage.removeItem('pedimentoGenerado');
+        showToast('Pedimento generado y pagado exitosamente', 'success');
+    }
+
     // Clave
     const claveAuto = TIPO_OPERACION === 'Importación' ? 'A1'
                     : TIPO_OPERACION === 'Exportación'  ? 'V1' : '';
@@ -1781,6 +1788,7 @@ function pedVolver1() {
 }
 
 function cerrarYRecargar() {
+    sessionStorage.setItem('pedimentoGenerado', '1');
     cerrarModalPedimento();
     window.location.reload();
 }
