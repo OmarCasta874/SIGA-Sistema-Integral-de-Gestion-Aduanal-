@@ -582,11 +582,8 @@ class OperacionViewSet(viewsets.ModelViewSet):
 
         if not regimen_adu_id:
             return Response({'error': 'El régimen aduanero es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
-        if not permiso_clave:
-            return Response({'error': 'El permiso es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
-
         regimen = get_object_or_404(RegimenAduanero, num_regimen=regimen_adu_id)
-        permiso = get_object_or_404(Permiso, clave_numerica=permiso_clave)
+        permiso = get_object_or_404(Permiso, clave_numerica=permiso_clave) if permiso_clave else None
 
         numero_pedimento = _generar_numero_pedimento(op.aduana_id)
         # El semáforo se genera aquí para que el trigger t_generar_pedimento
