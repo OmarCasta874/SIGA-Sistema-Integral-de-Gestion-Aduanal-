@@ -614,6 +614,7 @@ class OperacionViewSet(viewsets.ModelViewSet):
                 if paquete_codigo:
                     Paquete.objects.filter(codigo=paquete_codigo).update(pedimento=ped)
                     actualizar_valor_operacion(op.ID_operacion)
+                    ped.refresh_from_db()  # SP1 actualizó valor_total en DB; el objeto Python estaba obsoleto
 
                 # RF31: actualizar estado de operación a "Pendiente de pago"
                 estado_pendiente = get_object_or_404(EstadoOpeAduanera, codigo=4)
