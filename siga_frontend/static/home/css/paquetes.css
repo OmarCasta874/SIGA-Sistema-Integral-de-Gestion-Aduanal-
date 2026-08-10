@@ -12,8 +12,8 @@
     border: none;
     cursor: pointer;
 }
-.btn-accion-ver { background: #EFF6FF; color: #1E3A8A; }
-.btn-accion-ver:hover { background: #DBEAFE; }
+.btn-accion-ver { background: #DBEAFE; color: #2563EB; white-space: nowrap; }
+.btn-accion-ver:hover { background: #C5DCFB; }
 .btn-accion-eliminar { background: #FEE2E2; color: #991B1B; }
 .btn-accion-eliminar:hover { background: #FECACA; }
 

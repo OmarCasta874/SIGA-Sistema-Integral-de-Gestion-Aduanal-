@@ -194,21 +194,20 @@
 
 /* BOTÓN VER */
 .btn-ver {
-    height: 32px;
-    padding: 0 14px;
-    border: 1px solid #2563EB;
-    border-radius: 6px;
-    background: #FFFFFF;
+    background: #DBEAFE;
     color: #2563EB;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
     font-size: 13px;
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
+    margin-right: 6px;
     white-space: nowrap;
 }
 
 .btn-ver:hover {
-    background: #2563EB;
-    color: #FFFFFF;
+    background: #C5DCFB;
 }
 
 /* ESTADOS */

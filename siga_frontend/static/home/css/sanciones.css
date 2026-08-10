@@ -305,3 +305,20 @@ body.sidebar-colapsado .nav-item .badge {
     cursor: pointer;
 }
 .btn-pagar-multa:hover { background: #166534; }
+
+/* ── ACCIONES ── */
+.btn-ver {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 14px;
+    background: #DBEAFE;
+    color: #2563EB;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.btn-ver:hover { background: #BFDBFE; color: #1D4ED8; }

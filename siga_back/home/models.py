@@ -624,7 +624,8 @@ class Pedimento(models.Model):
     )
     permiso = models.ForeignKey(
         Permiso, on_delete=models.CASCADE,
-        db_column='permiso', related_name='pedimentos'
+        db_column='permiso', related_name='pedimentos',
+        null=True, blank=True
     )
     ope_aduanera = models.ForeignKey(
         OperacionAduanera, on_delete=models.CASCADE,

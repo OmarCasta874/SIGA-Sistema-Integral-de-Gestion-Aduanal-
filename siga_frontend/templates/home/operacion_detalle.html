@@ -900,7 +900,7 @@
                             <tr>
                                 <td colspan="4">
                                     <span class="sat-lbl">TIPO DE EMBALAJE</span>
-                                    <span class="sat-val">
+                                    <span class="sat-val" id="prev-embalaje">
                                         {% for pq in paquetes_pedimento %}
                                             {% if pq.tipo_embalaje %}{% if not forloop.first %} — {% endif %}{{ pq.tipo_embalaje.nombre }}{% endif %}
                                         {% endfor %}
@@ -928,6 +928,7 @@
                             <tr>
                                 <td colspan="8" style="padding:4px 6px;">
                                     <table class="sat-sub" style="width:100%;">
+                                        <thead>
                                         <tr>
                                             <th>DESCRIPCIÓN</th>
                                             <th>CANT.</th>
@@ -936,6 +937,8 @@
                                             <th>IGI EST.</th>
                                             <th>FRACC. ARANC.</th>
                                         </tr>
+                                        </thead>
+                                        <tbody id="prev-prod-tbody">
                                         {% for pq in paquetes_pedimento %}
                                             {% for prod in pq.productos %}
                                             <tr>
@@ -950,6 +953,7 @@
                                         {% empty %}
                                         <tr><td colspan="6" style="color:#9CA3AF;">Sin productos registrados</td></tr>
                                         {% endfor %}
+                                        </tbody>
                                     </table>
                                 </td>
                             </tr>
@@ -1421,15 +1425,21 @@
 </div>
 {% endif %}
 {% include "components/toasts.html" %}
+{{ paquetes|json_script:"paquetes-json" }}
 <script>
 lucide.createIcons();
 
 const TIPO_OPERACION  = "{{ op.tipo_operacion }}";
 const VALOR_ESTIMADO  = {{ valor_estimado|default:0 }};
 const REGIMENES       = {{ regimenes_json|safe }};
+const PAQUETES_DATA   = JSON.parse(document.getElementById('paquetes-json').textContent);
+
+// Paquete seleccionado en el modal; pre-cargado si viene ?paquete=X en la URL
+let _selectedPaquete  = PAQUETES_DATA.find(p => p.codigo == {{ paquete_preseleccionado|default:0 }}) || null;
 
 /* ── Helpers ──────────────────────────────────────── */
-const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+const setText  = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+const escHtml  = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
 /* ── Auto-completar clave y régimen al cargar ─────── */
 window.addEventListener('DOMContentLoaded', () => {
@@ -1521,6 +1531,7 @@ function seleccionarPaquete(codigo, cardEl) {
     document.querySelectorAll('#paquete-cards-container .permiso-card').forEach(c => c.classList.remove('selected'));
     cardEl.classList.add('selected');
     document.getElementById('ped-paquete-hidden').value = codigo;
+    _selectedPaquete = PAQUETES_DATA.find(p => p.codigo === codigo) || null;
     const warnPaq = document.getElementById('ped-warn-paquete');
     if (warnPaq) warnPaq.style.display = 'none';
 }
@@ -1593,6 +1604,26 @@ function pedPaso2() {
     setText('prev-total-efectivo',impuestos ? `$ ${impuestos}` : '—');
     setText('prev-gran-total',    granTotal ? `$ ${granTotal}` : '—');
     setText('prev-permiso',       permisoLabel);
+
+    // Poblar tabla de productos y embalaje del paquete seleccionado en JS
+    const prodTbody  = document.getElementById('prev-prod-tbody');
+    const embalajeEl = document.getElementById('prev-embalaje');
+    if (prodTbody && _selectedPaquete) {
+        const prods = _selectedPaquete.productos || [];
+        if (embalajeEl && _selectedPaquete.tipo_embalaje) {
+            embalajeEl.textContent = _selectedPaquete.tipo_embalaje.nombre || '';
+        }
+        prodTbody.innerHTML = prods.length
+            ? prods.map(p => `<tr>
+                <td>${escHtml(p.nombre)}${p.descripcion ? ' — ' + escHtml(p.descripcion) : ''}</td>
+                <td>${escHtml(p.cantidad)}</td>
+                <td>${escHtml(p.peso)}</td>
+                <td>$${escHtml(p.valor_unitario)}</td>
+                <td>$${escHtml(p.igi_importe ?? '0.00')}</td>
+                <td style="font-family:monospace;">${escHtml(p.fraccion_arancelaria || '—')}</td>
+              </tr>`).join('')
+            : '<tr><td colspan="6" style="color:#9CA3AF;">Sin productos registrados</td></tr>';
+    }
 
     marcarCompleto('ped-prog-1', 'ped-linea-1', 'ped-prog-2');
     document.getElementById('ped-paso-1').style.display = 'none';

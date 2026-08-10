@@ -348,19 +348,30 @@ class ClienteViewSet(viewsets.ModelViewSet):
             )
         except DatabaseError as e:
             mensaje = str(e)
-            
+
             if "RENOVACION|" in mensaje:
-                partes = mensaje.split("|")
-                
+                partes  = mensaje.split("|")
+                folio   = partes[1]
+                # Renovar: actualizar vigencia y descripción del permiso existente
+                Permiso.objects.filter(clave_numerica=folio).update(
+                    vigencia=vigencia_date,
+                    descripcion=descripcion or None,
+                )
+                permiso_renovado = Permiso.objects.get(clave_numerica=folio)
+                hoy = timezone.localdate()
                 return Response(
                     {
-                        "error": partes[2],
-                        "folio": partes[1],
-                        "renovado": True,
+                        'clave':       folio,
+                        'tipo':        permiso_renovado.tipo_permiso,
+                        'vigencia':    vigencia_date.strftime("%d/%m/%Y"),
+                        'vigente':     vigencia_date >= hoy,
+                        'descripcion': permiso_renovado.descripcion or "",
+                        'folio':       folio,
+                        'renovado':    True,
                     },
-                    status=status.HTTP_409_CONFLICT,
+                    status=status.HTTP_200_OK,
                 )
-                
+
             return Response(
                 {"error": mensaje},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -582,23 +593,34 @@ class OperacionViewSet(viewsets.ModelViewSet):
 
         if not regimen_adu_id:
             return Response({'error': 'El régimen aduanero es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
-        if not permiso_clave:
-            return Response({'error': 'El permiso es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not permiso_clave and paquete_codigo:
+            requiere_permiso = CategoriasProductosRel.objects.filter(
+                productos__paquete=paquete_codigo,
+                categorias__tipo_permiso_requerido__isnull=False,
+            ).exists()
+            if requiere_permiso:
+                return Response(
+                    {'error': 'Uno o más productos del paquete requieren un permiso. Selecciona el permiso correspondiente.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         regimen = get_object_or_404(RegimenAduanero, num_regimen=regimen_adu_id)
-        permiso = get_object_or_404(Permiso, clave_numerica=permiso_clave)
+        permiso = get_object_or_404(Permiso, clave_numerica=permiso_clave) if permiso_clave else None
 
         numero_pedimento = _generar_numero_pedimento(op.aduana_id)
-        # El semáforo se genera aquí para que el trigger t_generar_pedimento
-        # pueda evaluarlo en el BEFORE INSERT y crear la inspección si es rojo.
-        semaforo = _generar_semaforo()
 
         try:
             with transaction.atomic():
+                # Semáforo dentro de la transacción: si el trigger bloquea el pedimento,
+                # el rollback elimina también el semáforo (evita registros huérfanos).
+                # El trigger BEFORE INSERT puede leerlo porque comparte la misma sesión.
+                semaforo = _generar_semaforo()
                 ped = Pedimento.objects.create(
                     numero_pedimento=numero_pedimento,
                     clave_pedimento=clave_pedimento,
                     fecha_registro=timezone.localdate(),
+                    valor_total=0,
                     regimen_adu=regimen,
                     permiso=permiso,
                     ope_aduanera=op,
@@ -614,6 +636,7 @@ class OperacionViewSet(viewsets.ModelViewSet):
                 if paquete_codigo:
                     Paquete.objects.filter(codigo=paquete_codigo).update(pedimento=ped)
                     actualizar_valor_operacion(op.ID_operacion)
+                    ped.refresh_from_db()  # SP1 actualizó valor_total en DB; el objeto Python estaba obsoleto
 
                 # RF31: actualizar estado de operación a "Pendiente de pago"
                 estado_pendiente = get_object_or_404(EstadoOpeAduanera, codigo=4)
@@ -1256,13 +1279,11 @@ class DashboardAPIView(APIView):
         bitacora = BitacoraSerializer(bitacora_reciente, many=True).data
 
         total_verde = SemaforoFiscal.objects.filter(resultado__icontains="Verde").count()
-        total_amarillo = SemaforoFiscal.objects.filter(resultado__icontains="Amarillo").count()
-        total_rojo = SemaforoFiscal.objects.filter(resultado__icontains="Rojo").count()
-        total_semaforos = total_verde + total_amarillo + total_rojo
+        total_rojo  = SemaforoFiscal.objects.filter(resultado__icontains="Rojo").count()
+        total_semaforos = total_verde + total_rojo
 
-        porcentaje_verde    = round((total_verde    / total_semaforos) * 100) if total_semaforos else 0
-        porcentaje_amarillo = round((total_amarillo / total_semaforos) * 100) if total_semaforos else 0
-        porcentaje_rojo     = round((total_rojo     / total_semaforos) * 100) if total_semaforos else 0
+        porcentaje_verde = round((total_verde / total_semaforos) * 100) if total_semaforos else 0
+        porcentaje_rojo  = round((total_rojo  / total_semaforos) * 100) if total_semaforos else 0
 
         # RF09 — pedimentos con pago registrado
         pedimentos_completados = Pedimento.objects.filter(pagos__isnull=False).distinct().count()
@@ -1293,10 +1314,8 @@ class DashboardAPIView(APIView):
             "semaforo": {
                 "total": total_semaforos,
                 "verde": total_verde,
-                "amarillo": total_amarillo,
                 "rojo": total_rojo,
                 "porcentaje_verde": porcentaje_verde,
-                "porcentaje_amarillo": porcentaje_amarillo,
                 "porcentaje_rojo": porcentaje_rojo,
             },
         }

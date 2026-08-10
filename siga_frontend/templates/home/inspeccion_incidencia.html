@@ -260,11 +260,6 @@
                 </select>
             </div>
 
-            <div class="inc-campo">
-                <label>Descripción adicional</label>
-                <textarea id="incDescripcion" rows="3" placeholder="Describe brevemente la irregularidad..."></textarea>
-            </div>
-
             <!-- ── SANCIONES — panel solo lectura ── -->
             <p class="inc-seccion-titulo" style="margin-top:8px;">
                 <i data-lucide="receipt" style="width:13px;height:13px;vertical-align:middle;"></i>
@@ -750,8 +745,7 @@ async function registrarIncidencia() {
 
     // Usar dataset.desc para evitar concatenar el texto del hint y no exceder VARCHAR(250)
     const descripcionItems = checks.map(li => li.dataset.desc || li.querySelector('label').firstChild.textContent.trim());
-    const descripcionExtra = document.getElementById('incDescripcion').value.trim();
-    let descripcion = descripcionItems.join('; ') + (descripcionExtra ? '. ' + descripcionExtra : '.');
+    let descripcion = descripcionItems.join('; ') + '.';
     if (descripcion.length > 248) descripcion = descripcion.slice(0, 247) + '…';
 
     // 1. Guardar resultado de inspección

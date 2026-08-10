@@ -144,7 +144,7 @@
                         <span style="display:block;font-size:11px;color:#9CA3AF;">{{ ped.regimen_adu.descripcion }}</span>
                     {% endif %}
                 </td>
-                <td>${{ ped.valor_total }}</td>
+                <td>${{ ped.valor_total_mercancia }}</td>
                 <td>
                     {% if ped.semaforo %}
                         {% if 'Verde' in ped.semaforo.resultado %}
@@ -160,9 +160,9 @@
                 </td>
                 <td class="acciones">
                     {% if ped.operacion_id %}
-                        <a href="{% url 'home:pedimento_detalle' ped.operacion_id %}" class="btn-ver">Ver</a>
+                        <a href="{% url 'home:pedimento_detalle' ped.operacion_id %}" class="btn-ver">Ver detalle</a>
                     {% else %}
-                        <button class="btn-ver" disabled>Ver</button>
+                        <button class="btn-ver" disabled>Ver detalle</button>
                     {% endif %}
                 </td>
             </tr>
