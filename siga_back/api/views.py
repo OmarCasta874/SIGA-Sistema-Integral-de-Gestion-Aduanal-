@@ -1279,13 +1279,11 @@ class DashboardAPIView(APIView):
         bitacora = BitacoraSerializer(bitacora_reciente, many=True).data
 
         total_verde = SemaforoFiscal.objects.filter(resultado__icontains="Verde").count()
-        total_amarillo = SemaforoFiscal.objects.filter(resultado__icontains="Amarillo").count()
-        total_rojo = SemaforoFiscal.objects.filter(resultado__icontains="Rojo").count()
-        total_semaforos = total_verde + total_amarillo + total_rojo
+        total_rojo  = SemaforoFiscal.objects.filter(resultado__icontains="Rojo").count()
+        total_semaforos = total_verde + total_rojo
 
-        porcentaje_verde    = round((total_verde    / total_semaforos) * 100) if total_semaforos else 0
-        porcentaje_amarillo = round((total_amarillo / total_semaforos) * 100) if total_semaforos else 0
-        porcentaje_rojo     = round((total_rojo     / total_semaforos) * 100) if total_semaforos else 0
+        porcentaje_verde = round((total_verde / total_semaforos) * 100) if total_semaforos else 0
+        porcentaje_rojo  = round((total_rojo  / total_semaforos) * 100) if total_semaforos else 0
 
         # RF09 — pedimentos con pago registrado
         pedimentos_completados = Pedimento.objects.filter(pagos__isnull=False).distinct().count()
@@ -1316,10 +1314,8 @@ class DashboardAPIView(APIView):
             "semaforo": {
                 "total": total_semaforos,
                 "verde": total_verde,
-                "amarillo": total_amarillo,
                 "rojo": total_rojo,
                 "porcentaje_verde": porcentaje_verde,
-                "porcentaje_amarillo": porcentaje_amarillo,
                 "porcentaje_rojo": porcentaje_rojo,
             },
         }
