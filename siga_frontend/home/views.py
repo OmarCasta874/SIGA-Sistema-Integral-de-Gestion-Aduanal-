@@ -173,6 +173,8 @@ def clientes_view(request):
                 payload['correo_electronico'] = request.POST.get('correo_electronico', '').strip()
                 payload['curp']               = form.cleaned_data.get('curp', '') or None
                 payload['domicilio']          = form.cleaned_data.get('domicilio', '') or None
+                payload['primer_apell']       = form.cleaned_data.get('primer_apell', '') or None
+                payload['seg_apell']          = form.cleaned_data.get('seg_apell', '') or None
                 resp = api.post(request, '/clientes/', payload)
                 if resp.status_code == 201:
                     messages.success(request, 'Cliente registrado correctamente.')

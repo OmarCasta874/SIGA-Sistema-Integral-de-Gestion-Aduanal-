@@ -173,15 +173,17 @@
     border-radius: 6px;
     text-decoration: none;
     margin-right: 8px;
+    white-space: nowrap;
+    cursor: pointer;
 }
 
 .btn-accion-ver {
-    background: #EFF6FF;
-    color: #1E3A8A;
+    background: #DBEAFE;
+    color: #2563EB;
 }
 
 .btn-accion-ver:hover {
-    background: #DBEAFE;
+    background: #C5DCFB;
 }
 
 .btn-accion-editar {

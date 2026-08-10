@@ -209,7 +209,7 @@
                         {% endif %}
                     </td>
                     <td class="acciones">
-                        <button class="btn-ver" onclick="abrirDetalleCliente({{ cliente.numero }})">Ver</button>
+                        <button class="btn-ver" onclick="abrirDetalleCliente({{ cliente.numero }})">Ver detalle</button>
                         <button class="btn-ver" style="margin-left:0;"
                             onclick="abrirEditarCliente({{ cliente.numero }})">
                             Editar
@@ -299,7 +299,7 @@
                     <label>{{ form.nombre.label }}</label>
                     {{ form.nombre }}
                 </div>
-                <div class="form-row">
+                <div class="form-row" id="fila-apellidos">
                     <div class="form-group" id="grupo-primer-apell">
                         <label>{{ form.primer_apell.label }}</label>
                         {{ form.primer_apell }}
@@ -321,9 +321,10 @@
                             <input type="text" id="rfc_base" class="form-input" maxlength="10" readonly disabled placeholder="Auto">
                             <input type="text" id="rfc_homoclave" class="form-input" maxlength="3" readonly disabled placeholder="Auto">
                         </div>
-                        <div style="display: none;">
-                            {{ form.RFC }}
-                        </div>
+                        <small id="hint-rfc-moral" style="display:none; color:#6b7280; font-size:11px; margin-top:4px;">
+                            Base: 3 letras de la empresa + 6 dígitos de fecha (ej. ABC850101) &nbsp;|&nbsp; Homoclave: se genera sola
+                        </small>
+                        <input type="hidden" name="RFC" id="id_RFC">
                     </div>
                     <div class="form-group" id="grupo-curp">
                         <label>{{ form.curp.label }}</label>
@@ -777,11 +778,17 @@ const campoRFCHomoclave = document.getElementById('rfc_homoclave');
 const filaPrimero   = campoPrimero.closest('.form-group');
 const filaSegundo   = campoSegundo.closest('.form-group');
 const checkSinSeg   = document.getElementById('check-sin-segundo');
+const filaApellidos = document.getElementById('fila-apellidos');
+const grupoCURP     = document.getElementById('grupo-curp');
+const hintRFCMoral  = document.getElementById('hint-rfc-moral');
 
 function aplicarTipoPersona() {
     const tipo = tipoPersona.value;
 
     if (tipo === 'Física') {
+        if (filaApellidos) filaApellidos.style.display   = '';
+        if (grupoCURP)     grupoCURP.style.display        = '';
+        if (hintRFCMoral)  hintRFCMoral.style.display     = 'none';
         campoPrimero.disabled          = false;
         campoSegundo.disabled          = checkSinSeg.checked;
         campoRFC.disabled              = false;
@@ -790,19 +797,20 @@ function aplicarTipoPersona() {
         campoRFCBase.disabled          = false;
         campoRFCBase.readOnly          = true;
         campoRFCBase.maxLength         = 10;
+        campoRFCBase.placeholder       = 'Auto';
         campoRFCHomoclave.disabled     = false;
         campoRFCHomoclave.readOnly     = true;
         campoRFCHomoclave.maxLength    = 3;
-        filaPrimero.style.opacity      = '1';
-        filaSegundo.style.opacity      = checkSinSeg.checked ? '0.4' : '1';
+        campoRFCHomoclave.placeholder  = 'Auto';
 
     } else if (tipo === 'Moral') {
+        if (filaApellidos) filaApellidos.style.display   = 'none';
+        if (grupoCURP)     grupoCURP.style.display        = 'none';
+        if (hintRFCMoral)  hintRFCMoral.style.display     = 'block';
         campoPrimero.disabled          = true;
         campoSegundo.disabled          = true;
         campoPrimero.value             = '';
         campoSegundo.value             = '';
-        filaPrimero.style.opacity      = '0.4';
-        filaSegundo.style.opacity      = '0.4';
         campoRFC.disabled              = false;
         campoRFC.readOnly              = false;
         campoCURP.value                = '';
@@ -811,12 +819,17 @@ function aplicarTipoPersona() {
         campoRFCBase.readOnly          = false;
         campoRFCBase.maxLength         = 9;
         campoRFCBase.value             = '';
+        campoRFCBase.placeholder       = 'Ej. ABC850101';
         campoRFCHomoclave.disabled     = false;
         campoRFCHomoclave.readOnly     = false;
         campoRFCHomoclave.maxLength    = 3;
-        campoRFCHomoclave.value        = '';
+        campoRFCHomoclave.value        = generarHomoclave();
+        campoRFCHomoclave.placeholder  = 'Ej. AB1';
 
     } else {
+        if (filaApellidos) filaApellidos.style.display   = 'none';
+        if (grupoCURP)     grupoCURP.style.display        = 'none';
+        if (hintRFCMoral)  hintRFCMoral.style.display     = 'none';
         campoPrimero.disabled          = true;
         campoSegundo.disabled          = true;
         campoRFC.disabled              = true;
@@ -829,8 +842,6 @@ function aplicarTipoPersona() {
         campoRFCHomoclave.disabled     = true;
         campoRFCHomoclave.readOnly     = false;
         campoRFCHomoclave.value        = '';
-        filaPrimero.style.opacity      = '0.4';
-        filaSegundo.style.opacity      = '0.4';
     }
 
     if (tipo) campoNombre.disabled = false;
@@ -887,7 +898,7 @@ const form = document.getElementById("formCliente");
 form.addEventListener("submit", function (event) {
     const tipo      = tipoPersona.value;
     const base      = campoRFCBase.value.toUpperCase();
-    const homoclave = campoRFCHomoclave.value.toUpperCase();
+    let   homoclave = campoRFCHomoclave.value.toUpperCase();
 
     if (tipo === 'Física') {
         if (base.length !== 10 || homoclave.length !== 3) {
@@ -895,14 +906,20 @@ form.addEventListener("submit", function (event) {
             event.preventDefault();
             return;
         }
+        campoRFC.disabled = false;
         campoRFC.value = base + homoclave;
 
     } else if (tipo === 'Moral') {
-        if (base.length < 1 || homoclave.length !== 3) {
-            alert('El RFC de Persona Moral debe tener entre 9 y 12 caracteres (base + homoclave).');
+        if (base.length < 1) {
+            alert('Ingresa la base del RFC de la empresa (ej. ABC850101).');
             event.preventDefault();
             return;
         }
+        if (homoclave.length !== 3) {
+            campoRFCHomoclave.value = generarHomoclave();
+            homoclave = campoRFCHomoclave.value;
+        }
+        campoRFC.disabled = false;
         campoRFC.value = base + homoclave;
     }
 });

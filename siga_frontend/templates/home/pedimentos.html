@@ -160,9 +160,9 @@
                 </td>
                 <td class="acciones">
                     {% if ped.operacion_id %}
-                        <a href="{% url 'home:pedimento_detalle' ped.operacion_id %}" class="btn-ver">Ver</a>
+                        <a href="{% url 'home:pedimento_detalle' ped.operacion_id %}" class="btn-ver">Ver detalle</a>
                     {% else %}
-                        <button class="btn-ver" disabled>Ver</button>
+                        <button class="btn-ver" disabled>Ver detalle</button>
                     {% endif %}
                 </td>
             </tr>
