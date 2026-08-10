@@ -609,6 +609,7 @@ class OperacionViewSet(viewsets.ModelViewSet):
                     numero_pedimento=numero_pedimento,
                     clave_pedimento=clave_pedimento,
                     fecha_registro=timezone.localdate(),
+                    valor_total=0,
                     regimen_adu=regimen,
                     permiso=permiso,
                     ope_aduanera=op,

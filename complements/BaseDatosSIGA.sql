@@ -231,7 +231,7 @@ CREATE TABLE pedimento (
     numero_pedimento VARCHAR(30)   NOT NULL,
     clave_pedimento  VARCHAR(10)   NOT NULL,
     fecha_registro   DATE          NOT NULL,
-    valor_total      DECIMAL(12,2) NOT NULL,
+    valor_total      DECIMAL(12,2) NOT NULL DEFAULT 0,
     semaforo         INT           NULL,
     regimen_adu      INT           NOT NULL,
     permiso          VARCHAR(30)   NULL,
