@@ -825,6 +825,51 @@ body {
 .texto-verde { color: #16a34a; }
 .texto-rojo  { color: #dc2626; }
 
+.detalle-financiero-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+}
+
+.detalle-financiero-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 10px 14px;
+    border-left: 1px solid #F3F4F6;
+}
+
+.detalle-financiero-item:first-child {
+    border-left: none;
+    padding-left: 0;
+}
+
+.detalle-financiero-valor {
+    font-size: 14px;
+    font-weight: 600;
+    color: #111827;
+}
+
+.detalle-tabla-scroll {
+    overflow-x: auto;
+}
+
+.detalle-tabla-scroll table {
+    min-width: 0;
+    width: 100%;
+    table-layout: fixed;
+}
+
+.detalle-tabla-scroll th,
+.detalle-tabla-scroll td {
+    padding: 10px 8px;
+    font-size: 12.5px;
+    white-space: normal;
+    word-break: break-word;
+    overflow: visible;
+    text-overflow: clip;
+}
+
 .siguiente-paso {
     margin-top: 8px;
     display: flex;
