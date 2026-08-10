@@ -427,61 +427,65 @@
             <!-- Resumen financiero -->
             <div class="detalle-card" style="margin-top:16px;">
                 <h3>Resumen financiero</h3>
-                <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:0;">
-                    <div class="detalle-row" style="flex-direction:column; align-items:flex-start; padding:10px 14px;">
+                <div class="detalle-financiero-grid">
+                    <div class="detalle-financiero-item">
                         <span class="detalle-label">Pedimentos</span>
-                        <span id="rf-total-pedimentos" style="font-weight:600;">—</span>
+                        <span id="rf-total-pedimentos" class="detalle-financiero-valor">—</span>
                     </div>
-                    <div class="detalle-row" style="flex-direction:column; align-items:flex-start; padding:10px 14px;">
+                    <div class="detalle-financiero-item">
                         <span class="detalle-label">Pagos realizados</span>
-                        <span id="rf-pagos-realizados" style="font-weight:600;color:#16A34A;">—</span>
+                        <span id="rf-pagos-realizados" class="detalle-financiero-valor texto-verde">—</span>
                     </div>
-                    <div class="detalle-row" style="flex-direction:column; align-items:flex-start; padding:10px 14px;">
+                    <div class="detalle-financiero-item">
                         <span class="detalle-label">Pagos pendientes</span>
-                        <span id="rf-pagos-pendientes" style="font-weight:600;color:#DC2626;">—</span>
+                        <span id="rf-pagos-pendientes" class="detalle-financiero-valor texto-rojo">—</span>
                     </div>
-                    <div class="detalle-row" style="flex-direction:column; align-items:flex-start; padding:10px 14px;">
+                    <div class="detalle-financiero-item">
                         <span class="detalle-label">Saldo pendiente</span>
-                        <span id="rf-saldo-pendiente" style="font-weight:600;">—</span>
+                        <span id="rf-saldo-pendiente" class="detalle-financiero-valor">—</span>
                     </div>
                 </div>
             </div>
 
             <!-- Tabla de permisos -->
-            <div id="seccion-permisos" style="margin-top:16px;">
-                <h3 style="font-size:14px; font-weight:600; color:#111827; margin-bottom:12px;">Permisos registrados</h3>
-                <table class="tabla-pedimentos" id="tabla-permisos">
-                    <thead>
-                        <tr>
-                            <th>Clave / Folio</th>
-                            <th>Autoridad</th>
-                            <th>Vigencia</th>
-                            <th>Estado</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody id="tbody-permisos">
-                        <tr><td colspan="5" style="text-align:center; color:#9ca3af; padding:20px;">Cargando permisos...</td></tr>
-                    </tbody>
-                </table>
+            <div class="detalle-card" id="seccion-permisos" style="margin-top:16px;">
+                <h3>Permisos registrados</h3>
+                <div class="detalle-tabla-scroll">
+                    <table class="tabla-pedimentos" id="tabla-permisos">
+                        <thead>
+                            <tr>
+                                <th>Clave / Folio</th>
+                                <th>Autoridad</th>
+                                <th>Vigencia</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-permisos">
+                            <tr><td colspan="5" style="text-align:center; color:#9ca3af; padding:20px;">Cargando permisos...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             <!-- Historial de pedimentos -->
-            <div style="margin-top:16px;">
-                <h3 style="font-size:14px; font-weight:600; color:#111827; margin-bottom:12px;">Historial de pedimentos</h3>
-                <table class="tabla-pedimentos" id="tabla-pedimentos-cliente">
-                    <thead>
-                        <tr>
-                            <th>Número</th>
-                            <th>Fecha</th>
-                            <th>Semáforo</th>
-                            <th>Pago</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tbody-pedimentos-cliente">
-                        <tr><td colspan="4" style="text-align:center; color:#9ca3af; padding:20px;">Cargando...</td></tr>
-                    </tbody>
-                </table>
+            <div class="detalle-card" style="margin-top:16px;">
+                <h3>Historial de pedimentos</h3>
+                <div class="detalle-tabla-scroll">
+                    <table class="tabla-pedimentos" id="tabla-pedimentos-cliente">
+                        <thead>
+                            <tr>
+                                <th>Número</th>
+                                <th>Fecha</th>
+                                <th>Semáforo</th>
+                                <th>Pago</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-pedimentos-cliente">
+                            <tr><td colspan="4" style="text-align:center; color:#9ca3af; padding:20px;">Cargando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
         </div>
@@ -813,18 +817,19 @@ function aplicarTipoPersona() {
         campoSegundo.value             = '';
         campoRFC.disabled              = false;
         campoRFC.readOnly              = false;
-        campoCURP.value                = '';
-        campoCURP.disabled             = true;
         campoRFCBase.disabled          = false;
-        campoRFCBase.readOnly          = false;
+        campoRFCBase.readOnly          = true;
         campoRFCBase.maxLength         = 9;
-        campoRFCBase.value             = '';
+        campoRFCBase.value             = generarRFCBaseMoral(campoNombre.value);
         campoRFCBase.placeholder       = 'Ej. ABC850101';
         campoRFCHomoclave.disabled     = false;
-        campoRFCHomoclave.readOnly     = false;
+        campoRFCHomoclave.readOnly     = true;
         campoRFCHomoclave.maxLength    = 3;
         campoRFCHomoclave.value        = generarHomoclave();
         campoRFCHomoclave.placeholder  = 'Ej. AB1';
+        campoCURP.disabled             = false;
+        campoCURP.readOnly             = true;
+        campoCURP.value                = generarCURPMoral(campoRFCBase.value, campoRFCHomoclave.value);
 
     } else {
         if (filaApellidos) filaApellidos.style.display   = 'none';
@@ -856,6 +861,24 @@ function generarHomoclave() {
          + digitos[Math.floor(Math.random() * 10)];
 }
 
+function generarRFCBaseMoral(nombreEmpresa) {
+    const limpio = (nombreEmpresa || '').toUpperCase().replace(/[^A-ZÑ]/g, '');
+    const letras = limpio.substring(0, 3).padEnd(3, 'X');
+    let digitos = '';
+    for (let i = 0; i < 6; i++) digitos += Math.floor(Math.random() * 10);
+    return letras + digitos;
+}
+
+function generarCURPMoral(rfcBase, rfcHomoclave) {
+    const base = (rfcBase + rfcHomoclave).toUpperCase();
+    const alfanum = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let relleno = '';
+    for (let i = 0; i < 18 - base.length; i++) {
+        relleno += alfanum[Math.floor(Math.random() * alfanum.length)];
+    }
+    return (base + relleno).substring(0, 18);
+}
+
 // ── Auto-fill RFC desde CURP (solo Persona Física) ──────
 // Los primeros 10 chars del RFC coinciden con CURP[0:10]
 // La homoclave (3 chars: 2 letras + 1 dígito) se genera automáticamente
@@ -878,6 +901,13 @@ if (campoCURP) {
         campoRFCHomoclave.value = generarHomoclave();
     });
 }
+
+campoNombre.addEventListener('input', function () {
+    if (tipoPersona.value === 'Moral') {
+        campoRFCBase.value = generarRFCBaseMoral(this.value);
+        campoCURP.value    = generarCURPMoral(campoRFCBase.value, campoRFCHomoclave.value);
+    }
+});
 
 campoRFC.addEventListener('input', function () {
     this.value = this.value.toUpperCase();
@@ -910,8 +940,8 @@ form.addEventListener("submit", function (event) {
         campoRFC.value = base + homoclave;
 
     } else if (tipo === 'Moral') {
-        if (base.length < 1) {
-            alert('Ingresa la base del RFC de la empresa (ej. ABC850101).');
+        if (base.length !== 9 || homoclave.length !== 3) {
+            alert('El RFC de Persona Moral debe tener 9 caracteres base + 3 de homoclave (12 en total).');
             event.preventDefault();
             return;
         }

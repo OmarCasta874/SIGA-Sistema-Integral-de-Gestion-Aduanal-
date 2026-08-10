@@ -113,7 +113,7 @@
     {% endif %}
 
     <!-- Info general -->
-    <div class="detalle-grid" style="grid-template-columns: 1fr 2fr; margin-bottom:24px;">
+    <div class="detalle-grid" style="grid-template-columns: 1fr minmax(0, 2fr); margin-bottom:24px;">
         <div class="detalle-card">
             <h3>Información general</h3>
             <div class="detalle-row">
@@ -141,45 +141,47 @@
             <h3>Permisos registrados</h3>
 
             {% if permisos %}
-                <table class="tabla-pedimentos">
-                    <thead>
-                        <tr>
-                            <th>Clave / Folio</th>
-                            <th>Autoridad</th>
-                            <th>Vigencia</th>
-                            <th>Estado</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for permiso in permisos %}
-                        <tr>
-                            <td style="font-weight:500; color:#111827;">
-                                {{ permiso.clave_numerica }}
-                            </td>
-                            <td>{{ permiso.tipo_permiso }}</td>
-                            <td>{{ permiso.vigencia }}</td>
-                            <td>
-                                {% if permiso.vigencia >= hoy %}
-                                    <span class="estado-pill estado-validado">Vigente</span>
-                                {% else %}
-                                    <span class="estado-pill estado-transmitido">Vencido</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <form method="post"
-                                      action="{% url 'home:cliente_permiso_eliminar' cliente.numero permiso.clave_numerica %}"
-                                      onsubmit="return confirm('¿Eliminar este permiso?')">
-                                    {% csrf_token %}
-                                    <button type="submit" class="btn-eliminar">
-                                        <i data-lucide="trash-2"></i>
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                <div class="detalle-tabla-scroll">
+                    <table class="tabla-pedimentos">
+                        <thead>
+                            <tr>
+                                <th>Clave / Folio</th>
+                                <th>Autoridad</th>
+                                <th>Vigencia</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for permiso in permisos %}
+                            <tr>
+                                <td style="font-weight:500; color:#111827;">
+                                    {{ permiso.clave_numerica }}
+                                </td>
+                                <td>{{ permiso.tipo_permiso }}</td>
+                                <td>{{ permiso.vigencia }}</td>
+                                <td>
+                                    {% if permiso.vigencia >= hoy %}
+                                        <span class="estado-pill estado-validado">Vigente</span>
+                                    {% else %}
+                                        <span class="estado-pill estado-transmitido">Vencido</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <form method="post"
+                                        action="{% url 'home:cliente_permiso_eliminar' cliente.numero permiso.clave_numerica %}"
+                                        onsubmit="return confirm('¿Eliminar este permiso?')">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn-eliminar">
+                                            <i data-lucide="trash-2"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             {% else %}
                 <div class="empty-state">
                     <i data-lucide="file-x"></i>
