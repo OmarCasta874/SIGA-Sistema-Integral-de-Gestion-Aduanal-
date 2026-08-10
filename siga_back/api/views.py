@@ -348,19 +348,30 @@ class ClienteViewSet(viewsets.ModelViewSet):
             )
         except DatabaseError as e:
             mensaje = str(e)
-            
+
             if "RENOVACION|" in mensaje:
-                partes = mensaje.split("|")
-                
+                partes  = mensaje.split("|")
+                folio   = partes[1]
+                # Renovar: actualizar vigencia y descripción del permiso existente
+                Permiso.objects.filter(clave_numerica=folio).update(
+                    vigencia=vigencia_date,
+                    descripcion=descripcion or None,
+                )
+                permiso_renovado = Permiso.objects.get(clave_numerica=folio)
+                hoy = timezone.localdate()
                 return Response(
                     {
-                        "error": partes[2],
-                        "folio": partes[1],
-                        "renovado": True,
+                        'clave':       folio,
+                        'tipo':        permiso_renovado.tipo_permiso,
+                        'vigencia':    vigencia_date.strftime("%d/%m/%Y"),
+                        'vigente':     vigencia_date >= hoy,
+                        'descripcion': permiso_renovado.descripcion or "",
+                        'folio':       folio,
+                        'renovado':    True,
                     },
-                    status=status.HTTP_409_CONFLICT,
+                    status=status.HTTP_200_OK,
                 )
-                
+
             return Response(
                 {"error": mensaje},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
