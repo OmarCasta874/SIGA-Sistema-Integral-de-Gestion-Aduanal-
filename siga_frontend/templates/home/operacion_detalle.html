@@ -243,6 +243,7 @@
         <span class="tipo-badge tipo-{{ op.tipo_operacion|lower }}">{{ op.tipo_operacion }}</span>
         <span class="estado-op-pill" style="
             {% if resumen_operacion.estado == 'Completada' %}background:#DCFCE7;color:#16A34A;
+            {% elif resumen_operacion.estado == 'Cerrada' %}background:#FEE2E2;color:#B91C1C;
             {% elif resumen_operacion.estado == 'En revisión' %}background:#FEF3C7;color:#B45309;
             {% elif resumen_operacion.estado == 'Pendiente de pago' %}background:#FEF3C7;color:#B45309;
             {% else %}background:#FEF3C7;color:#B45309;{% endif %}">
@@ -273,6 +274,7 @@
                 <span class="detalle-label">Estado</span>
                 <span class="estado-op-pill" style="
                     {% if resumen_operacion.estado == 'Completada' %}background:#DCFCE7;color:#16A34A;
+                    {% elif resumen_operacion.estado == 'Cerrada' %}background:#FEE2E2;color:#B91C1C;
                     {% elif resumen_operacion.estado == 'En revisión' %}background:#FEF3C7;color:#B45309;
                     {% elif resumen_operacion.estado == 'Pendiente de pago' %}background:#FEF3C7;color:#B45309;
                     {% else %}background:#FEF3C7;color:#B45309;{% endif %}">

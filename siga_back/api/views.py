@@ -613,9 +613,7 @@ class OperacionViewSet(viewsets.ModelViewSet):
                 # Vincular paquete seleccionado a este pedimento
                 if paquete_codigo:
                     Paquete.objects.filter(codigo=paquete_codigo).update(pedimento=ped)
-                    
-                    ped.valor_total = valor_total_calculado
-                    ped.save(update_fields=['valor_total'])
+                    actualizar_valor_operacion(op.ID_operacion)
 
                 # RF31: actualizar estado de operación a "Pendiente de pago"
                 estado_pendiente = get_object_or_404(EstadoOpeAduanera, codigo=4)
@@ -1585,6 +1583,21 @@ class IncidenciaViewSet(viewsets.ModelViewSet):
             incidencia=incidencia,
             estado_pago=estado_pagado,
         )
+
+        # Al pagar la multa la mercancía es devuelta — operación concluye como Devuelta
+        try:
+            pedimento = incidencia.inspeccion.semaforo.pedimentos.first()
+            if pedimento:
+                op = pedimento.ope_aduanera
+                estado_devuelta = EstadoOpeAduanera.objects.filter(
+                    descripcion='Cerrada'
+                ).first()
+                if estado_devuelta and op:
+                    op.estado_ope_aduanera = estado_devuelta
+                    op.fecha_final = timezone.localdate()
+                    op.save(update_fields=['estado_ope_aduanera', 'fecha_final'])
+        except Exception:
+            pass
 
         return Response({
             'no_transaccion': pago.no_transaccion,

@@ -15,7 +15,7 @@ DROP TRIGGER IF EXISTS trg_inspeccion_automatica_semaforo_rojo;
 
 -- =============================================================================
 -- TRIGGER 1
--- Nombre   : t_generar_permiso
+-- Nombre   : t_generar_folio_permiso
 -- Evento   : BEFORE INSERT
 -- Tabla principal  : permiso
 -- Tablas consultas : permiso (lectura del contador global por autoridad)
