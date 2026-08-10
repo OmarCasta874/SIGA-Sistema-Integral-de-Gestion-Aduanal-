@@ -582,19 +582,29 @@ class OperacionViewSet(viewsets.ModelViewSet):
 
         if not regimen_adu_id:
             return Response({'error': 'El régimen aduanero es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
-        if not permiso_clave:
-            return Response({'error': 'El permiso es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not permiso_clave and paquete_codigo:
+            requiere_permiso = CategoriasProductosRel.objects.filter(
+                productos__paquete=paquete_codigo,
+                categorias__tipo_permiso_requerido__isnull=False,
+            ).exists()
+            if requiere_permiso:
+                return Response(
+                    {'error': 'Uno o más productos del paquete requieren un permiso. Selecciona el permiso correspondiente.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         regimen = get_object_or_404(RegimenAduanero, num_regimen=regimen_adu_id)
-        permiso = get_object_or_404(Permiso, clave_numerica=permiso_clave)
+        permiso = get_object_or_404(Permiso, clave_numerica=permiso_clave) if permiso_clave else None
 
         numero_pedimento = _generar_numero_pedimento(op.aduana_id)
-        # El semáforo se genera aquí para que el trigger t_generar_pedimento
-        # pueda evaluarlo en el BEFORE INSERT y crear la inspección si es rojo.
-        semaforo = _generar_semaforo()
 
         try:
             with transaction.atomic():
+                # Semáforo dentro de la transacción: si el trigger bloquea el pedimento,
+                # el rollback elimina también el semáforo (evita registros huérfanos).
+                # El trigger BEFORE INSERT puede leerlo porque comparte la misma sesión.
+                semaforo = _generar_semaforo()
                 ped = Pedimento.objects.create(
                     numero_pedimento=numero_pedimento,
                     clave_pedimento=clave_pedimento,

@@ -234,7 +234,7 @@ CREATE TABLE pedimento (
     valor_total      DECIMAL(12,2) NOT NULL,
     semaforo         INT           NULL,
     regimen_adu      INT           NOT NULL,
-    permiso          VARCHAR(30)   NOT NULL,
+    permiso          VARCHAR(30)   NULL,
     ope_aduanera     INT           NOT NULL,
     tipo_exportacion INT           NULL,
     tipo_importacion INT           NULL,
