@@ -582,6 +582,18 @@ class OperacionViewSet(viewsets.ModelViewSet):
 
         if not regimen_adu_id:
             return Response({'error': 'El régimen aduanero es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not permiso_clave and paquete_codigo:
+            requiere_permiso = CategoriasProductosRel.objects.filter(
+                productos__paquete=paquete_codigo,
+                categorias__tipo_permiso_requerido__isnull=False,
+            ).exists()
+            if requiere_permiso:
+                return Response(
+                    {'error': 'Uno o más productos del paquete requieren un permiso. Selecciona el permiso correspondiente.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         regimen = get_object_or_404(RegimenAduanero, num_regimen=regimen_adu_id)
         permiso = get_object_or_404(Permiso, clave_numerica=permiso_clave) if permiso_clave else None
 
