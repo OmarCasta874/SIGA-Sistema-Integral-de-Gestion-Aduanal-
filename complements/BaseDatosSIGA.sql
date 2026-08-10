@@ -3493,3 +3493,30 @@ INSERT INTO producto (nombre, descripcion, peso, valor_unitario, paquete) VALUES
 INSERT INTO categorias_productos_rel (categorias, productos) VALUES (30, LAST_INSERT_ID());
 
 ALTER TABLE inspeccion ADD COLUMN motivo_segunda VARCHAR(500) NULL;
+
+-- ================================================================
+-- Complemento: campos calculados (GENERATED COLUMNS)
+-- Justificación: valores que se derivan de otros atributos en la
+-- misma fila se delegan a la base de datos para garantizar
+-- consistencia sin intervención de la capa de aplicación.
+-- ================================================================
+
+-- factura.total: el total siempre es subtotal + IVA (STORED para
+-- que sea accesible como columna física sin recalcular en cada lectura)
+ALTER TABLE factura
+  MODIFY COLUMN total DECIMAL(12,2) GENERATED ALWAYS AS (subtotal + IVA) STORED;
+
+-- producto.valor_total: precio por cantidad de esa línea de producto
+-- producto.peso_total : peso por cantidad de esa línea de producto
+ALTER TABLE producto
+  ADD COLUMN valor_total DECIMAL(14,2) GENERATED ALWAYS AS (valor_unitario * cantidad) VIRTUAL,
+  ADD COLUMN peso_total  DECIMAL(12,2) GENERATED ALWAYS AS (peso * cantidad)            VIRTUAL;
+
+-- arancel.igi_importe: importe real en pesos del IGI (tasa % sobre subtotal)
+ALTER TABLE arancel
+  ADD COLUMN igi_importe DECIMAL(12,2) GENERATED ALWAYS AS (subtotal * IGI / 100) VIRTUAL;
+
+-- Verificar resultado:
+-- DESCRIBE factura;
+-- DESCRIBE producto;
+-- DESCRIBE arancel;

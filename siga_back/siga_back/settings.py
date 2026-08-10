@@ -46,6 +46,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'siga_back.middleware.DatabaseUnavailableMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -138,6 +139,7 @@ DatabaseFeatures.can_return_columns_from_insert = property(lambda self: False)
 DatabaseFeatures.can_return_rows_from_bulk_insert = property(lambda self: False)
 
 AUTH_USER_MODEL = 'home.Usuario'
+SESSION_ENGINE = 'django.contrib.sessions.backends.file'
 
 # ── Django REST Framework ──────────────────────────────────────────────────────
 REST_FRAMEWORK = {
@@ -147,6 +149,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'EXCEPTION_HANDLER': 'api.views.custom_exception_handler',
 }
 
 # ── CORS (permitir peticiones desde el frontend en otro puerto) ────────────────

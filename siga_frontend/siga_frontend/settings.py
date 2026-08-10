@@ -44,6 +44,7 @@ API_BACKEND_URL = 'http://127.0.0.1:8000/api'
 LOGIN_URL = '/login/'
 
 MIDDLEWARE = [
+    'home.middleware.DatabaseUnavailableMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -137,3 +138,7 @@ DatabaseFeatures.can_return_columns_from_insert = property(lambda self: False)
 DatabaseFeatures.can_return_rows_from_bulk_insert = property(lambda self: False)
 
 AUTH_USER_MODEL = 'home.Usuario'
+SESSION_ENGINE = 'django.contrib.sessions.backends.file'
+
+handler404 = 'home.views.page_not_found'
+handler500 = 'home.views.server_error'

@@ -1,5 +1,6 @@
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.db import models
+from django.db.models import ExpressionWrapper, F, GeneratedField
 
 # ──────────────────────────────────────────────────────────────────
 # Modelo USUARIO
@@ -582,7 +583,11 @@ class Factura(models.Model):
     codigo = models.AutoField(primary_key=True, db_column='codigo')
     IVA = models.DecimalField(max_digits=12, decimal_places=2, db_column='IVA')
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, db_column='subtotal')
-    total = models.DecimalField(max_digits=12, decimal_places=2, db_column='total')
+    total = GeneratedField(
+        expression=ExpressionWrapper(F('subtotal') + F('IVA'), output_field=models.DecimalField(max_digits=12, decimal_places=2)),
+        output_field=models.DecimalField(max_digits=12, decimal_places=2),
+        db_persist=True,
+    )
     folio_fiscal = models.CharField(max_length=50, unique=True, db_column='folio_fiscal')
     fecha_factura = models.DateField(db_column='fecha_factura')
     ID_operacion = models.ForeignKey(
@@ -698,6 +703,11 @@ class Arancel(models.Model):
     descripcion = models.CharField(max_length=200, blank=True, null=True, db_column='descripcion')
     IGI = models.DecimalField(max_digits=5, decimal_places=2, db_column='IGI')
     tasa_interes = models.DecimalField(max_digits=5, decimal_places=2, db_column='tasa_interes')
+    igi_importe = GeneratedField(
+        expression=ExpressionWrapper(F('subtotal') * F('IGI') / 100, output_field=models.DecimalField(max_digits=12, decimal_places=2)),
+        output_field=models.DecimalField(max_digits=12, decimal_places=2),
+        db_persist=False,
+    )
     Tipo_Arancel = models.ForeignKey(
         TipoArancel, on_delete=models.CASCADE,
         db_column='Tipo_Arancel', related_name='aranceles'
@@ -817,6 +827,16 @@ class Producto(models.Model):
     peso = models.DecimalField(max_digits=10, decimal_places=2, db_column='peso')
     valor_unitario = models.DecimalField(max_digits=12, decimal_places=2, db_column='valor_unitario')
     cantidad = models.IntegerField(default=1, db_column='cantidad')
+    valor_total = GeneratedField(
+        expression=ExpressionWrapper(F('valor_unitario') * F('cantidad'), output_field=models.DecimalField(max_digits=14, decimal_places=2)),
+        output_field=models.DecimalField(max_digits=14, decimal_places=2),
+        db_persist=False,
+    )
+    peso_total = GeneratedField(
+        expression=ExpressionWrapper(F('peso') * F('cantidad'), output_field=models.DecimalField(max_digits=12, decimal_places=2)),
+        output_field=models.DecimalField(max_digits=12, decimal_places=2),
+        db_persist=False,
+    )
     paquete = models.ForeignKey(
         Paquete, on_delete=models.SET_NULL,
         db_column='paquete', related_name='productos',

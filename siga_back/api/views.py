@@ -6,13 +6,15 @@ from django.contrib.auth import authenticate
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
-from django.db import models, DatabaseError, connection, transaction, IntegrityError
+from django.db import models, DatabaseError, OperationalError, connection, transaction, IntegrityError
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
 from rest_framework import viewsets, status
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import action, api_view, authentication_classes, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.views import APIView
+from rest_framework.views import APIView, exception_handler as drf_exception_handler
 from rest_framework.authtoken.models import Token
 
 from home.models import (
@@ -99,6 +101,22 @@ def _generar_numero_pedimento(codigo_aduana):
     cod = str(codigo_aduana).zfill(2)
     consecutivo = str(Pedimento.objects.count() + 1).zfill(6)
     return f'{anio_2d} {cod} {patente} {ultimo_digito} {consecutivo}'
+
+
+def _db_error_response(entity_name):
+    return Response(
+        {'error': f'No se pudo cargar la información de {entity_name}. Intente de nuevo en otro momento.'},
+        status=status.HTTP_503_SERVICE_UNAVAILABLE,
+    )
+
+
+def custom_exception_handler(exc, context):
+    if isinstance(exc, (DatabaseError, OperationalError)):
+        return Response(
+            {'error': 'No se pudo completar la operación. La base de datos o el servidor no está disponible.'},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    return drf_exception_handler(exc, context)
 
 
 # ── Auth ───────────────────────────────────────────────────────────────────────
@@ -199,34 +217,75 @@ class ClienteViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='contacto')
     def contacto(self, request, pk=None):
-        cliente  = self.get_object()
-        telefono = request.data.get('telefono', '').strip()
-        correo   = request.data.get('correo_electronico', '').strip()
+        cliente = self.get_object()
 
-        if telefono:
-            tel = cliente.telefonos.first()
-            if tel:
-                tel.numTelefono = telefono
-                tel.save()
-            else:
-                Telefono.objects.create(numTelefono=telefono, cliente=cliente)
+        telefono = request.data.get('telefono', '').strip()
+        correo = request.data.get('correo_electronico', '').strip()
 
         if correo:
-            cor = cliente.correos.first()
-            if cor:
-                cor.correoElec = correo
-                cor.save()
-            else:
-                CorreoElectronico.objects.create(
-                    correoElec=correo, cliente=cliente, usuario=request.user
+            try:
+                validate_email(correo)
+            except ValidationError:
+                return Response(
+                    {
+                        'ok': False,
+                        'error': 'Ingrese un correo electrónico válido.'
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
                 )
 
-        _registrar_bitacora(
-            usuario=request.user, modulo='Clientes', tipo_accion='Edición',
-            descripcion=f'Contacto actualizado: {cliente}',
-        )
-        return Response({'ok': True})
+        try:
+            with transaction.atomic():
 
+                if telefono:
+                    tel = cliente.telefonos.first()
+
+                    if tel:
+                        tel.numTelefono = telefono
+                        tel.save()
+                        #raise Exception("prueba de rollback") #Error intencional para prueba
+                    else:
+                        Telefono.objects.create(
+                            numTelefono=telefono,
+                            cliente=cliente
+                        )
+
+                if correo:
+                    cor = cliente.correos.first()
+
+                    if cor:
+                        cor.correoElec = correo
+                        cor.save()
+                    else:
+                        CorreoElectronico.objects.create(
+                            correoElec=correo,
+                            cliente=cliente,
+                            usuario=request.user
+                        )
+
+                _registrar_bitacora(
+                    usuario=request.user,
+                    modulo='Clientes',
+                    tipo_accion='Edición',
+                    descripcion=f'Contacto actualizado: {cliente}',
+                )
+
+            return Response(
+                {
+                    'ok': True,
+                    'mensaje': 'Contacto actualizado correctamente.'
+                },
+                status=status.HTTP_200_OK
+            )
+
+        except Exception:
+            return Response(
+                {
+                    'ok': False,
+                    'error': 'La actualización no pudo completarse. '
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     @action(detail=True, methods=['post'], url_path='toggle-activo')
     def toggle_activo(self, request, pk=None):
         cliente = self.get_object()
@@ -399,7 +458,7 @@ class AduanaViewSet(viewsets.ModelViewSet):
                 pass
             
         if not resultado:
-            returnResponse({'error': 'No encontrada'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'No encontrada'}, status=status.HTTP_404_NOT_FOUND)
             
         return Response({
             'aduana': resultado[0],
@@ -530,7 +589,10 @@ class OperacionViewSet(viewsets.ModelViewSet):
         permiso = get_object_or_404(Permiso, clave_numerica=permiso_clave)
 
         numero_pedimento = _generar_numero_pedimento(op.aduana_id)
-        
+        # El semáforo se genera aquí para que el trigger t_generar_pedimento
+        # pueda evaluarlo en el BEFORE INSERT y crear la inspección si es rojo.
+        semaforo = _generar_semaforo()
+
         try:
             with transaction.atomic():
                 ped = Pedimento.objects.create(
@@ -545,14 +607,13 @@ class OperacionViewSet(viewsets.ModelViewSet):
                     pais_destino=pais_destino,
                     incoterm=incoterm,
                     tipo_cambio=tipo_cambio,
+                    semaforo=semaforo,
                 )
 
                 # Vincular paquete seleccionado a este pedimento
                 if paquete_codigo:
                     Paquete.objects.filter(codigo=paquete_codigo).update(pedimento=ped)
-                    
-                    ped.valor_total = valor_total_calculado
-                    ped.save(update_fields=['valor_total'])
+                    actualizar_valor_operacion(op.ID_operacion)
 
                 # RF31: actualizar estado de operación a "Pendiente de pago"
                 estado_pendiente = get_object_or_404(EstadoOpeAduanera, codigo=4)
@@ -575,8 +636,10 @@ class OperacionViewSet(viewsets.ModelViewSet):
 
         return Response(
             {
-                'numero_pedimento': ped.numero_pedimento,
-                'valor_total':      float(ped.valor_total),
+                'numero_pedimento':  ped.numero_pedimento,
+                'valor_total':       float(ped.valor_total),
+                'semaforo_resultado': semaforo.resultado,
+                'inspeccion_creada': 'Rojo' in semaforo.resultado,
             },
             status=status.HTTP_201_CREATED,
         )
@@ -627,7 +690,7 @@ class PedimentoViewSet(viewsets.ReadOnlyModelViewSet):
         if not numero:
             return Response({'error': 'numero_pedimento es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
         ped = get_object_or_404(Pedimento, numero_pedimento=numero)
-        if ped.semaforo_id:
+        if ped.pagos.exists():
             return Response({'error': 'El pedimento ya fue pagado.'}, status=status.HTTP_400_BAD_REQUEST)
         ped.fecha_limite = timezone.now() + timedelta(hours=48)
         ped.save(update_fields=['fecha_limite'])
@@ -804,23 +867,31 @@ class PagoViewSet(viewsets.ModelViewSet):
         if not monto:
             return Response({'error': 'El monto es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        ped = get_object_or_404(Pedimento, numero_pedimento=pedimento_num)
+        ped = get_object_or_404(
+            Pedimento.objects.select_related('semaforo', 'ope_aduanera'),
+            numero_pedimento=pedimento_num,
+        )
 
         if ped.pagos.exists():
             return Response({'error': 'Este pedimento ya tiene un pago registrado.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # RF33: generar semáforo al registrar el pago
-        semaforo = _generar_semaforo()
-        ped.semaforo = semaforo
-        ped.save(update_fields=['semaforo'])
+        # El semáforo fue generado al crear el pedimento; el trigger t_generar_pedimento
+        # ya se encargó de crear la inspección si el resultado fue rojo.
+        semaforo = ped.semaforo
 
-        # RF51: si semáforo rojo → generar inspección automática
-        if 'Rojo' in semaforo.resultado:
-            Inspeccion.objects.create(
-                fecha_inspeccion=timezone.localdate(),
-                hora_inicio=datetime.now().time(),
-                semaforo=semaforo,
-            )
+        # RF33: el semáforo ya no se genera aquí — se genera al crear el pedimento
+        # para que el trigger de BD pueda evaluarlo en el BEFORE INSERT.
+        # semaforo = _generar_semaforo()
+        # ped.semaforo = semaforo
+        # ped.save(update_fields=['semaforo'])
+
+        # RF51: la inspección ahora la crea el trigger t_generar_pedimento en BD.
+        # if 'Rojo' in semaforo.resultado:
+        #     Inspeccion.objects.create(
+        #         fecha_inspeccion=timezone.localdate(),
+        #         hora_inicio=datetime.now().time(),
+        #         semaforo=semaforo,
+        #     )
 
         estado_pagado = get_object_or_404(EstadoPago, codigo=1)
         num_pago      = Pago.objects.count() + 1
@@ -891,7 +962,6 @@ def factura_crear(request):
     factura = Factura.objects.create(
         IVA=iva,
         subtotal=subtotal,
-        total=total,
         folio_fiscal=str(_uuid.uuid4()).upper(),
         fecha_factura=timezone.localdate(),
         ID_operacion=op,
@@ -1513,6 +1583,21 @@ class IncidenciaViewSet(viewsets.ModelViewSet):
             incidencia=incidencia,
             estado_pago=estado_pagado,
         )
+
+        # Al pagar la multa la mercancía es devuelta — operación concluye como Devuelta
+        try:
+            pedimento = incidencia.inspeccion.semaforo.pedimentos.first()
+            if pedimento:
+                op = pedimento.ope_aduanera
+                estado_devuelta = EstadoOpeAduanera.objects.filter(
+                    descripcion='Cerrada'
+                ).first()
+                if estado_devuelta and op:
+                    op.estado_ope_aduanera = estado_devuelta
+                    op.fecha_final = timezone.localdate()
+                    op.save(update_fields=['estado_ope_aduanera', 'fecha_final'])
+        except Exception:
+            pass
 
         return Response({
             'no_transaccion': pago.no_transaccion,

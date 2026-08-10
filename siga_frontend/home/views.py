@@ -8,6 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
+from django.http import HttpResponseNotFound, HttpResponseServerError
 
 from . import api_client as api
 from .forms import (
@@ -55,6 +56,22 @@ def _build_op_ctx(op: dict) -> dict:
     op['fecha_inicio'] = _to_date(op.get('fecha_inicio', ''))
     op['pk']           = op.get('ID_operacion')
     return op
+
+
+# ── Handlers de error ───────────────────────────────────────────────────────
+
+def page_not_found(request, exception=None):
+    return render(request, 'home/error.html', {
+        'titulo': 'Página no encontrada',
+        'mensaje': 'La dirección que intentó abrir no existe o ya no está disponible.',
+    }, status=404)
+
+
+def server_error(request):
+    return render(request, 'home/error.html', {
+        'titulo': 'Ha ocurrido un error inesperado',
+        'mensaje': 'Lo sentimos, algo salió mal. Intente nuevamente en unos minutos.',
+    }, status=500)
 
 
 # ── Auth ───────────────────────────────────────────────────────────────────────
@@ -215,11 +232,19 @@ def clientes_view(request):
     query = request.GET.get('q', '')
 
     try:
-        resp     = api.get(request, '/clientes/')
-        clientes = api.safe_json(resp, []) if resp.status_code == 200 else []
+        resp = api.get(request, '/clientes/')
+        if resp.status_code == 200:
+            clientes = api.safe_json(resp, [])
+        else:
+            clientes = []
+            error_msg = api.safe_json(resp).get('error') if hasattr(resp, 'text') else None
+            messages.error(
+                request,
+                error_msg or 'No se pueden cargar los clientes en este momento. Intente de nuevo más tarde.'
+            )
     except Exception:
         clientes = []
-        messages.error(request, 'No fue posible obtener la lista de clientes.')
+        messages.error(request, 'No se pueden cargar los clientes en este momento. Intente de nuevo más tarde.')
 
     if query:
         q = query.lower()
@@ -1221,9 +1246,7 @@ def permisos_view(request):
 
     try:
         resp      = api.get(request, '/permisos/')
-        print("RESPUESTA PERMISOS: ", api.safe_json(resp))
         todos     = api.safe_json(resp, []) if resp.status_code == 200 else []
-        print("PERMISOS API: ", todos)
     except Exception:
         todos = []
         messages.error(request, 'No fue posible obtener los permisos.')
@@ -1288,8 +1311,6 @@ def perfilusuario_view(request):
                 "Perfil actualizado correctamente. "
             )
         else:
-            print(respuesta.status_code)
-            print(respuesta.text)
             messages.error(
                 request,
                 f"Error: {respuesta.text}"
@@ -1325,8 +1346,7 @@ def semaforofiscal_view(request):
                 semaforo["clase_css"] = "pill-restringida"
             else:
                 semaforo["clase_css"] = ""
-    except Exception as e:
-        print(f"Error al obtener semáforos: {e}")
+    except Exception:
         semaforos = []
 
     total_verde = sum(1 for s in semaforos if s.get('resultado', '').lower().startswith('verde'))
@@ -1489,10 +1509,6 @@ def paquete_detalle_view(request, pk):
             messages.success(request, 'Producto agregado correctamente.')
         else:
             error = api.safe_json(resp, {})
-            
-            print("------- Error Backend -------")
-            print(error)
-            print("------------------------------")
             
             messages.error(request, str(error))
             
