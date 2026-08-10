@@ -598,12 +598,13 @@ class OperacionViewSet(viewsets.ModelViewSet):
         permiso = get_object_or_404(Permiso, clave_numerica=permiso_clave) if permiso_clave else None
 
         numero_pedimento = _generar_numero_pedimento(op.aduana_id)
-        # El semáforo se genera aquí para que el trigger t_generar_pedimento
-        # pueda evaluarlo en el BEFORE INSERT y crear la inspección si es rojo.
-        semaforo = _generar_semaforo()
 
         try:
             with transaction.atomic():
+                # Semáforo dentro de la transacción: si el trigger bloquea el pedimento,
+                # el rollback elimina también el semáforo (evita registros huérfanos).
+                # El trigger BEFORE INSERT puede leerlo porque comparte la misma sesión.
+                semaforo = _generar_semaforo()
                 ped = Pedimento.objects.create(
                     numero_pedimento=numero_pedimento,
                     clave_pedimento=clave_pedimento,
