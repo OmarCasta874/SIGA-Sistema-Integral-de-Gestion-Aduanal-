@@ -65,6 +65,7 @@ def _parse_date(value):
 def actualizar_valor_operacion(operacion_id):
     with connection.cursor() as cursor:
         cursor.execute(
+            #Procedimiento Almacenado SP1 sp_calcular_valor_operacion
             "CALL sp_calcular_valor_operacion(%s)",
             [operacion_id]
         )
@@ -335,6 +336,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Fecha de vigencia inválida. Use el formato YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
+            #Trigger 1 t_generar_folio_permiso
             Permiso.objects.create(
                 clave_numerica="TEMP",
                 tipo_permiso=autoridad,
@@ -396,6 +398,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
         cliente = self.get_object()
         with connection.cursor() as cursor:
             cursor.execute(
+                #Procedimiento Almacenado 3 sp_resumen_financiero_cliente
                 "CALL sp_resumen_financiero_cliente(%s)",
                 [cliente.pk]
             )
@@ -462,6 +465,7 @@ class AduanaViewSet(viewsets.ModelViewSet):
         
         with connection.cursor() as cursor:
             cursor.execute(
+                #Procedimiento Almacenado 5 sp_estadisticas_aduana
                 "CALL sp_estadisticas_aduana(%s)", [aduana.pk]
             )
             resultado = cursor.fetchone()
@@ -507,6 +511,7 @@ class OperacionViewSet(viewsets.ModelViewSet):
         try:
             with transaction.atomic():
                 with connection.cursor() as cursor:
+                    #Trigger 2 t_generar_operacion
                     cursor.execute("""
                         INSERT INTO operacion_aduanera
                         (
@@ -612,6 +617,7 @@ class OperacionViewSet(viewsets.ModelViewSet):
 
         try:
             with transaction.atomic():
+                #Trigger 3 t_generar_pedimento
                 # Semáforo dentro de la transacción: si el trigger bloquea el pedimento,
                 # el rollback elimina también el semáforo (evita registros huérfanos).
                 # El trigger BEFORE INSERT puede leerlo porque comparte la misma sesión.
@@ -673,6 +679,7 @@ class OperacionViewSet(viewsets.ModelViewSet):
         
         with connection.cursor() as cursor:
             cursor.execute(
+                #Procedimiento Almacenado 2 sp_resumen_operacion
                 "CALL sp_resumen_operacion(%s)",
                 [op.pk]
             )
@@ -727,6 +734,7 @@ class PedimentoViewSet(viewsets.ReadOnlyModelViewSet):
         
         with connection.cursor() as cursor:
             cursor.execute(
+                #Procedimiento Almacenado 1 sp_calcular_valor_operacion
                 "CALL sp_calcular_valor_operacion(%s)",
                 [operacion_id]
             )
@@ -1330,6 +1338,7 @@ class VencimientosAPIView(APIView):
     def get(self, request):
         dias = int(request.GET.get('dias', 30))
         with connection.cursor() as cursor:
+            #Procedimiento Almacenado 4 sp_consultar_vencimientos
             cursor.execute("CALL sp_consultar_vencimientos(%s)", [dias])
             columnas = [col[0] for col in cursor.description]
             filas = cursor.fetchall()
