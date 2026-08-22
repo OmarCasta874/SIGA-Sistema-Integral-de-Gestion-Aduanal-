@@ -1508,13 +1508,15 @@ def paquete_detalle_view(request, pk):
             'paquete':        pk,
         })
         if resp.status_code == 201:
-            messages.success(request, 'Producto agregado correctamente.')
+            return JsonResponse({'ok': True}, status=201)
+        error = api.safe_json(resp, {})
+        if isinstance(error, dict):
+            msg = error.get('error') or next(
+                (f'{v[0]}' if isinstance(v, list) else str(v) for v in error.values()), 'Error al guardar el producto.'
+            )
         else:
-            error = api.safe_json(resp, {})
-            
-            messages.error(request, str(error))
-            
-        return redirect('home:paquete_detalle', pk=pk)
+            msg = str(error) or 'Error al guardar el producto.'
+        return JsonResponse({'error': msg}, status=400)
 
     resp = api.get(request, f'/paquetes/{pk}/')
     if resp.status_code != 200:
