@@ -565,7 +565,8 @@ class ProductoSerializer(serializers.ModelSerializer):
     def get_igi_importe(self, obj):
         rel = obj.categorias_rel.select_related('categorias').first()
         if rel and rel.categorias.IGI:
-            return float(obj.valor_unitario * rel.categorias.IGI / 100)
+            base = obj.valor_total if obj.valor_total else obj.valor_unitario
+            return float(base * rel.categorias.IGI / 100)
         return 0.0
 
     def get_fraccion_arancelaria(self, obj):
