@@ -24,6 +24,7 @@ from home.models import (
     Paquete, Producto, Pago, Factura, Sancion,
     EstadoOpeAduanera, EstadoPago, Inspeccion, TipoEmbalaje,
     Telefono, CorreoElectronico, Incidencia, SegundaInspeccion,
+    Arancel, TipoArancel,
 )
 from .serializers import (
     UsuarioSerializer, UsuarioCreateSerializer, UsuarioUpdateSerializer,
@@ -647,6 +648,40 @@ class OperacionViewSet(viewsets.ModelViewSet):
                     Paquete.objects.filter(codigo=paquete_codigo).update(pedimento=ped)
                     actualizar_valor_operacion(op.ID_operacion)
                     ped.refresh_from_db()  # SP1 actualizó valor_total en DB; el objeto Python estaba obsoleto
+
+                    # Crear registros de arancel por categoría.
+                    # Trigger 6 (trg_arancel_igi_importe_ins) se dispara en cada INSERT
+                    # y calcula automáticamente igi_importe = subtotal * IGI / 100.
+                    categorias_subtotales = {}
+                    for prod in Producto.objects.filter(paquete=paquete_codigo).prefetch_related(
+                        'categorias_rel__categorias__tipo_arancel'
+                    ):
+                        rel = prod.categorias_rel.select_related(
+                            'categorias__tipo_arancel'
+                        ).first()
+                        if not rel:
+                            continue
+                        cat = rel.categorias
+                        valor = float(prod.valor_total or (prod.valor_unitario * prod.cantidad))
+                        if cat.numero in categorias_subtotales:
+                            categorias_subtotales[cat.numero]['subtotal'] += valor
+                        else:
+                            categorias_subtotales[cat.numero] = {
+                                'subtotal': valor,
+                                'categoria': cat,
+                            }
+
+                    for data in categorias_subtotales.values():
+                        cat = data['categoria']
+                        Arancel.objects.create(
+                            subtotal=data['subtotal'],
+                            descripcion=cat.nombre,
+                            IGI=cat.IGI,
+                            tasa_interes=0,
+                            Tipo_Arancel=cat.tipo_arancel,
+                            pedimento=ped,
+                            categoria=cat,
+                        )
 
                 # RF31: actualizar estado de operación a "Pendiente de pago"
                 estado_pendiente = get_object_or_404(EstadoOpeAduanera, codigo=4)
