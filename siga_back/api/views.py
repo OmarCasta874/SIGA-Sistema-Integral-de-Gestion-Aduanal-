@@ -1048,17 +1048,21 @@ def factura_crear(request):
         return Response({'error': 'El pago no tiene una operación aduanera asociada.'}, status=status.HTTP_400_BAD_REQUEST)
 
     op = pago.pedimento.ope_aduanera
-    existente = op.facturas.first()
-    if existente:
-        return Response(FacturaSerializer(existente).data, status=status.HTTP_200_OK)
 
     total    = float(pago.monto)
     iva      = round(total * 0.16 / 1.16, 2)
     subtotal = round(total - iva, 2)
 
-    #Trigger 8 trg_factura_total_ins / Trigger 9 trg_factura_total_upd
-    # El INSERT en factura dispara automáticamente el trigger que calcula
-    # total (subtotal + IVA).
+    existente = op.facturas.first()
+    if existente:
+        # Trigger 9 trg_factura_total_upd: recalcula total = subtotal + IVA al hacer UPDATE
+        existente.subtotal = subtotal
+        existente.IVA = iva
+        existente.save(update_fields=['subtotal', 'IVA'])
+        existente.refresh_from_db()  # total lo calculó el trigger, no Python
+        return Response(FacturaSerializer(existente).data, status=status.HTTP_200_OK)
+
+    # Trigger 8 trg_factura_total_ins: calcula total = subtotal + IVA al hacer INSERT
     factura = Factura.objects.create(
         IVA=iva,
         subtotal=subtotal,
@@ -1066,6 +1070,7 @@ def factura_crear(request):
         fecha_factura=timezone.localdate(),
         ID_operacion=op,
     )
+    factura.refresh_from_db()  # total lo calculó el trigger, no Python
 
     return Response(FacturaSerializer(factura).data, status=status.HTTP_201_CREATED)
 
