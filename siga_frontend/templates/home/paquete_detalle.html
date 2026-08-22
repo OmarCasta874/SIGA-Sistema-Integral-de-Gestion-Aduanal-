@@ -579,7 +579,7 @@
             const resp = await fetch(URL_PRODUCTOS, { method: 'POST', body: form });
             if (resp.ok) {
                 sessionStorage.setItem('productoAgregado', '1');
-                window.location.reload();
+                window.location.href = window.location.pathname;
             } else {
                 let msg = 'Error al guardar el producto. Intenta de nuevo.';
                 try {
