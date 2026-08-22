@@ -66,6 +66,11 @@ def actualizar_valor_operacion(operacion_id):
     with connection.cursor() as cursor:
         cursor.execute(
             #Procedimiento Almacenado SP1 sp_calcular_valor_operacion
+            # Los INSERT/UPDATE que realiza este SP sobre la tabla arancel
+            # disparan automáticamente:
+            # Trigger 6 trg_arancel_igi_importe_ins (en INSERT)
+            # Trigger 7 trg_arancel_igi_importe_upd (en UPDATE)
+            # calculando igi_importe = subtotal * IGI / 100.
             "CALL sp_calcular_valor_operacion(%s)",
             [operacion_id]
         )
@@ -990,6 +995,9 @@ def factura_crear(request):
     iva      = round(total * 0.16 / 1.16, 2)
     subtotal = round(total - iva, 2)
 
+    #Trigger 8 trg_factura_total_ins / Trigger 9 trg_factura_total_upd
+    # El INSERT en factura dispara automáticamente el trigger que calcula
+    # total (subtotal + IVA).
     factura = Factura.objects.create(
         IVA=iva,
         subtotal=subtotal,
@@ -1443,6 +1451,9 @@ class PaqueteViewSet(viewsets.ModelViewSet):
         data = {**request.data, 'paquete': paquete.codigo}
         ser = ProductoCreateSerializer(data=data)
         if ser.is_valid():
+            #Trigger 4 trg_producto_calculados_ins / Trigger 5 trg_producto_calculados_upd
+            # El INSERT/UPDATE en producto dispara automáticamente el trigger que calcula
+            # valor_total (valor_unitario * cantidad) y peso_total (peso * cantidad).
             producto = ser.save()
                
             categoria_id = request.data.get('categoria')

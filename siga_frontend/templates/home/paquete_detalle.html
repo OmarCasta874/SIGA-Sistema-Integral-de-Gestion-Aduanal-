@@ -200,7 +200,7 @@
         {% endfor %}
     {% endif %}
 
-    <div class="detalle-grid" style="grid-template-columns: 1fr 2fr; margin-bottom: 24px;">
+    <div class="detalle-grid" style="grid-template-columns: 260px 1fr; margin-bottom: 24px;">
 
         <!-- Info del paquete -->
         <div class="detalle-card">
@@ -249,8 +249,14 @@
                 </div>
                 {% endwith %}
                 <div class="paq-peso-labels">
-                    <span>Ocupado: <strong>{{ paquete.peso_ocupado }} kg</strong></span>
-                    <span>Disponible: <strong id="paq-disponible-txt">{{ paquete.peso_disponible }} kg</strong></span>
+                    <span>
+                        <span class="paq-peso-lbl">Ocupado</span>
+                        <strong>{{ paquete.peso_ocupado }} kg</strong>
+                    </span>
+                    <span>
+                        <span class="paq-peso-lbl">Disponible</span>
+                        <strong id="paq-disponible-txt">{{ paquete.peso_disponible }} kg</strong>
+                    </span>
                 </div>
             </div>
 
@@ -280,7 +286,7 @@
         </div>
 
         <!-- Productos -->
-        <div class="detalle-card">
+        <div class="detalle-card" style="overflow-x: auto;">
             <h3>Productos en este paquete</h3>
 
             {% if paquete.productos %}
@@ -292,6 +298,7 @@
                             <th>Peso</th>
                             <th>Valor unit.</th>
                             <th>Cantidad</th>
+                            <th>Valor total</th>
                             <th>Fracc. Aranc.</th>
                             <th></th>
                         </tr>
@@ -300,10 +307,11 @@
                         {% for prod in paquete.productos %}
                         <tr>
                             <td style="font-weight:500; color:#111827;">{{ prod.nombre }}</td>
-                            <td style="color:#6B7280;">{{ prod.descripcion|default:'—' }}</td>
+                            <td class="col-desc" style="color:#6B7280;">{{ prod.descripcion|default:'—' }}</td>
                             <td>{{ prod.peso }} Kg</td>
                             <td>${{ prod.valor_unitario }}</td>
                             <td>{{ prod.cantidad }}</td>
+                            <td style="font-weight:600; color:#111827;">${{ prod.valor_total|default:"—" }}</td>
                             <td style="font-family:monospace; color:#374151;">{{ prod.fraccion_arancelaria|default:"—" }}</td>
                             <td>
                                 <button type="button"
