@@ -172,7 +172,7 @@
                     </td>
                     <td class="acciones">
                         <button type="button" class="btn-ver" onclick="abrirModalDetalle('{{ aduana.codigo }}')">
-                             Ver
+                             Ver detalle
                         </button>
                         <button type="button" class="btn-editar" onclick="abrirModalEditar('{{ aduana.codigo }}')">
                             Editar
@@ -284,6 +284,17 @@
             <strong>Ciudad</strong>
             <p id="detalleCiudad">-</p>
         </div>
+        <div class="detalle-item">
+            <strong>Estadísticas</strong>
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:6px;">
+                <div><span style="color:#6B7280;font-size:12px;">Operaciones totales</span><br><strong id="detalleTotalOperaciones">—</strong></div>
+                <div><span style="color:#6B7280;font-size:12px;">Pedimentos</span><br><strong id="detalleTotalPedimentos">—</strong></div>
+                <div><span style="color:#6B7280;font-size:12px;">Importaciones</span><br><strong id="detalleImportaciones">—</strong></div>
+                <div><span style="color:#6B7280;font-size:12px;">Exportaciones</span><br><strong id="detalleExportaciones">—</strong></div>
+                <div><span style="color:#16A34A;font-size:12px;">Semáforo verde</span><br><strong id="detalleSemaforoVerde">—</strong></div>
+                <div><span style="color:#DC2626;font-size:12px;">Semáforo rojo</span><br><strong id="detalleSemaforoRojo">—</strong></div>
+            </div>
+        </div>
         <div class="modal-botones">
             <button type="button" class="btn-cancelar" onclick="cerrarModalDetalle()">
                 Cerrar
@@ -382,6 +393,14 @@
                 document.getElementById('detalleCodigo').textContent = data.codigo;
                 document.getElementById('detalleNombre').textContent = data.nombre;
                 document.getElementById('detalleCiudad').textContent = data.ciudad;
+
+                const est = data.estadisticas || {};
+                document.getElementById('detalleTotalOperaciones').textContent = est.total_operaciones ?? '—';
+                document.getElementById('detalleTotalPedimentos').textContent  = est.total_pedimentos ?? '—';
+                document.getElementById('detalleImportaciones').textContent    = est.importaciones ?? '—';
+                document.getElementById('detalleExportaciones').textContent    = est.exportaciones ?? '—';
+                document.getElementById('detalleSemaforoVerde').textContent    = est.semaforo_verde ?? '—';
+                document.getElementById('detalleSemaforoRojo').textContent     = est.semaforo_rojo ?? '—';
 
                 document.getElementById('modalDetalleAduana').classList.add('activo');
             })

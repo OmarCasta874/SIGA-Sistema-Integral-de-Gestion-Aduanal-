@@ -6,11 +6,9 @@ from django.contrib.auth import authenticate
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
-from django.db import transaction
+from django.db import models, DatabaseError, OperationalError, connection, transaction, IntegrityError
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
-
-from django.db import DatabaseError, OperationalError, models, transaction
 from rest_framework import viewsets, status
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import action, api_view, authentication_classes, permission_classes
@@ -26,6 +24,7 @@ from home.models import (
     Paquete, Producto, Pago, Factura, Sancion,
     EstadoOpeAduanera, EstadoPago, Inspeccion, TipoEmbalaje,
     Telefono, CorreoElectronico, Incidencia, SegundaInspeccion,
+    Arancel, TipoArancel,
 )
 from .serializers import (
     UsuarioSerializer, UsuarioCreateSerializer, UsuarioUpdateSerializer,
@@ -64,19 +63,72 @@ def _parse_date(value):
         return date.fromisoformat(value[:10])
     raise ValueError(f'No se puede convertir a fecha: {value!r}')
 
+def actualizar_valor_operacion(operacion_id):
+    with connection.cursor() as cursor:
+        cursor.execute(
+            #Procedimiento Almacenado SP1 sp_calcular_valor_operacion
+            "CALL sp_calcular_valor_operacion(%s)",
+            [operacion_id]
+        )
+        resultado = cursor.fetchone()
+        
+        while cursor.nextset():
+            pass
+        
+    if not resultado:
+        return None
+    
+    valor_total = resultado[3]
+    
+    Pedimento.objects.filter(
+        ope_aduanera_id=operacion_id
+    ).update(
+        valor_total=valor_total
+    )
+    
+    return {
+        'operacion_id': resultado[0],
+        'total_paquetes': resultado[1],
+        'total_productos': resultado[2],
+        'valor_total': valor_total,
+    }
 
-def _generar_folio_permiso(autoridad):
-    anio = timezone.localdate().year
-    prefijo = f'PERM-{autoridad}-{anio}-'
-    claves = Permiso.objects.filter(tipo_permiso=autoridad).values_list('clave_numerica', flat=True)
-    max_num = 0
-    for clave in claves:
-        if clave.startswith(prefijo):
-            try:
-                max_num = max(max_num, int(clave[len(prefijo):]))
-            except (ValueError, IndexError):
-                pass
-    return f'{prefijo}{str(max_num + 1).zfill(3)}'
+
+def _actualizar_arancel_por_categoria(paquete, cat):
+    """
+    Recalcula el subtotal de una categoría en el pedimento del paquete y
+    hace UPDATE en arancel → Trigger 7 (trg_arancel_igi_importe_upd) dispara
+    y recalcula igi_importe = subtotal * IGI / 100.
+    Si no existe arancel para esa categoría, lo crea →
+    Trigger 6 (trg_arancel_igi_importe_ins) dispara.
+    """
+    if not paquete.pedimento_id:
+        return
+    from django.db.models import Sum
+    nuevo_subtotal = (
+        Producto.objects
+        .filter(paquete=paquete.codigo, categorias_rel__categorias=cat)
+        .aggregate(total=Sum('valor_total'))['total'] or 0
+    )
+    arancel_rec = Arancel.objects.filter(
+        pedimento_id=paquete.pedimento_id,
+        categoria=cat,
+    ).first()
+    if arancel_rec:
+        # Trigger 7 trg_arancel_igi_importe_upd
+        arancel_rec.subtotal = nuevo_subtotal
+        arancel_rec.save(update_fields=['subtotal'])
+    else:
+        # Categoría nueva: Trigger 6 trg_arancel_igi_importe_ins
+        Arancel.objects.create(
+            subtotal=nuevo_subtotal,
+            descripcion=cat.nombre,
+            IGI=cat.IGI,
+            tasa_interes=0,
+            Tipo_Arancel=cat.tipo_arancel,
+            pedimento_id=paquete.pedimento_id,
+            categoria=cat,
+        )
 
 
 def _generar_numero_pedimento(codigo_aduana):
@@ -320,46 +372,90 @@ class ClienteViewSet(viewsets.ModelViewSet):
         except (ValueError, TypeError):
             return Response({'error': 'Fecha de vigencia inválida. Use el formato YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        existente = Permiso.objects.filter(cliente=cliente, tipo_permiso=autoridad).first()
-        if existente:
-            existente.vigencia = vigencia_date
-            existente.descripcion = descripcion
-            existente.save(update_fields=['vigencia', 'descripcion'])
-            hoy = timezone.localdate()
-            return Response(
-                {
-                    'clave':       existente.clave_numerica,
-                    'tipo':        existente.tipo_permiso,
-                    'vigencia':    vigencia_date.strftime('%d/%m/%Y'),
-                    'vigente':     vigencia_date >= hoy,
-                    'descripcion': existente.descripcion or '',
-                    'folio':       existente.clave_numerica,
-                    'renovado':    True,
-                },
-                status=status.HTTP_200_OK,
+        try:
+            #Trigger 1 t_generar_folio_permiso
+            Permiso.objects.create(
+                clave_numerica="TEMP",
+                tipo_permiso=autoridad,
+                vigencia=vigencia_date,
+                descripcion=descripcion,
+                cliente=cliente,
             )
+            permiso = Permiso.objects.filter(
+                cliente=cliente,
+                tipo_permiso=autoridad,
+            ).order_by('-pk').first()
+        except DatabaseError as e:
+            mensaje = str(e)
 
-        folio = _generar_folio_permiso(autoridad)
-        Permiso.objects.create(
-            clave_numerica=folio,
-            tipo_permiso=autoridad,
-            vigencia=vigencia_date,
-            descripcion=descripcion,
-            cliente=cliente,
-        )
+            if "RENOVACION|" in mensaje:
+                partes  = mensaje.split("|")
+                folio   = partes[1]
+                # Renovar: actualizar vigencia y descripción del permiso existente
+                Permiso.objects.filter(clave_numerica=folio).update(
+                    vigencia=vigencia_date,
+                    descripcion=descripcion or None,
+                )
+                permiso_renovado = Permiso.objects.get(clave_numerica=folio)
+                hoy = timezone.localdate()
+                return Response(
+                    {
+                        'clave':       folio,
+                        'tipo':        permiso_renovado.tipo_permiso,
+                        'vigencia':    vigencia_date.strftime("%d/%m/%Y"),
+                        'vigente':     vigencia_date >= hoy,
+                        'descripcion': permiso_renovado.descripcion or "",
+                        'folio':       folio,
+                        'renovado':    True,
+                    },
+                    status=status.HTTP_200_OK,
+                )
+
+            return Response(
+                {"error": mensaje},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+                
         hoy = timezone.localdate()
         return Response(
             {
-                'clave':       folio,
-                'tipo':        autoridad,
-                'vigencia':    vigencia_date.strftime('%d/%m/%Y'),
+                'clave':       permiso.clave_numerica,
+                'tipo':        permiso.tipo_permiso,
+                'vigencia':    vigencia_date.strftime("%d/%m/%Y"),
                 'vigente':     vigencia_date >= hoy,
-                'descripcion': descripcion,
-                'folio':       folio,
+                'descripcion': permiso.descripcion or "",
+                'folio':       permiso.clave_numerica,
                 'renovado':    False,
             },
             status=status.HTTP_201_CREATED,
         )
+        
+    @action(detail=True, methods=['get'], url_path='resumen-financiero')
+    def resumen_financiero(self, request, pk=None):
+        cliente = self.get_object()
+        with connection.cursor() as cursor:
+            cursor.execute(
+                #Procedimiento Almacenado 3 sp_resumen_financiero_cliente
+                "CALL sp_resumen_financiero_cliente(%s)",
+                [cliente.pk]
+            )
+            resultado = cursor.fetchone()
+            
+            while cursor.nextset():
+                pass
+            
+        if not resultado:
+            return Response({'error': 'No encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        
+        return Response({
+            'cliente': resultado[0],
+            'nombre_cliente': resultado[1],
+            'total_pedimentos': resultado[2],
+            'pagos_realizados': resultado[3],
+            'pagos_pendientes': resultado[4],
+            'total_pagado': resultado[5],
+            'saldo_pendiente': resultado[6],
+        })
 
 
 class PermisoDeleteView(APIView):
@@ -399,6 +495,33 @@ class AduanaViewSet(viewsets.ModelViewSet):
             "estado": aduana.estado,
             "mensaje": f"La aduana ahora está {aduana.estado}."
         }, status=status.HTTP_200_OK)
+        
+    @action(detail=True, methods=['get'], url_path='estadisticas')
+    def estadisticas(self, request, pk=None):
+        aduana = self.get_object()
+        
+        with connection.cursor() as cursor:
+            cursor.execute(
+                #Procedimiento Almacenado 5 sp_estadisticas_aduana
+                "CALL sp_estadisticas_aduana(%s)", [aduana.pk]
+            )
+            resultado = cursor.fetchone()
+            while cursor.nextset():
+                pass
+            
+        if not resultado:
+            return Response({'error': 'No encontrada'}, status=status.HTTP_404_NOT_FOUND)
+            
+        return Response({
+            'aduana': resultado[0],
+            'nombre_aduana': resultado[1],
+            'total_operaciones': resultado[2],
+            'importaciones': resultado[3],
+            'exportaciones': resultado[4],
+            'total_pedimentos': resultado[5],
+            'semaforo_verde': resultado[6],
+            'semaforo_rojo': resultado[7],
+        })
 
 
 # ── Operaciones ────────────────────────────────────────────────────────────────
@@ -421,30 +544,61 @@ class OperacionViewSet(viewsets.ModelViewSet):
         cliente = get_object_or_404(Cliente, numero=cliente_id)
         aduana = get_object_or_404(Aduana, codigo=aduana_id)
         estado = get_object_or_404(EstadoOpeAduanera, codigo=1)  # "En proceso"
-
-        if not Paquete.objects.filter(cliente=cliente).exists():
+        
+        try:
+            with transaction.atomic():
+                with connection.cursor() as cursor:
+                    #Trigger 2 t_generar_operacion
+                    cursor.execute("""
+                        INSERT INTO operacion_aduanera
+                        (
+                            fecha_inicio,
+                            tipo_operacion,
+                            estado_ope_aduanera,
+                            cliente,
+                            usuario,
+                            aduana
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """, [
+                        timezone.localdate(),
+                        tipo_operacion,
+                        estado.codigo,
+                        cliente.numero,
+                        request.user.ID_usuario,
+                        aduana.codigo,
+                    ])
+                    
+                    operacion_id = cursor.lastrowid
+                    
+                op = (
+                    OperacionAduanera.objects
+                    .select_related(
+                        'cliente',
+                        'aduana',
+                        'estado_ope_aduanera',
+                        'bitacora',
+                    )
+                    .get(ID_operacion=operacion_id)
+                )
+                
+                if op.bitacora_id:
+                    Bitacora.objects.filter(pk=op.bitacora_id).update(usuario=request.user)
+                    
+        except DatabaseError as e:
+            mensaje = str(e)
+            
+            if 'OPERACION BLOQUEADA: ' in mensaje:
+                return Response(
+                    {'error': mensaje},
+                    status=status.HTTP_409_CONFLICT,
+                )
+                
             return Response(
-                {'error': f'El cliente {cliente} no tiene paquetes registrados. Registra al menos un paquete antes de crear una operación.'},
-                status=status.HTTP_400_BAD_REQUEST,
+                {'error': mensaje},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-
-        bitacora = Bitacora.objects.create(
-            descripcion=f'Apertura de operación aduanera | Tipo: {tipo_operacion} | Cliente: {cliente}',
-            fecha=timezone.localdate(),
-            hora=datetime.now().time(),
-            usuario=request.user,
-            modulo='Operaciones',
-            tipo_accion='Creación',
-        )
-        op = OperacionAduanera.objects.create(
-            tipo_operacion=tipo_operacion,
-            cliente=cliente,
-            aduana=aduana,
-            usuario=request.user,
-            bitacora=bitacora,
-            fecha_inicio=timezone.localdate(),
-            estado_ope_aduanera=estado,
-        )
+        
         return Response(
             OperacionDetalleSerializer(op).data,
             status=status.HTTP_201_CREATED,
@@ -481,43 +635,103 @@ class OperacionViewSet(viewsets.ModelViewSet):
 
         if not regimen_adu_id:
             return Response({'error': 'El régimen aduanero es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
-        if not permiso_clave:
-            return Response({'error': 'El permiso es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not permiso_clave and paquete_codigo:
+            requiere_permiso = CategoriasProductosRel.objects.filter(
+                productos__paquete=paquete_codigo,
+                categorias__tipo_permiso_requerido__isnull=False,
+            ).exists()
+            if requiere_permiso:
+                return Response(
+                    {'error': 'Uno o más productos del paquete requieren un permiso. Selecciona el permiso correspondiente.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         regimen = get_object_or_404(RegimenAduanero, num_regimen=regimen_adu_id)
-        permiso = get_object_or_404(Permiso, clave_numerica=permiso_clave)
+        permiso = get_object_or_404(Permiso, clave_numerica=permiso_clave) if permiso_clave else None
 
         numero_pedimento = _generar_numero_pedimento(op.aduana_id)
 
-        valor_total = (
-            Producto.objects
-            .filter(paquete__cliente=op.cliente)
-            .aggregate(total=models.Sum('valor_unitario'))['total'] or 0
-        )
+        try:
+            with transaction.atomic():
+                #Trigger 3 t_generar_pedimento
+                # El semáforo se crea al registrar el pago (no aquí) para que no
+                # aparezca antes de que el cliente pague. Con semaforo=None el
+                # trigger evalúa resultado NULL → no crea inspección prematura.
+                ped = Pedimento.objects.create(
+                    numero_pedimento=numero_pedimento,
+                    clave_pedimento=clave_pedimento,
+                    fecha_registro=timezone.localdate(),
+                    valor_total=0,
+                    regimen_adu=regimen,
+                    permiso=permiso,
+                    ope_aduanera=op,
+                    medio_transporte=medio_transporte,
+                    pais_origen_mercancia=pais_origen,
+                    pais_destino=pais_destino,
+                    incoterm=incoterm,
+                    tipo_cambio=tipo_cambio,
+                    semaforo=None,
+                )
 
-        ped = Pedimento.objects.create(
-            numero_pedimento=numero_pedimento,
-            clave_pedimento=clave_pedimento,
-            fecha_registro=timezone.localdate(),
-            valor_total=valor_total,
-            regimen_adu=regimen,
-            permiso=permiso,
-            ope_aduanera=op,
-            medio_transporte=medio_transporte,
-            pais_origen_mercancia=pais_origen,
-            pais_destino=pais_destino,
-            incoterm=incoterm,
-            tipo_cambio=tipo_cambio,
-        )
+                # Vincular paquete seleccionado a este pedimento
+                if paquete_codigo:
+                    Paquete.objects.filter(codigo=paquete_codigo).update(pedimento=ped)
+                    actualizar_valor_operacion(op.ID_operacion)
+                    ped.refresh_from_db()  # SP1 actualizó valor_total en DB; el objeto Python estaba obsoleto
 
-        # Vincular paquete seleccionado a este pedimento
-        if paquete_codigo:
-            Paquete.objects.filter(codigo=paquete_codigo).update(pedimento=ped)
+                    # Crear registros de arancel por categoría.
+                    # Trigger 6 (trg_arancel_igi_importe_ins) se dispara en cada INSERT
+                    # y calcula automáticamente igi_importe = subtotal * IGI / 100.
+                    categorias_subtotales = {}
+                    for prod in Producto.objects.filter(paquete=paquete_codigo).prefetch_related(
+                        'categorias_rel__categorias__tipo_arancel'
+                    ):
+                        rel = prod.categorias_rel.select_related(
+                            'categorias__tipo_arancel'
+                        ).first()
+                        if not rel:
+                            continue
+                        cat = rel.categorias
+                        valor = float(prod.valor_total or (prod.valor_unitario * prod.cantidad))
+                        if cat.numero in categorias_subtotales:
+                            categorias_subtotales[cat.numero]['subtotal'] += valor
+                        else:
+                            categorias_subtotales[cat.numero] = {
+                                'subtotal': valor,
+                                'categoria': cat,
+                            }
 
-        # RF31: actualizar estado de operación a "Pendiente de pago"
-        estado_pendiente = get_object_or_404(EstadoOpeAduanera, codigo=4)
-        op.estado_ope_aduanera = estado_pendiente
-        op.save(update_fields=['estado_ope_aduanera'])
+                    for data in categorias_subtotales.values():
+                        cat = data['categoria']
+                        Arancel.objects.create(
+                            subtotal=data['subtotal'],
+                            descripcion=cat.nombre,
+                            IGI=cat.IGI,
+                            tasa_interes=0,
+                            Tipo_Arancel=cat.tipo_arancel,
+                            pedimento=ped,
+                            categoria=cat,
+                        )
+
+                # RF31: actualizar estado de operación a "Pendiente de pago"
+                estado_pendiente = get_object_or_404(EstadoOpeAduanera, codigo=4)
+                op.estado_ope_aduanera = estado_pendiente
+                op.save(update_fields=['estado_ope_aduanera'])
+                
+        except DatabaseError as e:
+            mensaje = str(e)
+            
+            if 'PEDIMENTO BLOQUEADO: ' in mensaje:
+                return Response(
+                    {'error': mensaje},
+                    status=status.HTTP_409_CONFLICT
+                )
+                
+            return Response(
+                {'error': mensaje},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
         return Response(
             {
@@ -526,6 +740,38 @@ class OperacionViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_201_CREATED,
         )
+
+    @action(detail=True, methods=['get'], url_path='resumen')
+    def resumen(self, request, pk=None):
+        op = self.get_object()
+        
+        with connection.cursor() as cursor:
+            cursor.execute(
+                #Procedimiento Almacenado 2 sp_resumen_operacion
+                "CALL sp_resumen_operacion(%s)",
+                [op.pk]
+            )
+            resultado = cursor.fetchone()
+            while cursor.nextset():
+                pass
+            
+        if not resultado:
+            return Response(
+                {'error': 'No se encontró la operación.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+            
+        return Response({
+            'operacion_id': resultado[0],
+            'cliente': resultado[1],
+            'rfc': resultado[2],
+            'tipo_operacion': resultado[3],
+            'estado': resultado[4],
+            'aduana': resultado[5],
+            'nombre_aduana': resultado[6],
+            'numero_pedimento': resultado[7],
+            'valor_total': resultado[8],
+        })
 
 
 # ── Pedimentos ─────────────────────────────────────────────────────────────────
@@ -542,11 +788,45 @@ class PedimentoViewSet(viewsets.ReadOnlyModelViewSet):
         if not numero:
             return Response({'error': 'numero_pedimento es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
         ped = get_object_or_404(Pedimento, numero_pedimento=numero)
-        if ped.semaforo_id:
+        if ped.pagos.exists():
             return Response({'error': 'El pedimento ya fue pagado.'}, status=status.HTTP_400_BAD_REQUEST)
         ped.fecha_limite = timezone.now() + timedelta(hours=48)
         ped.save(update_fields=['fecha_limite'])
         return Response({'fecha_limite': ped.fecha_limite})
+    
+    @action(detail=True, methods=['get'], url_path='calculo-operacion')
+    def calculo_operacion(self, request, pk=None):
+        pedimento = self.get_object()
+        
+        operacion_id = pedimento.ope_aduanera_id
+        
+        with connection.cursor() as cursor:
+            cursor.execute(
+                #Procedimiento Almacenado 1 sp_calcular_valor_operacion
+                "CALL sp_calcular_valor_operacion(%s)",
+                [operacion_id]
+            )
+            
+            resultado = cursor.fetchone()
+            
+            while cursor.nextset():
+                pass
+            
+        if not resultado:
+            return Response(
+                {
+                    'total_paquetes': 0,
+                    'total_productos': 0,
+                    'valor_total': 0,
+                }
+            )
+            
+        return Response({
+            'operacion_id': resultado[0],
+            'total_paquetes': resultado[1],
+            'total_productos': resultado[2],
+            'valor_total': resultado[3],
+        })
 
 
 # ── Catálogos (read-only) ──────────────────────────────────────────────────────
@@ -686,21 +966,27 @@ class PagoViewSet(viewsets.ModelViewSet):
         if not monto:
             return Response({'error': 'El monto es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        ped = get_object_or_404(Pedimento, numero_pedimento=pedimento_num)
+        ped = get_object_or_404(
+            Pedimento.objects.select_related('semaforo', 'ope_aduanera'),
+            numero_pedimento=pedimento_num,
+        )
 
         if ped.pagos.exists():
             return Response({'error': 'Este pedimento ya tiene un pago registrado.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # RF33: generar semáforo al registrar el pago
+        # RF33/RF55: el semáforo se genera aquí, al confirmar el pago.
+        # Así no aparece en la UI antes de que el cliente pague.
         semaforo = _generar_semaforo()
         ped.semaforo = semaforo
         ped.save(update_fields=['semaforo'])
 
-        # RF51: si semáforo rojo → generar inspección automática
+        # RF51: si el semáforo es rojo, crear inspección (el trigger ya no lo hace
+        # porque el pedimento se creó sin semáforo asignado).
         if 'Rojo' in semaforo.resultado:
             Inspeccion.objects.create(
                 fecha_inspeccion=timezone.localdate(),
                 hora_inicio=datetime.now().time(),
+                resultado='Pendiente',
                 semaforo=semaforo,
             )
 
@@ -762,22 +1048,24 @@ def factura_crear(request):
         return Response({'error': 'El pago no tiene una operación aduanera asociada.'}, status=status.HTTP_400_BAD_REQUEST)
 
     op = pago.pedimento.ope_aduanera
-    existente = op.facturas.first()
-    if existente:
-        return Response(FacturaSerializer(existente).data, status=status.HTTP_200_OK)
 
     total    = float(pago.monto)
     iva      = round(total * 0.16 / 1.16, 2)
     subtotal = round(total - iva, 2)
 
+    existente = op.facturas.first()
+    if existente:
+        return Response(FacturaSerializer(existente).data, status=status.HTTP_200_OK)
+
+    # Trigger 8 trg_factura_total_ins: calcula total = subtotal + IVA al hacer INSERT
     factura = Factura.objects.create(
         IVA=iva,
         subtotal=subtotal,
-        total=total,
         folio_fiscal=str(_uuid.uuid4()).upper(),
         fecha_factura=timezone.localdate(),
         ID_operacion=op,
     )
+    factura.refresh_from_db()  # total lo calculó el trigger, no Python
 
     return Response(FacturaSerializer(factura).data, status=status.HTTP_201_CREATED)
 
@@ -1068,13 +1356,11 @@ class DashboardAPIView(APIView):
         bitacora = BitacoraSerializer(bitacora_reciente, many=True).data
 
         total_verde = SemaforoFiscal.objects.filter(resultado__icontains="Verde").count()
-        total_amarillo = SemaforoFiscal.objects.filter(resultado__icontains="Amarillo").count()
-        total_rojo = SemaforoFiscal.objects.filter(resultado__icontains="Rojo").count()
-        total_semaforos = total_verde + total_amarillo + total_rojo
+        total_rojo  = SemaforoFiscal.objects.filter(resultado__icontains="Rojo").count()
+        total_semaforos = total_verde + total_rojo
 
-        porcentaje_verde    = round((total_verde    / total_semaforos) * 100) if total_semaforos else 0
-        porcentaje_amarillo = round((total_amarillo / total_semaforos) * 100) if total_semaforos else 0
-        porcentaje_rojo     = round((total_rojo     / total_semaforos) * 100) if total_semaforos else 0
+        porcentaje_verde = round((total_verde / total_semaforos) * 100) if total_semaforos else 0
+        porcentaje_rojo  = round((total_rojo  / total_semaforos) * 100) if total_semaforos else 0
 
         # RF09 — pedimentos con pago registrado
         pedimentos_completados = Pedimento.objects.filter(pagos__isnull=False).distinct().count()
@@ -1105,15 +1391,31 @@ class DashboardAPIView(APIView):
             "semaforo": {
                 "total": total_semaforos,
                 "verde": total_verde,
-                "amarillo": total_amarillo,
                 "rojo": total_rojo,
                 "porcentaje_verde": porcentaje_verde,
-                "porcentaje_amarillo": porcentaje_amarillo,
                 "porcentaje_rojo": porcentaje_rojo,
             },
         }
 
         return Response(data)
+    
+# -- Vencimientos ---------------------------------------------------------------
+class VencimientosAPIView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        dias = int(request.GET.get('dias', 30))
+        with connection.cursor() as cursor:
+            #Procedimiento Almacenado 4 sp_consultar_vencimientos
+            cursor.execute("CALL sp_consultar_vencimientos(%s)", [dias])
+            columnas = [col[0] for col in cursor.description]
+            filas = cursor.fetchall()
+            while cursor.nextset():
+                pass
+            
+        resultados = [dict(zip(columnas, fila)) for fila in filas]
+        return Response(resultados)
     
 # -- Sanción --------------------------------------------------------------------
 class SancionViewSet(viewsets.ModelViewSet):
@@ -1155,26 +1457,93 @@ class PaqueteViewSet(viewsets.ModelViewSet):
             return PaqueteCreateSerializer
         return PaqueteSerializer
 
+    @action(detail=True, methods=['delete'], url_path='productos/(?P<prod_pk>[0-9]+)')
+    def eliminar_producto(self, request, pk=None, prod_pk=None):
+        paquete = self.get_object()
+        try:
+            producto = paquete.productos.get(pk=prod_pk)
+        except Producto.DoesNotExist:
+            return Response({'error': 'Producto no encontrado en este paquete.'}, status=status.HTTP_404_NOT_FOUND)
+        
+        operacion_id = None
+        
+        if paquete.pedimento_id:
+            operacion_id = paquete.pedimento.ope_aduanera_id
+        
+        producto.delete()
+        
+        resultado_sp = None
+        
+        if operacion_id:
+            resultado_sp = actualizar_valor_operacion(operacion_id)
+            
+        return Response(
+            {
+                'mensaje': 'Producto eliminado correctamente. ',
+                'calculo_operacion': resultado_sp,
+            },
+            status=status.HTTP_200_OK
+        )
+
     @action(detail=True, methods=['post'], url_path='productos')
     def agregar_producto(self, request, pk=None):
         paquete = self.get_object()
+        from django.db.models import Sum
 
-        # Validar capacidad de peso antes de guardar
+        nombre = (request.data.get('nombre') or '').strip()
+
+        # ── UPSERT: si el producto ya existe en el paquete, acumular cantidad ──
+        existente = paquete.productos.filter(nombre__iexact=nombre).first() if nombre else None
+        if existente:
+            try:
+                nueva_cantidad = int(request.data.get('cantidad', 1))
+                peso_unitario  = float(request.data.get('peso', existente.peso))
+            except (ValueError, TypeError):
+                nueva_cantidad, peso_unitario = 1, float(existente.peso)
+
+            delta_peso = peso_unitario * nueva_cantidad
+            if delta_peso > 0 and paquete.tipo_embalaje:
+                ocupado    = paquete.productos.aggregate(total=Sum('peso_total'))['total'] or 0
+                disponible = max(round(float(paquete.peso) - float(ocupado), 2), 0)
+                if delta_peso > disponible:
+                    return Response(
+                        {'error': f'Sin espacio: el producto ocupa {delta_peso:.2f} kg pero el paquete solo tiene {disponible:.2f} kg disponibles.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+            existente.cantidad      += nueva_cantidad
+            existente.valor_unitario = request.data.get('valor_unitario', existente.valor_unitario)
+            existente.peso           = peso_unitario
+            if request.data.get('descripcion'):
+                existente.descripcion = request.data.get('descripcion')
+            # Trigger 5 trg_producto_calculados_upd recalcula valor_total y peso_total
+            existente.save()
+            existente.refresh_from_db()
+
+            resultado_sp = None
+            if paquete.pedimento_id:
+                resultado_sp = actualizar_valor_operacion(paquete.pedimento.ope_aduanera_id)
+                # Trigger 7: actualizar subtotal en arancel de la categoría del producto
+                rel = existente.categorias_rel.select_related('categorias__tipo_arancel').first()
+                if rel:
+                    _actualizar_arancel_por_categoria(paquete, rel.categorias)
+
+            return Response(
+                {'producto': ProductoCreateSerializer(existente).data, 'calculo_operacion': resultado_sp},
+                status=status.HTTP_200_OK,
+            )
+
+        # ── INSERT normal ──
         try:
             peso_unitario = float(request.data.get('peso', 0))
-            cantidad = int(request.data.get('cantidad', 1))
-            peso_nuevo = peso_unitario * cantidad
+            cantidad      = int(request.data.get('cantidad', 1))
+            peso_nuevo    = peso_unitario * cantidad
         except (ValueError, TypeError):
             peso_nuevo = 0
 
         if peso_nuevo > 0 and paquete.tipo_embalaje:
-            from django.db.models import Sum, F, ExpressionWrapper, DecimalField as Df
-            ocupado = paquete.productos.aggregate(
-                total=Sum(ExpressionWrapper(F('peso') * F('cantidad'), output_field=Df(max_digits=12, decimal_places=2)))
-            )['total'] or 0
-            peso_max = float(paquete.peso)
-            disponible = round(peso_max - float(ocupado), 2)
-            disponible = max(disponible, 0)
+            ocupado    = paquete.productos.aggregate(total=Sum('peso_total'))['total'] or 0
+            disponible = max(round(float(paquete.peso) - float(ocupado), 2), 0)
             if peso_nuevo > disponible:
                 return Response(
                     {'error': f'Sin espacio: el producto ocupa {peso_nuevo:.2f} kg pero el paquete solo tiene {disponible:.2f} kg disponibles.'},
@@ -1182,17 +1551,34 @@ class PaqueteViewSet(viewsets.ModelViewSet):
                 )
 
         data = {**request.data, 'paquete': paquete.codigo}
-        ser = ProductoCreateSerializer(data=data)
+        ser  = ProductoCreateSerializer(data=data)
         if ser.is_valid():
+            #Trigger 4 trg_producto_calculados_ins
+            # El INSERT en producto dispara automáticamente el trigger que calcula
+            # valor_total (valor_unitario * cantidad) y peso_total (peso * cantidad).
             producto = ser.save()
+
             categoria_id = request.data.get('categoria')
+            cat_obj = None
             if categoria_id:
                 try:
-                    cat = CategoriaProductos.objects.get(pk=categoria_id)
-                    CategoriasProductosRel.objects.create(categorias=cat, productos=producto)
+                    cat_obj = CategoriaProductos.objects.select_related('tipo_arancel').get(pk=categoria_id)
+                    CategoriasProductosRel.objects.create(categorias=cat_obj, productos=producto)
                 except Exception:
-                    pass
-            return Response(ser.data, status=status.HTTP_201_CREATED)
+                    cat_obj = None
+
+            resultado_sp = None
+            if paquete.pedimento_id:
+                resultado_sp = actualizar_valor_operacion(paquete.pedimento.ope_aduanera_id)
+                # Trigger 7 (o Trigger 6 si la categoría es nueva): actualizar arancel
+                if cat_obj:
+                    _actualizar_arancel_por_categoria(paquete, cat_obj)
+
+            return Response(
+                {'producto': ser.data, 'calculo_operacion': resultado_sp},
+                status=status.HTTP_201_CREATED,
+            )
+
         return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class SemaforoFiscalViewSet(viewsets.ReadOnlyModelViewSet):
@@ -1334,6 +1720,21 @@ class IncidenciaViewSet(viewsets.ModelViewSet):
             incidencia=incidencia,
             estado_pago=estado_pagado,
         )
+
+        # Al pagar la multa la mercancía es devuelta — operación concluye como Devuelta
+        try:
+            pedimento = incidencia.inspeccion.semaforo.pedimentos.first()
+            if pedimento:
+                op = pedimento.ope_aduanera
+                estado_devuelta = EstadoOpeAduanera.objects.filter(
+                    descripcion='Cerrada'
+                ).first()
+                if estado_devuelta and op:
+                    op.estado_ope_aduanera = estado_devuelta
+                    op.fecha_final = timezone.localdate()
+                    op.save(update_fields=['estado_ope_aduanera', 'fecha_final'])
+        except Exception:
+            pass
 
         return Response({
             'no_transaccion': pago.no_transaccion,

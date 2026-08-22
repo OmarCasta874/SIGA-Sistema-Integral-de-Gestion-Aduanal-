@@ -200,7 +200,7 @@
         {% endfor %}
     {% endif %}
 
-    <div class="detalle-grid" style="grid-template-columns: 1fr 2fr; margin-bottom: 24px;">
+    <div class="detalle-grid" style="grid-template-columns: 260px 1fr; margin-bottom: 24px;">
 
         <!-- Info del paquete -->
         <div class="detalle-card">
@@ -249,8 +249,14 @@
                 </div>
                 {% endwith %}
                 <div class="paq-peso-labels">
-                    <span>Ocupado: <strong>{{ paquete.peso_ocupado }} kg</strong></span>
-                    <span>Disponible: <strong id="paq-disponible-txt">{{ paquete.peso_disponible }} kg</strong></span>
+                    <span>
+                        <span class="paq-peso-lbl">Ocupado</span>
+                        <strong>{{ paquete.peso_ocupado }} kg</strong>
+                    </span>
+                    <span>
+                        <span class="paq-peso-lbl">Disponible</span>
+                        <strong id="paq-disponible-txt">{{ paquete.peso_disponible }} kg</strong>
+                    </span>
                 </div>
             </div>
 
@@ -280,7 +286,7 @@
         </div>
 
         <!-- Productos -->
-        <div class="detalle-card">
+        <div class="detalle-card" style="overflow-x: auto;">
             <h3>Productos en este paquete</h3>
 
             {% if paquete.productos %}
@@ -292,18 +298,29 @@
                             <th>Peso</th>
                             <th>Valor unit.</th>
                             <th>Cantidad</th>
+                            <th>Valor total</th>
                             <th>Fracc. Aranc.</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for prod in paquete.productos %}
                         <tr>
                             <td style="font-weight:500; color:#111827;">{{ prod.nombre }}</td>
-                            <td style="color:#6B7280;">{{ prod.descripcion|default:'—' }}</td>
+                            <td class="col-desc" style="color:#6B7280;">{{ prod.descripcion|default:'—' }}</td>
                             <td>{{ prod.peso }} Kg</td>
                             <td>${{ prod.valor_unitario }}</td>
                             <td>{{ prod.cantidad }}</td>
+                            <td style="font-weight:600; color:#111827;">${{ prod.valor_total|default:"—" }}</td>
                             <td style="font-family:monospace; color:#374151;">{{ prod.fraccion_arancelaria|default:"—" }}</td>
+                            <td>
+                                <button type="button"
+                                        class="btn-eliminar-prod"
+                                        onclick="eliminarProducto({{ prod.codigo }})"
+                                        title="Eliminar producto">
+                                    <i data-lucide="trash-2"></i>
+                                </button>
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -332,8 +349,20 @@
 <script>
     lucide.createIcons();
 
+    document.addEventListener('DOMContentLoaded', function () {
+        if (sessionStorage.getItem('productoAgregado')) {
+            sessionStorage.removeItem('productoAgregado');
+            showToast('El producto se agregó con éxito', 'success');
+        }
+        if (sessionStorage.getItem('productoEliminado')) {
+            sessionStorage.removeItem('productoEliminado');
+            showToast('Producto eliminado del paquete', 'success');
+        }
+    });
+
     const CSRF               = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
     const URL_PRODUCTOS      = "{% url 'home:paquete_detalle' paquete.codigo %}";
+    const URL_PROD_ELIMINAR  = "{% url 'home:api_producto_eliminar' paq_pk=paquete.codigo prod_pk=0 %}";
     const PERMISOS_CLIENTE   = new Set({{ permisos_cliente|safe }});
     const TIPO_EMBALAJE_ID   = {{ paquete.tipo_embalaje.id|default:"null" }};
     const TIPO_EMBALAJE_NOMBRE = "{{ paquete.tipo_embalaje.nombre|default:'' }}";
@@ -493,6 +522,27 @@
         }
     }
 
+    /* ── Eliminar producto ───────────────────────────────────────────── */
+    async function eliminarProducto(prodPk) {
+        if (!confirm('¿Eliminar este producto del paquete?')) return;
+        try {
+            const url  = URL_PROD_ELIMINAR.replace('/productos/0/', `/productos/${prodPk}/`);
+            const resp = await fetch(url, {
+                method: 'DELETE',
+                headers: { 'X-CSRFToken': CSRF },
+            });
+            if (resp.status === 204) {
+                sessionStorage.setItem('productoEliminado', '1');
+                window.location.reload();
+            } else {
+                const data = await resp.json().catch(() => ({}));
+                showToast(data.error || 'Error al eliminar el producto.', 'error');
+            }
+        } catch {
+            showToast('Error de red al eliminar el producto.', 'error');
+        }
+    }
+
     /* ── Guardar producto ────────────────────────────────────────────── */
     async function guardarProducto() {
         const selCat  = document.getElementById('prod-select-categoria');
@@ -527,8 +577,9 @@
 
         try {
             const resp = await fetch(URL_PRODUCTOS, { method: 'POST', body: form });
-            if (resp.ok || resp.redirected) {
-                window.location.reload();
+            if (resp.ok) {
+                sessionStorage.setItem('productoAgregado', '1');
+                window.location.href = window.location.pathname;
             } else {
                 let msg = 'Error al guardar el producto. Intenta de nuevo.';
                 try {

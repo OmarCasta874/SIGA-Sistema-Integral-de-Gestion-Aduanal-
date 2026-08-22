@@ -96,6 +96,7 @@ def login_view(request):
                 data = resp.json()
                 auth_login(request, form.get_user())
                 request.session['api_token']     = data.get('token', '')
+                request.session['mostrar_vencimientos'] = True
                 usuario_data = data.get('usuario', {})
                 request.session['usuario_rol']   = usuario_data.get('rol', 'Administrador')
                 request.session['usuario_activo'] = usuario_data.get('activo', True)
@@ -135,11 +136,24 @@ def dashboard_view(request):
     except requests.RequestException:
         dashboard = {}
         
+    mostrar_vencimientos = request.session.pop('mostrar_vencimientos', False)
+    vencimientos = []
+    
+    if mostrar_vencimientos:
+        try:
+            venc_resp = api.get(request, '/vencimientos/?dias=30')
+            if venc_resp.status_code == 200:
+                vencimientos = api.safe_json(venc_resp, [])
+        except Exception:
+            pass
+        
     return render(
         request, 
         'home/dashboard.html',
         {
-            "dashboard": dashboard
+            "dashboard": dashboard,
+            "mostrar_vencimientos": mostrar_vencimientos,
+            "vencimientos": vencimientos,
         }
     )
 
@@ -159,6 +173,8 @@ def clientes_view(request):
                 payload['correo_electronico'] = request.POST.get('correo_electronico', '').strip()
                 payload['curp']               = form.cleaned_data.get('curp', '') or None
                 payload['domicilio']          = form.cleaned_data.get('domicilio', '') or None
+                payload['primer_apell']       = form.cleaned_data.get('primer_apell', '') or None
+                payload['seg_apell']          = form.cleaned_data.get('seg_apell', '') or None
                 resp = api.post(request, '/clientes/', payload)
                 if resp.status_code == 201:
                     messages.success(request, 'Cliente registrado correctamente.')
@@ -290,7 +306,17 @@ def api_categoria_productos(request, pk):
 
 @login_required
 def api_cliente_detalle(request, pk):
+    resumen_financiero = {}
+    
+    try:
+        rf_resp = api.get(request, f'/clientes/{pk}/resumen-financiero/')
+        if rf_resp.status_code == 200:
+            resumen_financiero = rf_resp.json()
+    except Exception:
+        pass
+    
     resp = api.get(request, f'/clientes/{pk}/')
+
     if resp.status_code == 200:
         data = resp.json()
         return JsonResponse({
@@ -305,6 +331,7 @@ def api_cliente_detalle(request, pk):
             'telefonos':    data.get('telefonos', []),
             'correos':      data.get('correos', []),
             'pedimentos':   data.get('pedimentos', []),
+            'resumen_financiero': resumen_financiero,
         })
     return JsonResponse({'error': 'No encontrado'}, status=resp.status_code)
 
@@ -525,7 +552,16 @@ def operacion_detalle_view(request, pk):
         paquetes_pedimento = [p for p in paquetes if str(p.get('codigo', '')) == str(paquete_preseleccionado)]
     else:
         paquetes_pedimento = []
-
+        
+    resumen_operacion = {}
+    
+    try:
+        resumen_resp = api.get(request, f'/operaciones/{pk}/resumen/')
+        if resumen_resp.status_code == 200:
+            resumen_operacion = api.safe_json(resumen_resp, {})
+    except Exception:
+        pass
+        
     return render(request, 'home/operacion_detalle.html', {
         'op':               data,
         'paso':             paso,
@@ -550,6 +586,7 @@ def operacion_detalle_view(request, pk):
         'auto_pais_origen':  auto_pais_origen,
         'abrir_modal':      abrir_modal,
         'horas_restantes_pago': horas_restantes_pago,
+        'resumen_operacion': resumen_operacion,
     })
 
 
@@ -662,23 +699,64 @@ def pedimento_detalle_view(request, operacion_id):
     if not pedimento:
         messages.error(request, 'Esta operación no tiene pedimento generado.')
         return redirect('home:pedimentos')
+    
+    calculo_operacion = {
+        'total_paquetes': 0,
+        'total_productos': 0,
+        'valor_total': 0,
+    }
+    
+    try:
+        calculo_resp = api.get(
+            request,
+            f"/pedimentos/{pedimento.get('numero_pedimento')}/calculo-operacion/"
+        )
+        
+        if calculo_resp.status_code == 200:
+            calculo_operacion = api.safe_json(
+                calculo_resp,
+                calculo_operacion
+            )
+    except Exception:
+        pass
 
     paquetes = []
     permisos = []
+    
+    try:
+        paquetes_resp = api.get(
+            request,
+            f'/paquetes/?operacion={operacion_id}'
+        )
+        
+        if paquetes_resp.status_code == 200:
+            paquetes = api.safe_json(paquetes_resp, [])
+            
+    except Exception:
+        pass
+    
     cliente_id = (op.get('cliente') or {}).get('numero')
+    
     if cliente_id:
         try:
-            paquetes = api.safe_json(api.get(request, f'/paquetes/?cliente={cliente_id}'), [])
-        except Exception:
-            pass
-        try:
-            permisos_raw = api.safe_json(api.get(request, f'/clientes/{cliente_id}/permisos/'), {})
-            permisos = permisos_raw if isinstance(permisos_raw, list) else permisos_raw.get('permisos', [])
+            permisos_raw = api.safe_json(
+                api.get(
+                    request,
+                    f'/clientes/{cliente_id}/permisos/'
+                ),
+                {}
+            )
+            permisos = (
+                permisos_raw
+                if isinstance(permisos_raw, list)
+                else permisos_raw.get('permisos', [])
+            )
+        
         except Exception:
             pass
 
     peso_bruto     = round(sum(float(p.get('peso', 0) or 0)     for p in paquetes), 2)
-    valor_estimado = round(sum(float(p.get('subtotal', 0) or 0) for p in paquetes), 2)
+    valor_estimado = float(calculo_operacion.get('valor_total', 0) or 0)
     igi_total      = round(sum(
         float(prod.get('igi_importe', 0))
         for p in paquetes
@@ -699,6 +777,7 @@ def pedimento_detalle_view(request, operacion_id):
         'dta_estimado':   dta_estimado,
         'iva_estimado':   iva_estimado,
         'total_estimado': total_estimado,
+        'calculo_operacion': calculo_operacion,
     })
 
 
@@ -808,7 +887,19 @@ def detalle_aduana(request, codigo):
         response = api.get(request, f"/aduanas/{codigo}/")
         
         if response.status_code == 200:
-            return JsonResponse(api.safe_json(response, {}))
+            data = api.safe_json(response, {})
+            
+            estadisticas = {}
+            try:
+                est_resp = api.get(request, f"/aduanas/{codigo}/estadisticas/")
+
+                if est_resp.status_code == 200:
+                    estadisticas = api.safe_json(est_resp, {})
+            except Exception:
+                pass
+            
+            data['estadisticas'] = estadisticas 
+            return JsonResponse(data)
         
         return JsonResponse(
             {"error": "No se encontró la aduana. "},
@@ -940,7 +1031,12 @@ def bitacora_view(request):
         
     logins = [e for e in entradas if e.get('modulo') == 'Login']
         
-    operaciones = [e for e in entradas if (e.get('modulo') == 'Operaciones' and e.get('tipo_accion') == 'Creación' )]
+    operaciones = [
+        e for e in entradas 
+        if (
+            (e.get('modulo') == 'Operaciones' and e.get('tipo_accion') == 'Creación' )
+        )
+    ]
         
     hoy = timezone.localdate().isoformat()
     total_registros = len(entradas)
@@ -1159,7 +1255,11 @@ def permisos_view(request):
 
     tipos_disponibles = sorted({p.get('tipo_permiso', '') for p in todos if p.get('tipo_permiso')})
 
-    permisos = todos
+    permisos = sorted(
+        todos,
+        key=lambda p: p.get('vigencia', ''),
+        reverse=True
+    )
     if tipo_filtro:
         permisos = [p for p in permisos if p.get('tipo_permiso') == tipo_filtro]
     if query:
@@ -1213,8 +1313,6 @@ def perfilusuario_view(request):
                 "Perfil actualizado correctamente. "
             )
         else:
-            print(respuesta.status_code)
-            print(respuesta.text)
             messages.error(
                 request,
                 f"Error: {respuesta.text}"
@@ -1250,8 +1348,7 @@ def semaforofiscal_view(request):
                 semaforo["clase_css"] = "pill-restringida"
             else:
                 semaforo["clase_css"] = ""
-    except Exception as e:
-        print(f"Error al obtener semáforos: {e}")
+    except Exception:
         semaforos = []
 
     total_verde = sum(1 for s in semaforos if s.get('resultado', '').lower().startswith('verde'))
@@ -1410,18 +1507,16 @@ def paquete_detalle_view(request, pk):
             'categoria':      request.POST.get('categoria', '').strip(),
             'paquete':        pk,
         })
-        if resp.status_code == 201:
-            messages.success(request, 'Producto agregado correctamente.')
+        if resp.status_code in (200, 201):
+            return JsonResponse({'ok': True}, status=resp.status_code)
+        error = api.safe_json(resp, {})
+        if isinstance(error, dict):
+            msg = error.get('error') or next(
+                (f'{v[0]}' if isinstance(v, list) else str(v) for v in error.values()), 'Error al guardar el producto.'
+            )
         else:
-            error = api.safe_json(resp, {})
-            
-            print("------- Error Backend -------")
-            print(error)
-            print("------------------------------")
-            
-            messages.error(request, str(error))
-            
-        return redirect('home:paquete_detalle', pk=pk)
+            msg = str(error) or 'Error al guardar el producto.'
+        return JsonResponse({'error': msg}, status=400)
 
     resp = api.get(request, f'/paquetes/{pk}/')
     if resp.status_code != 200:
@@ -1457,6 +1552,17 @@ def paquete_detalle_view(request, pk):
         'categorias':       categorias,
         'permisos_cliente': list(permisos_cliente),
     })
+
+
+@login_required
+def api_producto_eliminar(request, paq_pk, prod_pk):
+    if request.method != 'DELETE':
+        return JsonResponse({'error': 'Método no permitido.'}, status=405)
+    resp = api.delete(request, f'/paquetes/{paq_pk}/productos/{prod_pk}/')
+    if resp.status_code == 204:
+        return JsonResponse({}, status=204)
+    error = api.safe_json(resp, {}).get('error', 'Error al eliminar el producto.')
+    return JsonResponse({'error': error}, status=resp.status_code)
 
 
 @login_required

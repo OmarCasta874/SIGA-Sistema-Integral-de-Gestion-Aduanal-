@@ -47,13 +47,14 @@ class LoginForm(forms.Form):
 class NuevoClienteForm(forms.ModelForm):
     class Meta:
         model = Cliente
-        fields = ['nombre', 'primer_apell', 'seg_apell', 'tipo_persona', 'RFC']
+        fields = ['nombre', 'primer_apell', 'seg_apell', 'tipo_persona', 'RFC', 'curp']
         labels = {
             'nombre': 'Nombre / Razón social',
             'primer_apell': 'Primer apellido',
             'seg_apell': 'Segundo apellido',
             'tipo_persona': 'Tipo de persona',
             'RFC': 'RFC',
+            'curp': 'CURP',
         }
         widgets = {
             'nombre':       forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Ej. Carlos o Importaciones del Norte SA de CV'}),
@@ -62,6 +63,7 @@ class NuevoClienteForm(forms.ModelForm):
             'tipo_persona': forms.Select(attrs={'class': 'form-input'},
                             choices=[('', 'Selecciona...'), ('Física', 'Física'), ('Moral', 'Moral')]),
             'RFC':          forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Ej. MALC850312HBC', 'maxlength': '13'}),
+            'curp':         forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Ej. MALC850312HBCRRL01', 'maxlength': '18'})
         }
 
 

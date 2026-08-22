@@ -293,12 +293,16 @@ class PedimentoSerializer(serializers.ModelSerializer):
     aduana_codigo  = serializers.SerializerMethodField()
     aduana_nombre  = serializers.SerializerMethodField()
     tipo_operacion = serializers.SerializerMethodField()
+    total_paquetes = serializers.SerializerMethodField()
+    total_productos = serializers.SerializerMethodField()
+    valor_total_mercancia = serializers.SerializerMethodField()
 
     class Meta:
         model = Pedimento
         fields = [
             'numero_pedimento', 'clave_pedimento', 'fecha_registro',
-            'valor_total', 'semaforo', 'regimen_adu',
+            'valor_total_mercancia', 'total_paquetes', 'total_productos', 
+            'semaforo', 'regimen_adu',
             'permiso', 'ope_aduanera', 'operacion_id',
             'cliente_rfc', 'cliente_nombre', 'cliente_curp', 'cliente_domicilio',
             'aduana_codigo', 'aduana_nombre', 'tipo_operacion',
@@ -340,6 +344,19 @@ class PedimentoSerializer(serializers.ModelSerializer):
     def get_tipo_operacion(self, obj):
         op = self._op(obj)
         return op.tipo_operacion if op else '—'
+    
+    def get_total_paquetes(self, obj):
+        return obj.paquetes.count()
+
+    def get_total_productos(self, obj):
+        return sum(p.productos.count() for p in obj.paquetes.all())
+
+    def get_valor_total_mercancia(self, obj):
+        return sum(
+            (prod.valor_unitario or 0) * (prod.cantidad or 0)
+            for p in obj.paquetes.all()
+            for prod in p.productos.all()
+        )
 
 
 def _calcular_paso(obj):
@@ -543,12 +560,13 @@ class ProductoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Producto
-        fields = ['codigo', 'nombre', 'descripcion', 'peso', 'valor_unitario', 'cantidad', 'igi_importe', 'fraccion_arancelaria']
+        fields = ['codigo', 'nombre', 'descripcion', 'peso', 'valor_unitario', 'cantidad', 'valor_total', 'peso_total', 'igi_importe', 'fraccion_arancelaria']
 
     def get_igi_importe(self, obj):
         rel = obj.categorias_rel.select_related('categorias').first()
         if rel and rel.categorias.IGI:
-            return float(obj.valor_unitario * rel.categorias.IGI / 100)
+            base = obj.valor_total if obj.valor_total else obj.valor_unitario
+            return float(base * rel.categorias.IGI / 100)
         return 0.0
 
     def get_fraccion_arancelaria(self, obj):
@@ -678,7 +696,7 @@ class PaqueteSerializer(serializers.ModelSerializer):
         return obj.pedimento_id or '—'
 
     def get_subtotal(self, obj):
-        total = obj.productos.aggregate(total=Sum('valor_unitario'))['total']
+        total = obj.productos.aggregate(total=Sum('valor_total'))['total']
         return float(total) if total else 0.0
 
     def _calc_peso_ocupado(self, obj):

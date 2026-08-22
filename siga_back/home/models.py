@@ -582,7 +582,7 @@ class Factura(models.Model):
     codigo = models.AutoField(primary_key=True, db_column='codigo')
     IVA = models.DecimalField(max_digits=12, decimal_places=2, db_column='IVA')
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, db_column='subtotal')
-    total = models.DecimalField(max_digits=12, decimal_places=2, db_column='total')
+    total = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, db_column='total')
     folio_fiscal = models.CharField(max_length=50, unique=True, db_column='folio_fiscal')
     fecha_factura = models.DateField(db_column='fecha_factura')
     ID_operacion = models.ForeignKey(
@@ -619,7 +619,8 @@ class Pedimento(models.Model):
     )
     permiso = models.ForeignKey(
         Permiso, on_delete=models.CASCADE,
-        db_column='permiso', related_name='pedimentos'
+        db_column='permiso', related_name='pedimentos',
+        null=True, blank=True
     )
     ope_aduanera = models.ForeignKey(
         OperacionAduanera, on_delete=models.CASCADE,
@@ -698,6 +699,7 @@ class Arancel(models.Model):
     descripcion = models.CharField(max_length=200, blank=True, null=True, db_column='descripcion')
     IGI = models.DecimalField(max_digits=5, decimal_places=2, db_column='IGI')
     tasa_interes = models.DecimalField(max_digits=5, decimal_places=2, db_column='tasa_interes')
+    igi_importe = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, db_column='igi_importe')
     Tipo_Arancel = models.ForeignKey(
         TipoArancel, on_delete=models.CASCADE,
         db_column='Tipo_Arancel', related_name='aranceles'
@@ -817,6 +819,8 @@ class Producto(models.Model):
     peso = models.DecimalField(max_digits=10, decimal_places=2, db_column='peso')
     valor_unitario = models.DecimalField(max_digits=12, decimal_places=2, db_column='valor_unitario')
     cantidad = models.IntegerField(default=1, db_column='cantidad')
+    valor_total = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True, db_column='valor_total')
+    peso_total  = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, db_column='peso_total')
     paquete = models.ForeignKey(
         Paquete, on_delete=models.SET_NULL,
         db_column='paquete', related_name='productos',
