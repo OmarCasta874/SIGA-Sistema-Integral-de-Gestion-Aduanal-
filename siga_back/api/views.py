@@ -623,10 +623,9 @@ class OperacionViewSet(viewsets.ModelViewSet):
         try:
             with transaction.atomic():
                 #Trigger 3 t_generar_pedimento
-                # Semáforo dentro de la transacción: si el trigger bloquea el pedimento,
-                # el rollback elimina también el semáforo (evita registros huérfanos).
-                # El trigger BEFORE INSERT puede leerlo porque comparte la misma sesión.
-                semaforo = _generar_semaforo()
+                # El semáforo se crea al registrar el pago (no aquí) para que no
+                # aparezca antes de que el cliente pague. Con semaforo=None el
+                # trigger evalúa resultado NULL → no crea inspección prematura.
                 ped = Pedimento.objects.create(
                     numero_pedimento=numero_pedimento,
                     clave_pedimento=clave_pedimento,
@@ -640,7 +639,7 @@ class OperacionViewSet(viewsets.ModelViewSet):
                     pais_destino=pais_destino,
                     incoterm=incoterm,
                     tipo_cambio=tipo_cambio,
-                    semaforo=semaforo,
+                    semaforo=None,
                 )
 
                 # Vincular paquete seleccionado a este pedimento
@@ -670,14 +669,12 @@ class OperacionViewSet(viewsets.ModelViewSet):
 
         return Response(
             {
-                'numero_pedimento':  ped.numero_pedimento,
-                'valor_total':       float(ped.valor_total),
-                'semaforo_resultado': semaforo.resultado,
-                'inspeccion_creada': 'Rojo' in semaforo.resultado,
+                'numero_pedimento': ped.numero_pedimento,
+                'valor_total':      float(ped.valor_total),
             },
             status=status.HTTP_201_CREATED,
         )
-        
+
     @action(detail=True, methods=['get'], url_path='resumen')
     def resumen(self, request, pk=None):
         op = self.get_object()
@@ -911,23 +908,21 @@ class PagoViewSet(viewsets.ModelViewSet):
         if ped.pagos.exists():
             return Response({'error': 'Este pedimento ya tiene un pago registrado.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # El semáforo fue generado al crear el pedimento; el trigger t_generar_pedimento
-        # ya se encargó de crear la inspección si el resultado fue rojo.
-        semaforo = ped.semaforo
+        # RF33/RF55: el semáforo se genera aquí, al confirmar el pago.
+        # Así no aparece en la UI antes de que el cliente pague.
+        semaforo = _generar_semaforo()
+        ped.semaforo = semaforo
+        ped.save(update_fields=['semaforo'])
 
-        # RF33: el semáforo ya no se genera aquí — se genera al crear el pedimento
-        # para que el trigger de BD pueda evaluarlo en el BEFORE INSERT.
-        # semaforo = _generar_semaforo()
-        # ped.semaforo = semaforo
-        # ped.save(update_fields=['semaforo'])
-
-        # RF51: la inspección ahora la crea el trigger t_generar_pedimento en BD.
-        # if 'Rojo' in semaforo.resultado:
-        #     Inspeccion.objects.create(
-        #         fecha_inspeccion=timezone.localdate(),
-        #         hora_inicio=datetime.now().time(),
-        #         semaforo=semaforo,
-        #     )
+        # RF51: si el semáforo es rojo, crear inspección (el trigger ya no lo hace
+        # porque el pedimento se creó sin semáforo asignado).
+        if 'Rojo' in semaforo.resultado:
+            Inspeccion.objects.create(
+                fecha_inspeccion=timezone.localdate(),
+                hora_inicio=datetime.now().time(),
+                resultado='Pendiente',
+                semaforo=semaforo,
+            )
 
         estado_pagado = get_object_or_404(EstadoPago, codigo=1)
         num_pago      = Pago.objects.count() + 1
