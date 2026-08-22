@@ -128,20 +128,29 @@
 
 .paq-tabla thead th {
     text-align: left;
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 600;
     letter-spacing: 0.04em;
     color: #9CA3AF;
     text-transform: uppercase;
-    padding-bottom: 12px;
+    padding: 0 8px 10px 0;
     border-bottom: 1px solid #E5E7EB;
+    white-space: nowrap;
 }
 
 .paq-tabla tbody td {
-    padding: 14px 0;
-    font-size: 14px;
+    padding: 10px 8px 10px 0;
+    font-size: 13px;
     color: #374151;
     border-bottom: 1px solid #F3F4F6;
+    white-space: nowrap;
+}
+
+.paq-tabla .col-desc {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 120px;
 }
 
 .paq-tabla tbody tr:last-child td {

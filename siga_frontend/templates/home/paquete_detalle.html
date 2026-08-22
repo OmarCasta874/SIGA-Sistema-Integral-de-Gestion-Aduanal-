@@ -200,7 +200,7 @@
         {% endfor %}
     {% endif %}
 
-    <div class="detalle-grid" style="grid-template-columns: 1fr 2fr; margin-bottom: 24px;">
+    <div class="detalle-grid" style="grid-template-columns: 260px 1fr; margin-bottom: 24px;">
 
         <!-- Info del paquete -->
         <div class="detalle-card">
@@ -280,7 +280,7 @@
         </div>
 
         <!-- Productos -->
-        <div class="detalle-card">
+        <div class="detalle-card" style="overflow-x: auto;">
             <h3>Productos en este paquete</h3>
 
             {% if paquete.productos %}
@@ -301,7 +301,7 @@
                         {% for prod in paquete.productos %}
                         <tr>
                             <td style="font-weight:500; color:#111827;">{{ prod.nombre }}</td>
-                            <td style="color:#6B7280;">{{ prod.descripcion|default:'—' }}</td>
+                            <td class="col-desc" style="color:#6B7280;">{{ prod.descripcion|default:'—' }}</td>
                             <td>{{ prod.peso }} Kg</td>
                             <td>${{ prod.valor_unitario }}</td>
                             <td>{{ prod.cantidad }}</td>
