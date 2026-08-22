@@ -38,49 +38,77 @@ CREATE OR REPLACE TRIGGER t_generar_folio_permiso
 BEFORE INSERT ON permiso
 FOR EACH ROW
 BEGIN
-    DECLARE folioExistente VARCHAR(30) DEFAULT NULL;
-    DECLARE contador       INT         DEFAULT 0;
-    DECLARE nuevoFolio     VARCHAR(30);
-    DECLARE anio           CHAR(4);
-    DECLARE msg            VARCHAR(250);
-
-    -- Verificar si el cliente ya tiene un permiso de esta entidad reguladora
-    SELECT clave_numerica
-    INTO   folioExistente
-    FROM   permiso
-    WHERE  cliente = NEW.cliente
-      AND  tipo_permiso = NEW.tipo_permiso
-    LIMIT 1;
-
-    IF folioExistente IS NOT NULL THEN
-        -- El cliente ya tiene este permiso → indicar al sistema que renueve
+    DECLARE folioExistente       VARCHAR(30) DEFAULT NULL;
+    DECLARE permisosVigentes     INT DEFAULT 0;
+    DECLARE proximoVencimiento   DATE DEFAULT NULL;
+    DECLARE contador             INT DEFAULT 0;
+    DECLARE nuevoFolio           VARCHAR(30);
+    DECLARE anio                 CHAR(4);
+    DECLARE msg                  VARCHAR(250);
+    -- Verificar el estado de los permisos existentes 
+    -- para el mismo cliente y entidad reguladora.
+    SELECT
+        COUNT(
+            CASE
+                WHEN vigencia >= CURDATE() THEN 1
+            END
+        ),
+        MIN(
+            CASE
+                WHEN vigencia >= CURDATE() THEN vigencia
+                ELSE NULL
+            END
+        ),
+        MIN(clave_numerica)
+    INTO
+        permisosVigentes,
+        proximoVencimiento,
+        folioExistente
+    FROM permiso
+    WHERE cliente = NEW.cliente
+      AND tipo_permiso = NEW.tipo_permiso;
+      -- Si existe un permiso vigente, se bloquea la creación de uno nuevo.
+    IF permisosVigentes > 0 THEN
         SET msg = CONCAT(
             'RENOVACION|', folioExistente,
-            '|El cliente ya cuenta con el permiso ', folioExistente,
-            ' (', NEW.tipo_permiso, '). ',
+            '|El cliente ya cuenta con el permiso ',
+            folioExistente,
+            ' (', NEW.tipo_permiso, '). '
+        );
+        IF proximoVencimiento <= DATE_ADD(CURDATE(), INTERVAL 30 DAY) THEN
+            SET msg = CONCAT(
+                msg,
+                'El permiso está próximo a vencer. '
+            );
+        ELSE
+            SET msg = CONCAT(
+                msg,
+                'El permiso continúa vigente. '
+            );
+        END IF;
+        SET msg = CONCAT(
+            msg,
             'Actualice la vigencia y descripcion del folio existente.'
         );
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = msg;
-
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = msg;
     ELSE
-        -- Calcular el siguiente número global para esta entidad en el año actual
+        -- No existe un permiso vigente. Se permite generar un nuevo folio.
         SET anio = CAST(YEAR(CURDATE()) AS CHAR);
-
         SELECT COUNT(*) + 1
-        INTO   contador
-        FROM   permiso
-        WHERE  tipo_permiso = NEW.tipo_permiso
-          AND  clave_numerica LIKE CONCAT('PERM-', NEW.tipo_permiso, '-', anio, '-%');
-
+        INTO contador
+        FROM permiso
+        WHERE tipo_permiso = NEW.tipo_permiso
+          AND clave_numerica LIKE CONCAT(
+              'PERM-', NEW.tipo_permiso, '-', anio, '-%'
+          );
         -- Construir folio: PERM-[REGULADORA]-[AÑO]-[NNN]
         SET nuevoFolio = CONCAT(
             'PERM-', NEW.tipo_permiso, '-', anio, '-',
             LPAD(contador, 3, '0')
         );
-
         SET NEW.clave_numerica = nuevoFolio;
     END IF;
-
 END$$
 
 DELIMITER ;
