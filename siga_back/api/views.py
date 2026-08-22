@@ -67,11 +67,6 @@ def actualizar_valor_operacion(operacion_id):
     with connection.cursor() as cursor:
         cursor.execute(
             #Procedimiento Almacenado SP1 sp_calcular_valor_operacion
-            # Los INSERT/UPDATE que realiza este SP sobre la tabla arancel
-            # disparan automáticamente:
-            # Trigger 6 trg_arancel_igi_importe_ins (en INSERT)
-            # Trigger 7 trg_arancel_igi_importe_upd (en UPDATE)
-            # calculando igi_importe = subtotal * IGI / 100.
             "CALL sp_calcular_valor_operacion(%s)",
             [operacion_id]
         )
@@ -98,6 +93,42 @@ def actualizar_valor_operacion(operacion_id):
         'valor_total': valor_total,
     }
 
+
+def _actualizar_arancel_por_categoria(paquete, cat):
+    """
+    Recalcula el subtotal de una categoría en el pedimento del paquete y
+    hace UPDATE en arancel → Trigger 7 (trg_arancel_igi_importe_upd) dispara
+    y recalcula igi_importe = subtotal * IGI / 100.
+    Si no existe arancel para esa categoría, lo crea →
+    Trigger 6 (trg_arancel_igi_importe_ins) dispara.
+    """
+    if not paquete.pedimento_id:
+        return
+    from django.db.models import Sum
+    nuevo_subtotal = (
+        Producto.objects
+        .filter(paquete=paquete.codigo, categorias_rel__categorias=cat)
+        .aggregate(total=Sum('valor_total'))['total'] or 0
+    )
+    arancel_rec = Arancel.objects.filter(
+        pedimento_id=paquete.pedimento_id,
+        categoria=cat,
+    ).first()
+    if arancel_rec:
+        # Trigger 7 trg_arancel_igi_importe_upd
+        arancel_rec.subtotal = nuevo_subtotal
+        arancel_rec.save(update_fields=['subtotal'])
+    else:
+        # Categoría nueva: Trigger 6 trg_arancel_igi_importe_ins
+        Arancel.objects.create(
+            subtotal=nuevo_subtotal,
+            descripcion=cat.nombre,
+            IGI=cat.IGI,
+            tasa_interes=0,
+            Tipo_Arancel=cat.tipo_arancel,
+            pedimento_id=paquete.pedimento_id,
+            categoria=cat,
+        )
 
 
 def _generar_numero_pedimento(codigo_aduana):
@@ -1492,6 +1523,10 @@ class PaqueteViewSet(viewsets.ModelViewSet):
             resultado_sp = None
             if paquete.pedimento_id:
                 resultado_sp = actualizar_valor_operacion(paquete.pedimento.ope_aduanera_id)
+                # Trigger 7: actualizar subtotal en arancel de la categoría del producto
+                rel = existente.categorias_rel.select_related('categorias__tipo_arancel').first()
+                if rel:
+                    _actualizar_arancel_por_categoria(paquete, rel.categorias)
 
             return Response(
                 {'producto': ProductoCreateSerializer(existente).data, 'calculo_operacion': resultado_sp},
@@ -1524,16 +1559,20 @@ class PaqueteViewSet(viewsets.ModelViewSet):
             producto = ser.save()
 
             categoria_id = request.data.get('categoria')
+            cat_obj = None
             if categoria_id:
                 try:
-                    cat = CategoriaProductos.objects.get(pk=categoria_id)
-                    CategoriasProductosRel.objects.create(categorias=cat, productos=producto)
+                    cat_obj = CategoriaProductos.objects.select_related('tipo_arancel').get(pk=categoria_id)
+                    CategoriasProductosRel.objects.create(categorias=cat_obj, productos=producto)
                 except Exception:
-                    pass
+                    cat_obj = None
 
             resultado_sp = None
             if paquete.pedimento_id:
                 resultado_sp = actualizar_valor_operacion(paquete.pedimento.ope_aduanera_id)
+                # Trigger 7 (o Trigger 6 si la categoría es nueva): actualizar arancel
+                if cat_obj:
+                    _actualizar_arancel_por_categoria(paquete, cat_obj)
 
             return Response(
                 {'producto': ser.data, 'calculo_operacion': resultado_sp},
