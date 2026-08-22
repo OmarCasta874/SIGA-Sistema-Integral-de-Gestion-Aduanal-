@@ -249,8 +249,14 @@
                 </div>
                 {% endwith %}
                 <div class="paq-peso-labels">
-                    <span>Ocupado: <strong>{{ paquete.peso_ocupado }} kg</strong></span>
-                    <span>Disponible: <strong id="paq-disponible-txt">{{ paquete.peso_disponible }} kg</strong></span>
+                    <span>
+                        <span class="paq-peso-lbl">Ocupado</span>
+                        <strong>{{ paquete.peso_ocupado }} kg</strong>
+                    </span>
+                    <span>
+                        <span class="paq-peso-lbl">Disponible</span>
+                        <strong id="paq-disponible-txt">{{ paquete.peso_disponible }} kg</strong>
+                    </span>
                 </div>
             </div>
 

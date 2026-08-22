@@ -695,7 +695,7 @@ class PaqueteSerializer(serializers.ModelSerializer):
         return obj.pedimento_id or '—'
 
     def get_subtotal(self, obj):
-        total = obj.productos.aggregate(total=Sum('valor_unitario'))['total']
+        total = obj.productos.aggregate(total=Sum('valor_total'))['total']
         return float(total) if total else 0.0
 
     def _calc_peso_ocupado(self, obj):
