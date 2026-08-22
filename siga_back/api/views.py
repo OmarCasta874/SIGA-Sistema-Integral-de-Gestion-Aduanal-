@@ -1427,21 +1427,58 @@ class PaqueteViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], url_path='productos')
     def agregar_producto(self, request, pk=None):
         paquete = self.get_object()
+        from django.db.models import Sum
 
-        # Validar capacidad de peso antes de guardar
+        nombre = (request.data.get('nombre') or '').strip()
+
+        # ── UPSERT: si el producto ya existe en el paquete, acumular cantidad ──
+        existente = paquete.productos.filter(nombre__iexact=nombre).first() if nombre else None
+        if existente:
+            try:
+                nueva_cantidad = int(request.data.get('cantidad', 1))
+                peso_unitario  = float(request.data.get('peso', existente.peso))
+            except (ValueError, TypeError):
+                nueva_cantidad, peso_unitario = 1, float(existente.peso)
+
+            delta_peso = peso_unitario * nueva_cantidad
+            if delta_peso > 0 and paquete.tipo_embalaje:
+                ocupado    = paquete.productos.aggregate(total=Sum('peso_total'))['total'] or 0
+                disponible = max(round(float(paquete.peso) - float(ocupado), 2), 0)
+                if delta_peso > disponible:
+                    return Response(
+                        {'error': f'Sin espacio: el producto ocupa {delta_peso:.2f} kg pero el paquete solo tiene {disponible:.2f} kg disponibles.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+            existente.cantidad      += nueva_cantidad
+            existente.valor_unitario = request.data.get('valor_unitario', existente.valor_unitario)
+            existente.peso           = peso_unitario
+            if request.data.get('descripcion'):
+                existente.descripcion = request.data.get('descripcion')
+            # Trigger 5 trg_producto_calculados_upd recalcula valor_total y peso_total
+            existente.save()
+            existente.refresh_from_db()
+
+            resultado_sp = None
+            if paquete.pedimento_id:
+                resultado_sp = actualizar_valor_operacion(paquete.pedimento.ope_aduanera_id)
+
+            return Response(
+                {'producto': ProductoCreateSerializer(existente).data, 'calculo_operacion': resultado_sp},
+                status=status.HTTP_200_OK,
+            )
+
+        # ── INSERT normal ──
         try:
             peso_unitario = float(request.data.get('peso', 0))
-            cantidad = int(request.data.get('cantidad', 1))
-            peso_nuevo = peso_unitario * cantidad
+            cantidad      = int(request.data.get('cantidad', 1))
+            peso_nuevo    = peso_unitario * cantidad
         except (ValueError, TypeError):
             peso_nuevo = 0
 
         if peso_nuevo > 0 and paquete.tipo_embalaje:
-            from django.db.models import Sum
-            ocupado = paquete.productos.aggregate(total=Sum('peso_total'))['total'] or 0
-            peso_max = float(paquete.peso)
-            disponible = round(peso_max - float(ocupado), 2)
-            disponible = max(disponible, 0)
+            ocupado    = paquete.productos.aggregate(total=Sum('peso_total'))['total'] or 0
+            disponible = max(round(float(paquete.peso) - float(ocupado), 2), 0)
             if peso_nuevo > disponible:
                 return Response(
                     {'error': f'Sin espacio: el producto ocupa {peso_nuevo:.2f} kg pero el paquete solo tiene {disponible:.2f} kg disponibles.'},
@@ -1449,13 +1486,13 @@ class PaqueteViewSet(viewsets.ModelViewSet):
                 )
 
         data = {**request.data, 'paquete': paquete.codigo}
-        ser = ProductoCreateSerializer(data=data)
+        ser  = ProductoCreateSerializer(data=data)
         if ser.is_valid():
-            #Trigger 4 trg_producto_calculados_ins / Trigger 5 trg_producto_calculados_upd
-            # El INSERT/UPDATE en producto dispara automáticamente el trigger que calcula
+            #Trigger 4 trg_producto_calculados_ins
+            # El INSERT en producto dispara automáticamente el trigger que calcula
             # valor_total (valor_unitario * cantidad) y peso_total (peso * cantidad).
             producto = ser.save()
-               
+
             categoria_id = request.data.get('categoria')
             if categoria_id:
                 try:
@@ -1463,22 +1500,16 @@ class PaqueteViewSet(viewsets.ModelViewSet):
                     CategoriasProductosRel.objects.create(categorias=cat, productos=producto)
                 except Exception:
                     pass
-            
+
             resultado_sp = None
-            
             if paquete.pedimento_id:
-                resultado_sp = actualizar_valor_operacion(
-                    paquete.pedimento.ope_aduanera_id
-                )
-                
+                resultado_sp = actualizar_valor_operacion(paquete.pedimento.ope_aduanera_id)
+
             return Response(
-                {
-                  'producto': ser.data,
-                  'calculo_operacion': resultado_sp,  
-                },
-                status=status.HTTP_201_CREATED
+                {'producto': ser.data, 'calculo_operacion': resultado_sp},
+                status=status.HTTP_201_CREATED,
             )
-                
+
         return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class SemaforoFiscalViewSet(viewsets.ReadOnlyModelViewSet):
