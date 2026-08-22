@@ -560,7 +560,7 @@ class ProductoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Producto
-        fields = ['codigo', 'nombre', 'descripcion', 'peso', 'valor_unitario', 'cantidad', 'igi_importe', 'fraccion_arancelaria']
+        fields = ['codigo', 'nombre', 'descripcion', 'peso', 'valor_unitario', 'cantidad', 'valor_total', 'peso_total', 'igi_importe', 'fraccion_arancelaria']
 
     def get_igi_importe(self, obj):
         rel = obj.categorias_rel.select_related('categorias').first()

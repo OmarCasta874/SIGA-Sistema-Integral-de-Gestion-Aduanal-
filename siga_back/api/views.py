@@ -1429,10 +1429,8 @@ class PaqueteViewSet(viewsets.ModelViewSet):
             peso_nuevo = 0
 
         if peso_nuevo > 0 and paquete.tipo_embalaje:
-            from django.db.models import Sum, F, ExpressionWrapper, DecimalField as Df
-            ocupado = paquete.productos.aggregate(
-                total=Sum(ExpressionWrapper(F('peso') * F('cantidad'), output_field=Df(max_digits=12, decimal_places=2)))
-            )['total'] or 0
+            from django.db.models import Sum
+            ocupado = paquete.productos.aggregate(total=Sum('peso_total'))['total'] or 0
             peso_max = float(paquete.peso)
             disponible = round(peso_max - float(ocupado), 2)
             disponible = max(disponible, 0)
