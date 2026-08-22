@@ -55,11 +55,7 @@ CREATE PROCEDURE sp_resumen_operacion(
 BEGIN
     SELECT
         oa.ID_operacion,
-        CONCAT(
-            c.nombre, ' ',
-            c.primer_apell, ' ',
-            c.seg_apell
-        ) AS cliente,
+        CONCAT_WS(' ', c.nombre, c.primer_apell, c.seg_apell) AS cliente,
         c.RFC,
         oa.tipo_operacion,
         e.descripcion AS estado,
@@ -96,11 +92,7 @@ CREATE PROCEDURE sp_resumen_financiero_cliente(
 BEGIN
     SELECT
         c.numero AS cliente,
-        CONCAT(
-            c.nombre, ' ',
-            c.primer_apell, ' ',
-            c.seg_apell
-        ) AS nombre_cliente,
+        CONCAT_WS(' ', c.nombre, c.primer_apell, c.seg_apell) AS nombre_cliente,
         COUNT(DISTINCT p.numero_pedimento) AS total_pedimentos,
         COUNT(
             DISTINCT CASE
