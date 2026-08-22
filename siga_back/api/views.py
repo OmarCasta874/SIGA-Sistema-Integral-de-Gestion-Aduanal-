@@ -1055,11 +1055,6 @@ def factura_crear(request):
 
     existente = op.facturas.first()
     if existente:
-        # Trigger 9 trg_factura_total_upd: recalcula total = subtotal + IVA al hacer UPDATE
-        existente.subtotal = subtotal
-        existente.IVA = iva
-        existente.save(update_fields=['subtotal', 'IVA'])
-        existente.refresh_from_db()  # total lo calculó el trigger, no Python
         return Response(FacturaSerializer(existente).data, status=status.HTTP_200_OK)
 
     # Trigger 8 trg_factura_total_ins: calcula total = subtotal + IVA al hacer INSERT
