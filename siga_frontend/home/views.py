@@ -1507,8 +1507,8 @@ def paquete_detalle_view(request, pk):
             'categoria':      request.POST.get('categoria', '').strip(),
             'paquete':        pk,
         })
-        if resp.status_code == 201:
-            return JsonResponse({'ok': True}, status=201)
+        if resp.status_code in (200, 201):
+            return JsonResponse({'ok': True}, status=resp.status_code)
         error = api.safe_json(resp, {})
         if isinstance(error, dict):
             msg = error.get('error') or next(

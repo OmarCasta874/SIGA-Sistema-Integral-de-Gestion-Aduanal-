@@ -577,7 +577,7 @@
 
         try {
             const resp = await fetch(URL_PRODUCTOS, { method: 'POST', body: form });
-            if (resp.status === 201) {
+            if (resp.ok) {
                 sessionStorage.setItem('productoAgregado', '1');
                 window.location.reload();
             } else {
