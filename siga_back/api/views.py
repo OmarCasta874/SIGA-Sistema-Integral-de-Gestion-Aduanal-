@@ -70,7 +70,7 @@ def actualizar_valor_operacion(operacion_id):
             # disparan automáticamente:
             # Trigger 6 trg_arancel_igi_importe_ins (en INSERT)
             # Trigger 7 trg_arancel_igi_importe_upd (en UPDATE)
-            # calculando igi_importe = subtotal * IGI / 100 sin intervención de Python.
+            # calculando igi_importe = subtotal * IGI / 100.
             "CALL sp_calcular_valor_operacion(%s)",
             [operacion_id]
         )
@@ -997,7 +997,7 @@ def factura_crear(request):
 
     #Trigger 8 trg_factura_total_ins / Trigger 9 trg_factura_total_upd
     # El INSERT en factura dispara automáticamente el trigger que calcula
-    # total (subtotal + IVA). El campo total NO se envía desde Python.
+    # total (subtotal + IVA).
     factura = Factura.objects.create(
         IVA=iva,
         subtotal=subtotal,
