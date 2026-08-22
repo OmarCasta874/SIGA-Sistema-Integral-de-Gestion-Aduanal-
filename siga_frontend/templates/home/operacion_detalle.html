@@ -447,13 +447,13 @@
                     <td colspan="2">
                         <span class="sat-lbl">ACEPTACIÓN</span>
                         <span class="sat-val mono">
-                            {% if pedimento.semaforo %}{{ pedimento.numero_pedimento|slice:"-8:"|upper }}{% else %}—{% endif %}
+                            {% if pedimento.semaforo and estado_pedimento == 'Pagado' %}{{ pedimento.numero_pedimento|slice:"-8:"|upper }}{% else %}—{% endif %}
                         </span>
                     </td>
                     <td colspan="4">
                         <span class="sat-lbl">CODIGO DE BARRAS</span>
                         <span class="sat-val">
-                            {% if pedimento.semaforo %}
+                            {% if pedimento.semaforo and estado_pedimento == 'Pagado' %}
                                 <svg id="static-barcode-svg" style="max-width:100%;display:block;"></svg>
                             {% else %}—{% endif %}
                         </span>
@@ -1941,7 +1941,7 @@ document.getElementById('modalPedimento')?.addEventListener('click', function(e)
 });
 
 /* ── Barcode en vista estática (pedimento ya pagado) ─ */
-{% if pedimento and pedimento.semaforo %}
+{% if pedimento and pedimento.semaforo and estado_pedimento == 'Pagado' %}
 window.addEventListener('DOMContentLoaded', () => {
     JsBarcode('#static-barcode-svg', '{{ pedimento.numero_pedimento }}', {
         format: 'CODE128', width: 1, height: 32,

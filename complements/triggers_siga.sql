@@ -67,29 +67,24 @@ BEGIN
     FROM permiso
     WHERE cliente = NEW.cliente
       AND tipo_permiso = NEW.tipo_permiso;
-      -- Si existe un permiso vigente, se bloquea la creación de uno nuevo.
-    IF permisosVigentes > 0 THEN
+      -- Si ya existe cualquier permiso (vigente o vencido), se renueva en lugar de duplicar.
+    IF folioExistente IS NOT NULL THEN
         SET msg = CONCAT(
             'RENOVACION|', folioExistente,
             '|El cliente ya cuenta con el permiso ',
             folioExistente,
             ' (', NEW.tipo_permiso, '). '
         );
-        IF proximoVencimiento <= DATE_ADD(CURDATE(), INTERVAL 30 DAY) THEN
-            SET msg = CONCAT(
-                msg,
-                'El permiso está próximo a vencer. '
-            );
+        IF permisosVigentes > 0 THEN
+            IF proximoVencimiento <= DATE_ADD(CURDATE(), INTERVAL 30 DAY) THEN
+                SET msg = CONCAT(msg, 'El permiso está próximo a vencer. ');
+            ELSE
+                SET msg = CONCAT(msg, 'El permiso continúa vigente. ');
+            END IF;
         ELSE
-            SET msg = CONCAT(
-                msg,
-                'El permiso continúa vigente. '
-            );
+            SET msg = CONCAT(msg, 'El permiso está vencido. ');
         END IF;
-        SET msg = CONCAT(
-            msg,
-            'Actualice la vigencia y descripcion del folio existente.'
-        );
+        SET msg = CONCAT(msg, 'Actualice la vigencia y descripcion del folio existente.');
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = msg;
     ELSE

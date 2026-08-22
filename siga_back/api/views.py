@@ -349,10 +349,10 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 descripcion=descripcion,
                 cliente=cliente,
             )
-            permiso = Permiso.objects.get(
+            permiso = Permiso.objects.filter(
                 cliente=cliente,
                 tipo_permiso=autoridad,
-            )
+            ).order_by('-pk').first()
         except DatabaseError as e:
             mensaje = str(e)
 
